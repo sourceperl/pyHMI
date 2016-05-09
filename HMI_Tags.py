@@ -11,15 +11,21 @@ class Tags(object):
 
     def set(self, value):
         if value is not None:
-            self._val = value
-            self._err = False
+            if self._src is not None:
+                self._src.set(value, self.ref)
+            else:
+                self._val = value
+                self._err = False
         else:
             self._err = True
 
     @property
     def val(self):
         if self._src is not None:
-            return self._src.get('val', self.ref)
+            ret = self._src.get('val', self.ref)
+            if ret is not None:
+                self._val = ret
+            return self._val
         elif self._get_cmd is not None:
             ret = self._get_cmd()
             return self._val if ret is None else ret
