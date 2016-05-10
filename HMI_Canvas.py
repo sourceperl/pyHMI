@@ -11,6 +11,21 @@ GRAY = '#2d2d2d'
 BLUE = '#589df6'
 WHITE = '#ffffff'
 ORANGE = '#be9117'
+PINK = 'hot pink'
+BLACK = 'black'
+
+
+def state_color(tag):
+    return (PINK, WHITE, GREEN)[not tag.err and tag.val + 1]
+
+
+def alarm_color(tag):
+    return (PINK, WHITE, RED)[not tag.err and tag.val + 1]
+
+
+def valve_color(tag_fdc_o, tag_fdc_c):
+    return (PINK, WHITE, GREEN, RED, ORANGE)[
+        not (tag_fdc_o.err or tag_fdc_c.err) and (tag_fdc_o.val + tag_fdc_c.val * 2 + 1)]
 
 
 class SimpleValve(object):
@@ -54,9 +69,9 @@ class SimpleValve(object):
 
     def animate(self, name, fdc_open, fdc_close):
         if fdc_open.err or fdc_close.err:
-            c_color = 'yellow'
+            c_color = PINK
         else:
-            c_color = ('white', 'green', 'red', 'orange')[fdc_open.val + fdc_close.val * 2]
+            c_color = (WHITE, GREEN, RED, ORANGE)[fdc_open.val + fdc_close.val * 2]
         self.canvas.itemconfigure(name, fill=c_color, outline=c_color)
 
 
@@ -78,15 +93,23 @@ class FlowValve(object):
         v_args = {'fill': ORANGE, 'outline': ORANGE, 'tag': name}
         c_args = {'fill': RED, 'outline': RED, 'tag': head_name}
         if align in ('H', 'h'):
+            # background
             self.canvas.create_rectangle(x - 30 * z, y - 20 * z, x + 30 * z, y + 20 * z, fill=GRAY, outline=GRAY)
+            # head
             self.canvas.create_rectangle(x - 4 * z, y, x + 4 * z, y - 20 * z, **c_args)
             self.canvas.create_oval((x - 10 * z, y - 16 * z), (x + 10 * z, y - 36 * z), **c_args)
+            # body
             self.canvas.create_polygon(x - 30 * z, y - 20 * z, x, y, x - 30 * z, y + 20 * z, **v_args)
             self.canvas.create_polygon(x + 30 * z, y - 20 * z, x, y, x + 30 * z, y + 20 * z, **v_args)
             if label is not None:
                 self.canvas.create_text(x, y + 35 * z, text=str(label), font=def_font, fill=WHITE)
         elif align in ('V', 'v'):
+            # background
             self.canvas.create_rectangle(x - 20 * z, y - 30 * z, x + 20 * z, y + 30 * z, fill=GRAY, outline=GRAY)
+            # head
+            # self.canvas.create_rectangle(x - 4 * z, y, x + 4 * z, y - 20 * z, **c_args)
+            # self.canvas.create_oval((x - 10 * z, y - 16 * z), (x + 10 * z, y - 36 * z), **c_args)
+            # body
             self.canvas.create_polygon(x - 20 * z, y - 30 * z, x, y, x + 20 * z, y - 30 * z, **v_args)
             self.canvas.create_polygon(x - 20 * z, y + 30 * z, x, y, x + 20 * z, y + 30 * z, **v_args)
             if label is not None:
@@ -133,8 +156,8 @@ class HMICanvas(object):
         self.flow_valve = FlowValve(self.can)
         self.debug = bool(debug)
 
-    def add_button(self, name, x_pos, y_pos, label, command=None):
-        self.d_widget[name] = {'type': 'button', 'x_pos': x_pos, 'y_pos': y_pos, 'label': label, 'command': command}
+    def add_button(self, name, x_pos, y_pos, **kwargs):
+        self.d_widget[name] = {'type': 'button', 'x_pos': x_pos, 'y_pos': y_pos, 'args': kwargs}
         return True
 
     def add_s_valve(self, name, x_pos, y_pos, label=None, align='h', zoom=1.0):
@@ -142,8 +165,9 @@ class HMICanvas(object):
                                'zoom': zoom}
         return True
 
-    def add_f_valve(self, name, x_pos, y_pos, label=None, zoom=1.0):
-        self.d_widget[name] = {'type': 'f_valve', 'x_pos': x_pos, 'y_pos': y_pos, 'label': label, 'zoom': zoom}
+    def add_f_valve(self, name, x_pos, y_pos, label=None, align='h', zoom=1.0):
+        self.d_widget[name] = {'type': 'f_valve', 'x_pos': x_pos, 'y_pos': y_pos, 'label': label, 'align': align,
+                               'zoom': zoom}
         return True
 
     def add_point(self, name, x_pos, y_pos, debug=False):
@@ -166,17 +190,18 @@ class HMICanvas(object):
         """
         # draw pipes
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'pipe'}:
-            p_key = self.d_widget[key]
-            (x_from, y_from) = (self.d_widget[p_key['from']]['x_pos'], self.d_widget[p_key['from']]['y_pos'])
-            (x_to, y_to) = (self.d_widget[p_key['to']]['x_pos'], self.d_widget[p_key['to']]['y_pos'])
+            (x_from, y_from) = (
+                self.d_widget[self.d_widget[key]['from']]['x_pos'], self.d_widget[self.d_widget[key]['from']]['y_pos'])
+            (x_to, y_to) = (
+                self.d_widget[self.d_widget[key]['to']]['x_pos'], self.d_widget[self.d_widget[key]['to']]['y_pos'])
             # draw only angle of 90° for multi-line
             if (x_from != x_to) and (y_from != y_to):
                 # compute offset to avoid edge effect
                 offset = PIPE_WIDTH / 2 if y_from < y_to else -PIPE_WIDTH / 2
-                self.can.create_line((x_from, y_from), (x_from, y_to + offset), width=PIPE_WIDTH, fill='#589df6')
-                self.can.create_line((x_from, y_to), (x_to, y_to), width=PIPE_WIDTH, fill='#589df6')
+                self.can.create_line((x_from, y_from), (x_from, y_to + offset), width=PIPE_WIDTH, fill=BLUE)
+                self.can.create_line((x_from, y_to), (x_to, y_to), width=PIPE_WIDTH, fill=BLUE)
             else:
-                self.can.create_line((x_from, y_from), (x_to, y_to), width=PIPE_WIDTH, fill='#589df6')
+                self.can.create_line((x_from, y_from), (x_to, y_to), width=PIPE_WIDTH, fill=BLUE)
             # pipe debug label
             if self.debug is True:
                 avg_x = abs(x_from - x_to) / 2 + min(x_from, x_to)
@@ -184,54 +209,71 @@ class HMICanvas(object):
                 self.can.create_text(avg_x, avg_y, text=key, font=font.Font(size=14), fill=WHITE)
         # draw point
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'point'}:
-            v_key = self.d_widget[key]
-            self.can.create_oval(v_key['x_pos'] - PIPE_WIDTH, v_key['y_pos'] - PIPE_WIDTH,
-                                 v_key['x_pos'] + PIPE_WIDTH, v_key['y_pos'] + PIPE_WIDTH,
+            self.can.create_oval(self.d_widget[key]['x_pos'] - PIPE_WIDTH, self.d_widget[key]['y_pos'] - PIPE_WIDTH,
+                                 self.d_widget[key]['x_pos'] + PIPE_WIDTH, self.d_widget[key]['y_pos'] + PIPE_WIDTH,
                                  fill=BLUE, outline=BLUE)
             # point debug label
             if self.debug is True:
-                self.can.create_text(v_key['x_pos'], v_key['y_pos'], text=key,
+                self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
                                      font=font.Font(size=14), fill=WHITE)
         # draw buttons
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'button'}:
-            v_key = self.d_widget[key]
-            v_key['obj'] = Button(self.can, text=v_key['label'], command=v_key['command'])
-            self.can.create_window(v_key['x_pos'], v_key['y_pos'], window=v_key['obj'])
+            self.d_widget[key]['obj'] = Button(self.can, **self.d_widget[key]['args'])
+            self.can.create_window(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'],
+                                   window=self.d_widget[key]['obj'])
         # draw simple valves
         for key in {k for k, v in self.d_widget.items() if v['type'] is 's_valve'}:
-            v_key = self.d_widget[key]
-            self.simple_valve.draw_valve(v_key['x_pos'], v_key['y_pos'], name=key,
-                                         label=v_key['label'], align=v_key['align'], zoom=v_key['zoom'])
+            self.simple_valve.draw_valve(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], name=key,
+                                         label=self.d_widget[key]['label'], align=self.d_widget[key]['align'],
+                                         zoom=self.d_widget[key]['zoom'])
             # simple valve debug label
             if self.debug is True:
-                self.can.create_text(v_key['x_pos'], v_key['y_pos'], text=key,
+                self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
                                      font=font.Font(size=14), fill=WHITE)
         # draw flow valves
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'f_valve'}:
-            v_key = self.d_widget[key]
-            self.flow_valve.draw_valve(v_key['x_pos'], v_key['y_pos'], name=key,
-                                       label=v_key['label'], zoom=v_key['zoom'])
+            self.flow_valve.draw_valve(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], name=key,
+                                       label=self.d_widget[key]['label'], align=self.d_widget[key]['align'],
+                                       zoom=self.d_widget[key]['zoom'])
             # simple valve debug label
             if self.debug is True:
-                self.can.create_text(v_key['x_pos'], v_key['y_pos'], text=key,
+                self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
                                      font=font.Font(size=14), fill=WHITE)
         # draw value box
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'value'}:
-            v_key = self.d_widget[key]
-            v_key['id_txt'] = self.can.create_text((v_key['x_pos'], v_key['y_pos']),
-                                                   text=v_key['prefix'] + ' ' + '#' * v_key['size'] + ' ' +
-                                                        v_key['suffix'], font=v_key['font'], fill=GREEN)
-            (x0, y0, x1, y1) = self.can.bbox(v_key['id_txt'])
+            # draw text for compute coords
+            self.d_widget[key]['id_txt'] = self.can.create_text(
+                (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
+                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key][
+                    'size'] + ' ' +
+                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'],
+                fill=GREEN)
+            (x0, y0, x1, y1) = self.can.bbox(self.d_widget[key]['id_txt'])
+            # draw background
+            self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), fill=GRAY, outline=GRAY)
+            # redraw text over background
+            self.d_widget[key]['id_txt'] = self.can.create_text(
+                (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
+                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key][
+                    'size'] + ' ' +
+                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'],
+                fill=GREEN)
+            # draw red outline
             self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), outline=RED, width=2)
             # value box label
             if self.debug is True:
-                self.can.create_text(v_key['x_pos'], v_key['y_pos'], text=key,
+                self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
                                      font=font.Font(size=14), fill=WHITE)
         self.can.pack(side=TOP)
 
     def update_vbox(self):
         for key in {k for k, v in self.d_widget.items() if v['type'] is 'value'}:
             v_key = self.d_widget[key]
-            self.can.itemconfig(v_key['id_txt'], text=v_key['prefix'] + ' ' +
-                                                      v_key['fmt'] .format(v_key['get_value']().val) + ' ' +
-                                                      v_key['suffix'])
+            if not v_key['get_value']().err:
+                self.can.itemconfig(v_key['id_txt'], text=v_key['prefix'] + ' ' +
+                                                          v_key['fmt'].format(v_key['get_value']().val) + ' ' +
+                                                          v_key['suffix'], fill=GREEN)
+            else:
+                self.can.itemconfig(v_key['id_txt'], text=v_key['prefix'] + ' ' +
+                                                          v_key['fmt'].format(v_key['get_value']().val) + ' ' +
+                                                          v_key['suffix'], fill=PINK)
