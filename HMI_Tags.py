@@ -8,6 +8,9 @@ class Tags(object):
         self._src = src
         self._val = init_value
         self._err = False
+        # notify src for tag add
+        if self._src:
+            self._src.tag_add(self)
 
     def set(self, value):
         if value is not None:
@@ -22,7 +25,7 @@ class Tags(object):
     @property
     def val(self):
         if self._src is not None:
-            ret = self._src.get('val', self.ref)
+            ret = self._src.get(self.ref)
             if ret is not None:
                 self._val = ret
             return self._val
@@ -32,11 +35,19 @@ class Tags(object):
         else:
             return self._val
 
+    @val.setter
+    def val(self, value):
+        self.set(value)
+
     @property
     def err(self):
         if self._src is not None:
-            return self._src.get('err', self.ref)
+            return self._src.err(self.ref)
         elif self._get_cmd is not None:
             return self._get_cmd() is None
         else:
             return self._err
+
+    @err.setter
+    def err(self, value):
+        self._err = bool(value)

@@ -1,37 +1,12 @@
 from tkinter import *
 from tkinter import font
-
-# some const
-# Canvas Pipe width
-PIPE_WIDTH = 6
-# COLOR
-RED = '#bc3f3c'
-GREEN = '#51c178'
-GRAY = '#2d2d2d'
-BLUE = '#589df6'
-WHITE = '#ffffff'
-ORANGE = '#be9117'
-PINK = 'hot pink'
-BLACK = 'black'
-
-
-def state_color(tag):
-    return (PINK, WHITE, GREEN)[not tag.err and tag.val + 1]
-
-
-def alarm_color(tag):
-    return (PINK, WHITE, RED)[not tag.err and tag.val + 1]
-
-
-def valve_color(tag_fdc_o, tag_fdc_c):
-    return (PINK, WHITE, GREEN, RED, ORANGE)[
-        not (tag_fdc_o.err or tag_fdc_c.err) and (tag_fdc_o.val + tag_fdc_c.val * 2 + 1)]
+from HMI_Colors import *
 
 
 class SimpleValve(object):
     def __init__(self, canvas):
         """
-        SimpleValve draw valves (func draw_valve) on canvas. You name it an animate it with open/close/move/error.
+        SimpleValve draw valves (func draw_valve) on canvas.
         Default valve size is 40x30 you can change it with zoom params.
 
         :param canvas: Tk canvas to draw
@@ -39,46 +14,97 @@ class SimpleValve(object):
         self.canvas = canvas
 
     def draw_valve(self, x, y, name, label=None, align='h', zoom=1.0):
-        z = float(zoom)
-        def_font = font.Font(size=int(12 * z))
-        args = {'fill': ORANGE, 'outline': ORANGE, 'tag': name}
+        zm = float(zoom)
+        def_font = font.Font(size=int(12 * zm))
+        args = {'fill': VALVE_COLOR[VALVE_ERR], 'outline': VALVE_COLOR[VALVE_ERR], 'tag': name}
         if align in ('H', 'h'):
-            self.canvas.create_rectangle(x - 30 * z, y - 20 * z, x + 30 * z, y + 20 * z, fill=GRAY, outline=GRAY)
-            self.canvas.create_polygon(x - 30 * z, y - 20 * z, x, y, x - 30 * z, y + 20 * z, **args)
-            self.canvas.create_polygon(x + 30 * z, y - 20 * z, x, y, x + 30 * z, y + 20 * z, **args)
+            # background
+            self.canvas.create_rectangle(x - 30 * zm, y - 20 * zm, x + 30 * zm, y + 20 * zm, fill=GRAY, outline=GRAY)
+            # body
+            self.canvas.create_polygon(x - 30 * zm, y - 20 * zm, x, y, x - 30 * zm, y + 20 * zm, **args)
+            self.canvas.create_polygon(x + 30 * zm, y - 20 * zm, x, y, x + 30 * zm, y + 20 * zm, **args)
             if label is not None:
-                self.canvas.create_text(x, y + 35 * z, text=str(label), font=def_font, fill=WHITE)
+                self.canvas.create_text(x, y + 35 * zm, text=str(label), font=def_font, fill=WHITE)
         elif align in ('V', 'v'):
-            self.canvas.create_rectangle(x - 20 * z, y - 30 * z, x + 20 * z, y + 30 * z, fill=GRAY, outline=GRAY)
-            self.canvas.create_polygon(x - 20 * z, y - 30 * z, x, y, x + 20 * z, y - 30 * z, **args)
-            self.canvas.create_polygon(x - 20 * z, y + 30 * z, x, y, x + 20 * z, y + 30 * z, **args)
+            # background
+            self.canvas.create_rectangle(x - 20 * zm, y - 30 * zm, x + 20 * zm, y + 30 * zm, fill=GRAY, outline=GRAY)
+            # body
+            self.canvas.create_polygon(x - 20 * zm, y - 30 * zm, x, y, x + 20 * zm, y - 30 * zm, **args)
+            self.canvas.create_polygon(x - 20 * zm, y + 30 * zm, x, y, x + 20 * zm, y + 30 * zm, **args)
             if label is not None:
-                self.canvas.create_text(x + 35 * z, y, text=str(label), font=def_font, fill=WHITE)
+                self.canvas.create_text(x + 35 * zm, y, text=str(label), font=def_font, fill=WHITE)
 
-    def open(self, name):
-        self.canvas.itemconfigure(name, fill=GREEN, outline=GREEN)
+    def anim(self, name, fdc_open, fdc_close):
+        color = color_valve(fdc_open, fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
 
-    def close(self, name):
-        self.canvas.itemconfigure(name, fill=RED, outline=RED)
+    def tag_anim(self, name, tag_fdc_open, tag_fdc_close):
+        color = color_tags_valve(tag_fdc_open, tag_fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
 
-    def move(self, name):
-        self.canvas.itemconfigure(name, fill=WHITE, outline=WHITE)
 
-    def error(self, name):
-        self.canvas.itemconfigure(name, fill=ORANGE, outline=ORANGE)
+class MotorValve(object):
+    def __init__(self, canvas):
+        """
+        MotorValve draw valves (func draw_valve) on canvas.
+        Default valve size is 40x30 you can change it with zoom params.
 
-    def animate(self, name, fdc_open, fdc_close):
-        if fdc_open.err or fdc_close.err:
-            c_color = PINK
-        else:
-            c_color = (WHITE, GREEN, RED, ORANGE)[fdc_open.val + fdc_close.val * 2]
-        self.canvas.itemconfigure(name, fill=c_color, outline=c_color)
+        :param canvas: Tk canvas to draw
+        """
+        self.canvas = canvas
+
+    def draw_valve(self, x, y, name, label=None, align='h', zoom=1.0):
+        zm = float(zoom)
+        def_font = font.Font(size=int(12 * zm))
+        head_name = str(name) + '_HEAD'
+        v_args = {'fill': VALVE_COLOR[VALVE_ERR], 'outline': VALVE_COLOR[VALVE_ERR], 'tag': name}
+        h_args = {'fill': VALVE_COLOR[VALVE_ERR], 'outline': VALVE_COLOR[VALVE_ERR], 'tag': head_name}
+        if align in ('H', 'h'):
+            # background
+            self.canvas.create_rectangle(x - 30 * zm, y - 20 * zm, x + 30 * zm, y + 20 * zm, fill=GRAY, outline=GRAY)
+            # head
+            self.canvas.create_rectangle(x - 4 * zm, y, x + 4 * zm, y - 20 * zm, **h_args)
+            self.canvas.create_rectangle((x - 10 * zm, y - 16 * zm), (x + 10 * zm, y - 26 * zm), **h_args)
+            # body
+            self.canvas.create_polygon(x - 30 * zm, y - 20 * zm, x, y, x - 30 * zm, y + 20 * zm, **v_args)
+            self.canvas.create_polygon(x + 30 * zm, y - 20 * zm, x, y, x + 30 * zm, y + 20 * zm, **v_args)
+            if label is not None:
+                self.canvas.create_text(x, y + 35 * zm, text=str(label), font=def_font, fill=WHITE)
+        elif align in ('V', 'v'):
+            # background
+            self.canvas.create_rectangle(x - 20 * zm, y - 30 * zm, x + 20 * zm, y + 30 * zm, fill=GRAY, outline=GRAY)
+            # head
+            self.canvas.create_rectangle(x, y - 4 * zm, x - 20 * zm, y + 4 * zm, **h_args)
+            self.canvas.create_rectangle((x - 16 * zm, y - 10 * zm), (x - 26 * zm, y + 10 * zm), **h_args)
+            # body
+            self.canvas.create_polygon(x - 20 * zm, y - 30 * zm, x, y, x + 20 * zm, y - 30 * zm, **v_args)
+            self.canvas.create_polygon(x - 20 * zm, y + 30 * zm, x, y, x + 20 * zm, y + 30 * zm, **v_args)
+            if label is not None:
+                self.canvas.create_text(x + 35 * zm, y, text=str(label), font=def_font, fill=WHITE)
+
+    def anim(self, name, fdc_open, fdc_close):
+        color = color_valve(fdc_open, fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
+
+    def tag_anim(self, name, tag_fdc_open, tag_fdc_close):
+        color = color_tags_valve(tag_fdc_open, tag_fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
+
+    def motor_anim(self, name, motor_open, motor_close):
+        color = color_valve(motor_open, motor_close)
+        self.canvas.itemconfigure(str(name)+'_HEAD', fill=color, outline=color)
+
+    def motor_tag_anim(self, name, tag_motor_open, tag_motor_close, tag_default=None):
+        color = color_tags_valve(tag_motor_open, tag_motor_close)
+        if tag_default:
+            color = color if not tag_default.val else VALVE_COLOR[VALVE_DEF]
+        self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
 
 
 class FlowValve(object):
     def __init__(self, canvas):
         """
-        FlowValve draw valves (func draw_valve) on canvas. You name it an animate it with open/close/move/error.
+        FlowValve draw valves (func draw_valve) on canvas.
         Default valve size is 40x30 you can change it with zoom params.
 
         :param canvas: Tk canvas to draw
@@ -87,55 +113,62 @@ class FlowValve(object):
         self.v_pos = 0.0
 
     def draw_valve(self, x, y, name, align='h', label=None, zoom=1.0):
-        z = float(zoom)
-        def_font = font.Font(size=int(12 * z))
-        head_name = str(name) + '__HEAD'
-        v_args = {'fill': ORANGE, 'outline': ORANGE, 'tag': name}
-        c_args = {'fill': RED, 'outline': RED, 'tag': head_name}
+        zm = float(zoom)
+        def_font = font.Font(size=int(12 * zm))
+        head_name = str(name) + '_HEAD'
+        v_args = {'fill': VALVE_COLOR[VALVE_ERR], 'outline': VALVE_COLOR[VALVE_ERR], 'tag': name}
+        h_args = {'fill': VALVE_COLOR[VALVE_ERR], 'outline': VALVE_COLOR[VALVE_ERR], 'tag': head_name}
         if align in ('H', 'h'):
             # background
-            self.canvas.create_rectangle(x - 30 * z, y - 20 * z, x + 30 * z, y + 20 * z, fill=GRAY, outline=GRAY)
+            self.canvas.create_rectangle(x - 30 * zm, y - 20 * zm, x + 30 * zm, y + 20 * zm, fill=GRAY, outline=GRAY)
             # head
-            self.canvas.create_rectangle(x - 4 * z, y, x + 4 * z, y - 20 * z, **c_args)
-            self.canvas.create_oval((x - 10 * z, y - 16 * z), (x + 10 * z, y - 36 * z), **c_args)
+            self.canvas.create_rectangle(x - 4 * zm, y, x + 4 * zm, y - 20 * zm, **h_args)
+            self.canvas.create_oval((x - 10 * zm, y - 16 * zm), (x + 10 * zm, y - 36 * zm), **h_args)
             # body
-            self.canvas.create_polygon(x - 30 * z, y - 20 * z, x, y, x - 30 * z, y + 20 * z, **v_args)
-            self.canvas.create_polygon(x + 30 * z, y - 20 * z, x, y, x + 30 * z, y + 20 * z, **v_args)
+            self.canvas.create_polygon(x - 30 * zm, y - 20 * zm, x, y, x - 30 * zm, y + 20 * zm, **v_args)
+            self.canvas.create_polygon(x + 30 * zm, y - 20 * zm, x, y, x + 30 * zm, y + 20 * zm, **v_args)
             if label is not None:
-                self.canvas.create_text(x, y + 35 * z, text=str(label), font=def_font, fill=WHITE)
+                self.canvas.create_text(x, y + 35 * zm, text=str(label), font=def_font, fill=WHITE)
         elif align in ('V', 'v'):
             # background
-            self.canvas.create_rectangle(x - 20 * z, y - 30 * z, x + 20 * z, y + 30 * z, fill=GRAY, outline=GRAY)
+            self.canvas.create_rectangle(x - 20 * zm, y - 30 * zm, x + 20 * zm, y + 30 * zm, fill=GRAY, outline=GRAY)
             # head
-            # self.canvas.create_rectangle(x - 4 * z, y, x + 4 * z, y - 20 * z, **c_args)
-            # self.canvas.create_oval((x - 10 * z, y - 16 * z), (x + 10 * z, y - 36 * z), **c_args)
+            self.canvas.create_rectangle(x, y - 4 * zm, x - 20 * zm, y + 4 * zm, **h_args)
+            self.canvas.create_oval((x - 16 * zm, y - 10 * zm), (x - 36 * zm, y + 10 * zm), **h_args)
             # body
-            self.canvas.create_polygon(x - 20 * z, y - 30 * z, x, y, x + 20 * z, y - 30 * z, **v_args)
-            self.canvas.create_polygon(x - 20 * z, y + 30 * z, x, y, x + 20 * z, y + 30 * z, **v_args)
+            self.canvas.create_polygon(x - 20 * zm, y - 30 * zm, x, y, x + 20 * zm, y - 30 * zm, **v_args)
+            self.canvas.create_polygon(x - 20 * zm, y + 30 * zm, x, y, x + 20 * zm, y + 30 * zm, **v_args)
             if label is not None:
-                self.canvas.create_text(x + 35 * z, y, text=str(label), font=def_font, fill=WHITE)
+                self.canvas.create_text(x + 35 * zm, y, text=str(label), font=def_font, fill=WHITE)
 
-    def open(self, name):
-        self.canvas.itemconfigure(name, fill=GREEN, outline=GREEN)
+    def anim(self, name, fdc_open, fdc_close):
+        color = color_valve(fdc_open, fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
 
-    def close(self, name):
-        self.canvas.itemconfigure(name, fill=RED, outline=RED)
+    def tag_anim(self, name, tag_fdc_open, tag_fdc_close):
+        color = color_tags_valve(tag_fdc_open, tag_fdc_close)
+        self.canvas.itemconfigure(name, fill=color, outline=color)
 
-    def move(self, name):
-        self.canvas.itemconfigure(name, fill=WHITE, outline=WHITE)
+    def motor_anim(self, name, motor_open, motor_close):
+        color = color_valve(motor_open, motor_close)
+        self.canvas.itemconfigure(str(name)+'_HEAD', fill=color, outline=color)
 
-    def error(self, name):
-        self.canvas.itemconfigure(name, fill=ORANGE, outline=ORANGE)
+    def motor_tag_anim(self, name, tag_motor_open, tag_motor_close):
+        color = color_tags_valve(tag_motor_open, tag_motor_close)
+        self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
 
-    def set_pos(self, name, v_pos):
-        head_name = str(name) + '__HEAD'
-        self.v_pos = sorted([0.0, float(v_pos), 100.0])[1]
-        if 0.0 <= self.v_pos <= 15.0:
-            self.canvas.itemconfigure(head_name, fill=RED, outline=RED)
-        elif 15.0 < self.v_pos < 85.0:
-            self.canvas.itemconfigure(head_name, fill=WHITE, outline=WHITE)
-        elif 85.0 <= self.v_pos <= 100.0:
-            self.canvas.itemconfigure(head_name, fill=GREEN, outline=GREEN)
+    def pos_tag_anim(self, name, tag_v_pos):
+        if tag_v_pos.err:
+            color = VALVE_COLOR[VALVE_ERR]
+            self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
+        else:
+            v_pos = sorted([0.0, float(tag_v_pos.val), 100.0])[1]
+            if 0.0 <= v_pos <= 15.0:
+                self.motor_anim(name, False, True)
+            elif 15.0 < v_pos < 85.0:
+                self.motor_anim(name, False, False)
+            elif 85.0 <= v_pos <= 100.0:
+                self.motor_anim(name, True, False)
 
 
 class HMICanvas(object):
@@ -153,6 +186,7 @@ class HMICanvas(object):
         self.can = Canvas(master, width=width, height=height)
         self.can.configure(bg=GRAY)
         self.simple_valve = SimpleValve(self.can)
+        self.motor_valve = MotorValve(self.can)
         self.flow_valve = FlowValve(self.can)
         self.debug = bool(debug)
 
@@ -162,6 +196,11 @@ class HMICanvas(object):
 
     def add_s_valve(self, name, x_pos, y_pos, label=None, align='h', zoom=1.0):
         self.d_widget[name] = {'type': 's_valve', 'x_pos': x_pos, 'y_pos': y_pos, 'label': label, 'align': align,
+                               'zoom': zoom}
+        return True
+
+    def add_m_valve(self, name, x_pos, y_pos, label=None, align='h', zoom=1.0):
+        self.d_widget[name] = {'type': 'm_valve', 'x_pos': x_pos, 'y_pos': y_pos, 'label': label, 'align': align,
                                'zoom': zoom}
         return True
 
@@ -226,6 +265,15 @@ class HMICanvas(object):
             self.simple_valve.draw_valve(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], name=key,
                                          label=self.d_widget[key]['label'], align=self.d_widget[key]['align'],
                                          zoom=self.d_widget[key]['zoom'])
+            # simple valve debug label
+            if self.debug is True:
+                self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
+                                     font=font.Font(size=14), fill=WHITE)
+        # draw motor valves
+        for key in {k for k, v in self.d_widget.items() if v['type'] is 'm_valve'}:
+            self.motor_valve.draw_valve(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], name=key,
+                                        label=self.d_widget[key]['label'], align=self.d_widget[key]['align'],
+                                        zoom=self.d_widget[key]['zoom'])
             # simple valve debug label
             if self.debug is True:
                 self.can.create_text(self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos'], text=key,
