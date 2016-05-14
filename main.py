@@ -4,7 +4,7 @@
 from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ValveOpenCloseDialog, ValveESDDialog
-from pyHMI.DS_Modbus import ModbusDevice
+from pyHMI.DS_ModbusTCP import ModbusDevice
 from pyHMI.Misc import Relay
 from pyHMI.Tags import Tags
 import time
