@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import tkinter as tk
 
 # some const
@@ -47,25 +49,35 @@ def color_label(tk_label, tag, fmt='%s'):
 
 
 class HMIBoolList(object):
-    def __init__(self, tk_parent, head_str=''):
+    def __init__(self, tk_parent, head_str='', lbl_args=None, grid_args=None):
         self.tk_parent = tk_parent
         self.items_list = []
         self.head_str = head_str
         self._ref_tk_lbl = []
+        self._lbl_args = {} if lbl_args is None else lbl_args
+        self._grid_args = {} if grid_args is None else grid_args
 
-    def add(self, name, tag, alarm=False, **tk_label_args):
-        self.items_list.append({'name': name, 'tag': tag, 'alarm': alarm, 'tk_args': tk_label_args})
+    def add(self, name, tag, alarm=False, lbl_args=None, grid_args=None):
+        if lbl_args is None:
+            lbl_args = {}
+        if grid_args is None:
+            grid_args = {}
+        self.items_list.append(
+            {'name': name, 'tag': tag, 'alarm': alarm, 'lbl_args': lbl_args,
+             'grid_args': grid_args})
 
     def build(self):
         # head
         i_row = 0
         if self.head_str:
-            tk.Label(self.tk_parent, text=self.head_str).grid(row=i_row)
+            tk.Label(self.tk_parent, self._lbl_args, text=self.head_str).grid(self._grid_args, row=i_row)
             i_row += 1
         # body
         for d_item in self.items_list:
-            l = tk.Label(self.tk_parent, d_item['tk_args'], text=d_item['name'])
-            l.grid(row=i_row, column=0)
+            d_item['lbl_args'].update(self._lbl_args)
+            d_item['grid_args'].update(self._grid_args)
+            l = tk.Label(self.tk_parent, d_item['lbl_args'], text=d_item['name'])
+            l.grid(d_item['grid_args'], row=i_row, column=0)
             i_row += 1
             self._ref_tk_lbl.append({'label': l, 'tag': d_item['tag'], 'alarm': d_item['alarm']})
 
@@ -97,3 +109,34 @@ class HMIAnalogList(object):
     def update(self):
         for d in self._ref_tk_lbl:
             color_label(d['label'], d['tag'], fmt=d['fmt'])
+
+
+class HMIButtonList(object):
+    def __init__(self, tk_parent, dim=1, btn_args=None, grid_args=None):
+        self.tk_parent = tk_parent
+        self.dim = dim
+        self.items_list = []
+        self._ref_tk_btn = []
+        self._btn_args = {} if btn_args is None else btn_args
+        self._grid_args = {} if grid_args is None else grid_args
+
+    def add(self, name, tag_valid=None, cmd=None, btn_args=None, grid_args=None):
+        if btn_args is None:
+            btn_args = {}
+        if grid_args is None:
+            grid_args = {}
+        self.items_list.append({'name': name, 'tag_v': tag_valid, 'cmd': cmd, 'btn_args': btn_args,
+                                'grid_args': grid_args})
+
+    def build(self):
+        for i, d_item in enumerate(self.items_list):
+            d_item['btn_args'].update(self._btn_args)
+            d_item['grid_args'].update(self._grid_args)
+            b = tk.Button(self.tk_parent, d_item['btn_args'], text=d_item['name'], command=d_item['cmd'])
+            b.grid(d_item['grid_args'], row=int(i / self.dim), column=i % self.dim)
+            self._ref_tk_btn.append({'button': b, 'tag_v': d_item['tag_v']})
+
+    def update(self):
+        for d in self._ref_tk_btn:
+            if d.get('tag_v'):
+                d['button'].configure(state='normal' if d['tag_v'].val else 'disabled')

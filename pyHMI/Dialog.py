@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
+
 from tkinter import *
-from HMI_Colors import *
+from .Colors import *
 
 
 class ValveOpenCloseDialog(Toplevel):

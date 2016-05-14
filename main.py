@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from HMI_Canvas import HMICanvas
-from HMI_Colors import *
-from HMI_Dialog import ValveOpenCloseDialog, ValveESDDialog
-from HMI_Modbus import ModbusDevice
-from HMI_Misc import Relay
-from HMI_Tags import Tags
+from pyHMI.Canvas import HMICanvas
+from pyHMI.Colors import *
+from pyHMI.Dialog import ValveOpenCloseDialog, ValveESDDialog
+from pyHMI.DS_Modbus import ModbusDevice
+from pyHMI.Misc import Relay
+from pyHMI.Tags import Tags
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -29,9 +29,9 @@ class HMIApp(tk.Frame):
         self.note = ttk.Notebook(self.master)
         self.tab_int = tk.Frame(self.note)
         self.tab_gny_dn900 = tk.Frame(self.note)
-        self.tab_reg = tk.Frame(self.note)
-        self.tab_info = tk.Frame(self.note)
-        self.tab_sim = tk.Frame(self.note)
+        self.tab_reg = tk.Frame(self.note, padx=5)
+        self.tab_info = tk.Frame(self.note, padx=5)
+        self.tab_sim = tk.Frame(self.note, padx=5)
         self.note.add(self.tab_int, text='Interconnexion (F1)')
         self.note.add(self.tab_gny_dn900, text='Gournay DN900 (F2)')
         self.note.add(self.tab_reg, text='Régulation (F3)')
@@ -54,6 +54,7 @@ class HMIApp(tk.Frame):
         # build tabs
         self.init_tab_interco()
         self.init_tab_gny_dn900()
+        self.init_tab_reg()
         self.init_tab_info()
         self.init_tab_io_simul()
         # update tabs when select
@@ -69,7 +70,7 @@ class HMIApp(tk.Frame):
         # init modbus tables
         self.tbx.add_bits_table(3050, 55)
         self.tbx.add_bits_table(1536, 8)
-        self.tbx.add_words_table(4000, 4)
+        self.tbx.add_words_table(4000, 5)
         self.tbx.add_floats_table(5030, 8)
         # Reg. T640
         self.reg = ModbusDevice('163.111.181.84', port=502, timeout=2.0)
@@ -141,10 +142,11 @@ class HMIApp(tk.Frame):
         self.TRA_REG_V_SEC = Tags(False, src=self.tbx, ref={'type': 'word', 'addr': 4001})
         self.TRA_NEU_V_REG = Tags(False, src=self.tbx, ref={'type': 'word', 'addr': 4002})
         self.TRA_NEU_V_SEC = Tags(False, src=self.tbx, ref={'type': 'word', 'addr': 4003})
+        self.API_TBX_MDV = Tags(False, src=self.tbx, ref={'type': 'word', 'addr': 4004})
         self.P_GNY_DN900 = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5030})
-        self.P_GNY_DN800 = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5032})
+        # self.P_GNY_DN800 = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5032})
         self.P_ARL = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5034})
-        self.P_AV_VL = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5036})
+        # self.P_AV_VL = Tags(90.0, src=self.tbx, ref={'type': 'float', 'addr': 5036})
         self.Q_ANTENNES = Tags(0.0, src=self.tbx, ref={'type': 'float', 'addr': 5038})
         self.POS_VL = Tags(0.0, src=self.tbx, ref={'type': 'float', 'addr': 5040})
         self.POS_MV7 = Tags(0.0, src=self.tbx, ref={'type': 'float', 'addr': 5042})
@@ -164,6 +166,7 @@ class HMIApp(tk.Frame):
         self.REG_C_ACTIVE = Tags(False, src=self.reg, ref={'type': 'word', 'addr': 203})
         self.REG_C_CSR = Tags(False, src=self.reg, ref={'type': 'word', 'addr': 204})
         self.REG_SORTIE = Tags(False, src=self.reg, ref={'type': 'word', 'addr': 205})
+        self.REG_MDV = Tags(False, src=self.reg, ref={'type': 'word', 'addr': 206})
         # Aconcagua
         self.ACON_MDV = Tags(0, src=self.acon, ref={'type': 'word', 'addr': 12288})
         self.ACON_PCS = Tags(0, src=self.acon, ref={'type': 'word', 'addr': 12289})
@@ -176,25 +179,27 @@ class HMIApp(tk.Frame):
         self.ACON_H2O = Tags(0, src=self.acon, ref={'type': 'word', 'addr': 12296})
         self.ACON_P_HE = Tags(0, src=self.acon, ref={'type': 'word', 'addr': 12297})
         self.ACON_P_AIR = Tags(0, src=self.acon, ref={'type': 'word', 'addr': 12298})
-        # self.API_MDV = Tags(0, src=self.reg, ref={'type': 'word', 'addr': 4000})
         # virtual (a tag from tag(s))
         self.GET_TAG_TEST = Tags(False, get_cmd=lambda: self.V1130_FDC_FER.val and self.V1133_FDC_FER.val)
+        self.DELTA_P_VL = Tags(0, get_cmd=lambda: self.REG_P_AM_VL.e_val - self.REG_P_AV_VL.e_val)
         # local (no external source)
         self.HMI_WORD = Tags(0)
         self.HMI_WORD2 = Tags(0)
-        # write tags
-        self.V1130_CMD_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6017})
-        self.V1130_CMD_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6018})
-        self.V1135_CMD_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6019})
-        self.V1135_CMD_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6020})
-        self.V1136_CMD_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6021})
-        self.V1136_CMD_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6022})
-        self.MV2_CMD_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6023})
-        self.MV2_CMD_PST = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6025})
-        self.REG_MARCHE = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 220})
-        self.REG_ARRET = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 221})
-        self.ETL_MARCHE = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 222})
-        self.ETL_ARRET = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 223})
+        # WRITE TAGS
+        # API
+        self.CMD_V1130_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6017})
+        self.CMD_V1130_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6018})
+        self.CMD_V1135_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6019})
+        self.CMD_V1135_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6020})
+        self.CMD_V1136_OPEN = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6021})
+        self.CMD_V1136_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6022})
+        self.CMD_MV2_CLOSE = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6023})
+        self.CMD_MV2_PST = Tags(False, src=self.tbx, ref={'type': 'w_bit', 'addr': 6025})
+        # REG
+        self.CMD_REG_MARCHE = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 220})
+        self.CMD_REG_ARRET = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 221})
+        self.CMD_ETL_MARCHE = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 222})
+        self.CMD_ETL_ARRET = Tags(False, src=self.reg, ref={'type': 'w_bit', 'addr': 223})
         # TODO remove this after test
         self.r1 = Relay()
         self.r2 = Relay()
@@ -218,10 +223,10 @@ class HMIApp(tk.Frame):
         # V1130
         if self.r1.trigger_pos():
             self.tbx.write_bit(525, False)
-            Timer(5, lambda: self.tbx.write_bit(524, True)).start()
+            Timer(15, lambda: self.tbx.write_bit(524, True)).start()
         if self.r2.trigger_pos():
             self.tbx.write_bit(524, False)
-            Timer(5, lambda: self.tbx.write_bit(525, True)).start()
+            Timer(15, lambda: self.tbx.write_bit(525, True)).start()
 
         # V1135
         if self.r3.trigger_pos():
@@ -238,7 +243,6 @@ class HMIApp(tk.Frame):
         if self.r6.trigger_pos():
             self.tbx.write_bit(532, False)
             Timer(5, lambda: self.tbx.write_bit(533, True)).start()
-
 
     def init_tab_interco(self):
         # tab "interconnexion"
@@ -293,9 +297,9 @@ class HMIApp(tk.Frame):
         self.map_int.add_pipe('t22', from_name='p4', to_name='ANT_REG')
         # add value box
         self.map_int.add_vbox('P_GNY_DN900', 230, 475, get_value=lambda: self.P_GNY_DN900, prefix='P', suffix='bars')
-        self.map_int.add_vbox('P_GNY_DN800', 160, 300, get_value=lambda: self.P_GNY_DN800, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_GNY_DN800', 160, 300, get_value=lambda: self.REG_P_AM_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_ARL', 640, 300, get_value=lambda: self.P_ARL, prefix='P', suffix='bars')
-        self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: self.P_AV_VL, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: self.REG_P_AV_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('POS_VL', 160, 190, get_value=lambda: self.POS_VL, prefix='', suffix='%')
         self.map_int.add_vbox('Q_ANTENNES', 400, 50, get_value=lambda: self.Q_ANTENNES, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
@@ -405,10 +409,10 @@ class HMIApp(tk.Frame):
         # MV7 info panel
         self.frmMV7 = tk.Frame(self.map_gny_dn900.can)
         self.frmMV7.pack()
-        self.mv7_list = HMIBoolList(self.frmMV7, head_str='Etat MV7')
-        self.mv7_list.add('Distant', self.MV7_DIST, width=10)
-        self.mv7_list.add('Hors-Service', self.MV7_HS, width=10)
-        self.mv7_list.add('Défaut élec.', self.MV7_DEF_ELEC, width=10)
+        self.mv7_list = HMIBoolList(self.frmMV7, head_str='Etat MV7', lbl_args={'width': 10})
+        self.mv7_list.add('Distant', self.MV7_DIST)
+        self.mv7_list.add('Hors-Service', self.MV7_HS)
+        self.mv7_list.add('Défaut élec.', self.MV7_DEF_ELEC)
         self.mv7_list.build()
         self.map_gny_dn900.can.create_window(600, 160, window=self.frmMV7)
         self.map_gny_dn900.build()
@@ -430,50 +434,85 @@ class HMIApp(tk.Frame):
         self.mv7_list.update()
 
     def init_tab_reg(self):
-        pass
+        # Etats régulateur
+        self.tab_reg.frmEtatReg = tk.LabelFrame(self.tab_reg, text='Etats régulateur', padx=10, pady=10)
+        self.tab_reg.frmEtatReg.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_reg.etat_l = HMIBoolList(self.tab_reg.frmEtatReg, lbl_args={'width': 15}, grid_args={'padx': 15})
+        self.tab_reg.etat_l.add('Marche', self.REG_MARCHE)
+        self.tab_reg.etat_l.add('Arrêt', self.REG_ARRET)
+        self.tab_reg.etat_l.add('Auto Distant', self.REG_AUTO_D)
+        self.tab_reg.etat_l.add('Auto Local', self.REG_AUTO_L)
+        self.tab_reg.etat_l.add('Manuel', self.REG_MANU)
+        self.tab_reg.etat_l.add('En etalonnage', self.REG_EN_ETL)
+        self.tab_reg.etat_l.add('Hors etalonnage', self.REG_HORS_ETL)
+        self.tab_reg.etat_l.add('Défaut mesure P', self.REG_DEF_MES_P)
+        self.tab_reg.etat_l.add('Erreur consigne', self.REG_ERR_CONS)
+        self.tab_reg.etat_l.build()
+        # Mesures régulateur
+        self.tab_reg.frmMesReg = tk.LabelFrame(self.tab_reg, text='Mesures régulateur', padx=10, pady=10)
+        self.tab_reg.frmMesReg.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_reg.mes_l = HMIAnalogList(self.tab_reg.frmMesReg)
+        self.tab_reg.mes_l.add('Pression amont VL', self.REG_P_AM_VL, unit='bars rel.', width=10)
+        self.tab_reg.mes_l.add('Pression aval VL', self.REG_P_AV_VL, unit='bars rel.', width=10)
+        self.tab_reg.mes_l.add('Retour consigne active', self.REG_C_ACTIVE, unit='bars rel.', width=10)
+        self.tab_reg.mes_l.add('Retour consigne CSR', self.REG_C_CSR, unit='bars rel.', width=10)
+        self.tab_reg.mes_l.add('Sortie régulateur', self.REG_C_CSR, unit='%', width=10)
+        self.tab_reg.mes_l.add('Calcul Delta P VL', self.DELTA_P_VL, unit='bars rel.', width=10)
+        self.tab_reg.mes_l.build()
+        # Commande du régulateur
+        self.tab_reg.frmCmdReg = tk.LabelFrame(self.tab_reg, text='Commandes', padx=10, pady=10)
+        self.tab_reg.frmCmdReg.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_reg.cmd_l = HMIButtonList(self.tab_reg.frmCmdReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.tab_reg.cmd_l.add('Marche régulateur', tag_valid=self.PIL_LOCAL, cmd=lambda: self.CMD_REG_MARCHE.set(True))
+        self.tab_reg.cmd_l.add('Arrêt régulateur', tag_valid=self.PIL_LOCAL, cmd=lambda: self.CMD_REG_ARRET.set(True))
+        self.tab_reg.cmd_l.add('En étalonnage', tag_valid=self.PIL_LOCAL, cmd=lambda: self.CMD_ETL_MARCHE.set(True))
+        self.tab_reg.cmd_l.add('Hors étalonnage', tag_valid=self.PIL_LOCAL, cmd=lambda: self.CMD_ETL_ARRET.set(True))
+        self.tab_reg.cmd_l.build()
 
     def update_tab_reg(self):
-        pass
+        self.tab_reg.etat_l.update()
+        self.tab_reg.mes_l.update()
+        self.tab_reg.cmd_l.update()
 
     def init_tab_info(self):
         # Energie
         self.tab_info.frmEnergie = tk.LabelFrame(self.tab_info, text='Energie', padx=10, pady=10)
-        self.tab_info.frmEnergie.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NS)
-        self.tab_info.energie_list = HMIBoolList(self.tab_info.frmEnergie)
-        self.tab_info.energie_list.add('Absence EDF', self.DEF_EDF, alarm=True, width=15)
-        self.tab_info.energie_list.add('Défaut chargeur', self.DEF_CHG, alarm=True, width=15)
-        self.tab_info.energie_list.add('Défaut onduleur', self.DEF_OND, alarm=True, width=15)
+        self.tab_info.frmEnergie.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.energie_list = HMIBoolList(self.tab_info.frmEnergie, lbl_args={'width': 15})
+        self.tab_info.energie_list.add('Absence EDF', self.DEF_EDF, alarm=True)
+        self.tab_info.energie_list.add('Défaut chargeur', self.DEF_CHG, alarm=True)
+        self.tab_info.energie_list.add('Défaut onduleur', self.DEF_OND, alarm=True)
         self.tab_info.energie_list.build()
         # ATD/Feu
         self.tab_info.frmCentrale = tk.LabelFrame(self.tab_info, text='ATD/Feu', padx=10, pady=10)
-        self.tab_info.frmCentrale.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NS)
-        self.tab_info.centrale_list = HMIBoolList(self.tab_info.frmCentrale)
-        self.tab_info.centrale_list.add('Défaut centrale', self.DEF_CENT, alarm=True, width=15)
-        self.tab_info.centrale_list.add('ATD stade 1', self.DEF_ATD1, alarm=True, width=15)
-        self.tab_info.centrale_list.add('ATD stade 2', self.DEF_ATD2, alarm=True, width=15)
-        self.tab_info.centrale_list.add('Feu', self.DEF_FEU, alarm=True, width=15)
+        self.tab_info.frmCentrale.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.centrale_list = HMIBoolList(self.tab_info.frmCentrale, lbl_args={'width': 15})
+        self.tab_info.centrale_list.add('Défaut centrale', self.DEF_CENT, alarm=True)
+        self.tab_info.centrale_list.add('ATD stade 1', self.DEF_ATD1, alarm=True)
+        self.tab_info.centrale_list.add('ATD stade 2', self.DEF_ATD2, alarm=True)
+        self.tab_info.centrale_list.add('Feu', self.DEF_FEU, alarm=True)
         self.tab_info.centrale_list.build()
         # Pilotage
         self.tab_info.lblPil = tk.LabelFrame(self.tab_info, text='Pilotage', padx=10, pady=10)
-        self.tab_info.lblPil.grid(row=0, column=2, padx=5, pady=5,  sticky=tk.NS)
-        self.tab_info.pilotage_list = HMIBoolList(self.tab_info.lblPil)
-        self.tab_info.pilotage_list.add('Distant', self.PIL_TELE, width=10)
-        self.tab_info.pilotage_list.add('Local', self.PIL_LOCAL, width=10)
-        self.tab_info.pilotage_list.add('TC Auto', self.TC_AUTO, width=10)
+        self.tab_info.lblPil.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.pilotage_list = HMIBoolList(self.tab_info.lblPil, lbl_args={'width': 10})
+        self.tab_info.pilotage_list.add('Distant', self.PIL_TELE)
+        self.tab_info.pilotage_list.add('Local', self.PIL_LOCAL)
+        self.tab_info.pilotage_list.add('TC Auto', self.TC_AUTO)
         self.tab_info.pilotage_list.build()
         # Configuration
         self.tab_info.lblConf = tk.LabelFrame(self.tab_info, text='Configuration', padx=10, pady=10)
-        self.tab_info.lblConf.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NS)
-        self.tab_info.conf_list = HMIBoolList(self.tab_info.lblConf)
-        self.tab_info.conf_list.add('En Transition', self.TRA_EN_COURS, width=10)
-        self.tab_info.conf_list.add('Régional', self.CONF_REG, width=10)
-        self.tab_info.conf_list.add('Neutre', self.CONF_NEU, width=10)
-        self.tab_info.conf_list.add('Sécurité', self.CONF_SEC, width=10)
-        self.tab_info.conf_list.add('Non Op.', self.CONF_NOP, width=10)
+        self.tab_info.lblConf.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.conf_list = HMIBoolList(self.tab_info.lblConf, lbl_args={'width': 10})
+        self.tab_info.conf_list.add('En Transition', self.TRA_EN_COURS)
+        self.tab_info.conf_list.add('Régional', self.CONF_REG)
+        self.tab_info.conf_list.add('Neutre', self.CONF_NEU)
+        self.tab_info.conf_list.add('Sécurité', self.CONF_SEC)
+        self.tab_info.conf_list.add('Non Op.', self.CONF_NOP)
         self.tab_info.conf_list.build()
         # Transitions
-        self.tab_info.lblTrans = tk.LabelFrame(self.tab_info, text='Transitions', padx=0, pady=5)
-        self.tab_info.lblTrans.grid(row=0, column=4, padx=5, pady=5, sticky=tk.NS)
+        self.tab_info.lblTrans = tk.LabelFrame(self.tab_info, text='Transitions', padx=0, pady=10)
+        self.tab_info.lblTrans.grid(row=0, column=4, padx=5, pady=5, sticky=tk.NSEW)
         self.tab_info.tran = HMIAnalogList(self.tab_info.lblTrans)
         self.tab_info.tran.add('Neutre vers régionale', self.TRA_NEU_V_REG, unit='niv')
         self.tab_info.tran.add('Régionale vers neutre', self.TRA_REG_V_NEU, unit='niv')
@@ -494,191 +533,167 @@ class HMIApp(tk.Frame):
         self.tab_info.labo_list.add('Taux H2O', self.ACON_H2O, 'mg/Nm3', width=10)
         self.tab_info.labo_list.add('P Air', self.ACON_P_AIR, 'bars rel.', width=10)
         self.tab_info.labo_list.add('P Hélium', self.ACON_P_HE, 'bars rel.', width=10)
-        self.tab_info.labo_list.add('Mot de vie Acon.', self.ACON_MDV, '', width=10)
         self.tab_info.labo_list.build()
         #  Poste
         self.tab_info.frmPoste = tk.LabelFrame(self.tab_info, text='Poste', padx=5, pady=5)
         self.tab_info.frmPoste.grid(row=1, column=2, columnspan=3, padx=5, pady=5, sticky=tk.NSEW)
         self.tab_info.poste_list = HMIAnalogList(self.tab_info.frmPoste)
         self.tab_info.poste_list.add('Q vers antennes régionales', self.Q_ANTENNES, 'Nm3/h', fmt='%d', width=10)
-        self.tab_info.poste_list.add('P comptage (aval VL)', self.NULL_TAG, 'Nm3/h', fmt='%.02f', width=10)
+        self.tab_info.poste_list.add('P comptage (aval VL)', self.P_CPTGE, 'bars abs.', fmt='%.02f', width=10)
         self.tab_info.poste_list.add('P Gournay DN900 (amt MV2)', self.P_GNY_DN900, 'bars rel.', fmt='%.02f', width=10)
         self.tab_info.poste_list.add('P Arleux', self.P_ARL, 'bars rel.', fmt='%.02f', width=10)
-        self.tab_info.poste_list.add('P amont VL', self.P_GNY_DN800, 'bars rel.', fmt='%.02f', width=10)
-        self.tab_info.poste_list.add('P aval VL', self.P_AV_VL, 'bars rel.', fmt='%.02f', width=10)
+        self.tab_info.poste_list.add('P amont VL', self.REG_P_AM_VL, 'bars rel.', fmt='%.02f', width=10)
+        self.tab_info.poste_list.add('P aval VL', self.REG_P_AV_VL, 'bars rel.', fmt='%.02f', width=10)
         self.tab_info.poste_list.add('Position MV7', self.POS_MV7, '%', fmt='%.02f', width=10)
         self.tab_info.poste_list.add('Position VL', self.POS_VL, '%', fmt='%.02f', width=10)
         self.tab_info.poste_list.add('Sortie régulateur VL', self.REG_SORTIE, '%', fmt='%.02f', width=10)
-        self.tab_info.poste_list.add('Consigne active REG P aval', self.REG_C_ACTIVE, 'bars rel.', fmt='%.02f', width=10)
+        self.tab_info.poste_list.add('Consigne active REG P aval', self.REG_C_ACTIVE, 'bars rel.', fmt='%.02f',
+                                     width=10)
         self.tab_info.poste_list.add('Consigne CSR REG P aval', self.REG_C_CSR, 'bars rel.', fmt='%.02f', width=10)
         self.tab_info.poste_list.build()
+        # Vannes
+        self.tab_info.frmValves = tk.LabelFrame(self.tab_info, text='Vannes configuration', padx=5, pady=5)
+        self.tab_info.frmValves.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        # V1130
+        self.tab_info.frmV1130 = tk.Frame(self.tab_info.frmValves, padx=0, pady=0)
+        self.tab_info.frmV1130.grid(row=0, column=0, padx=6, pady=5, sticky=tk.NSEW)
+        self.tab_info.v1130_l = HMIBoolList(self.tab_info.frmV1130, head_str='V1130', lbl_args={'width': 10})
+        self.tab_info.v1130_l.add('OUV', self.V1130_FDC_OUV)
+        self.tab_info.v1130_l.add('FER', self.V1130_FDC_FER)
+        self.tab_info.v1130_l.add('DEF SEQ', self.DEF_SEQ_MV1130, alarm=True)
+        self.tab_info.v1130_l.add('SEQ ACT', self.SEQ_MV1130_EN_COURS)
+        self.tab_info.v1130_l.build()
+        # V1135
+        self.tab_info.frmV1135 = tk.Frame(self.tab_info.frmValves, padx=0, pady=0)
+        self.tab_info.frmV1135.grid(row=0, column=1, padx=6, pady=5, sticky=tk.NSEW)
+        self.tab_info.v1135_l = HMIBoolList(self.tab_info.frmV1135, head_str='V1135', lbl_args={'width': 10})
+        self.tab_info.v1135_l.add('OUV', self.V1135_FDC_OUV)
+        self.tab_info.v1135_l.add('FER', self.V1135_FDC_FER)
+        self.tab_info.v1135_l.add('DEF SEQ', self.DEF_SEQ_MV1135, alarm=True)
+        self.tab_info.v1135_l.add('SEQ ACT', self.SEQ_MV1135_EN_COURS)
+        self.tab_info.v1135_l.build()
+        # V1136
+        self.tab_info.frmV1136 = tk.Frame(self.tab_info.frmValves, padx=0, pady=0)
+        self.tab_info.frmV1136.grid(row=0, column=2, padx=6, pady=5, sticky=tk.NSEW)
+        self.tab_info.v1136_l = HMIBoolList(self.tab_info.frmV1136, head_str='V1136', lbl_args={'width': 10})
+        self.tab_info.v1136_l.add('OUV', self.V1136_FDC_OUV)
+        self.tab_info.v1136_l.add('FER', self.V1136_FDC_FER)
+        self.tab_info.v1136_l.add('DEF SEQ', self.DEF_SEQ_MV1136, alarm=True)
+        self.tab_info.v1136_l.add('SEQ ACT', self.SEQ_MV1136_EN_COURS)
+        self.tab_info.v1136_l.build()
+        # Vanne ESD
+        self.tab_info.frmESDValves = tk.LabelFrame(self.tab_info, text='Vanne ESD', padx=5, pady=5)
+        self.tab_info.frmESDValves.grid(row=2, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        # MV2
+        self.tab_info.frmMV2 = tk.Frame(self.tab_info.frmESDValves, padx=0, pady=0)
+        self.tab_info.frmMV2.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.mv2_l = HMIBoolList(self.tab_info.frmMV2, head_str='MV2', lbl_args={'width': 10})
+        self.tab_info.mv2_l.add('OUV', self.MV2_FDC_OUV)
+        self.tab_info.mv2_l.add('FER', self.MV2_FDC_FER)
+        self.tab_info.mv2_l.build()
+        # Système
+        self.tab_info.frmSys = tk.LabelFrame(self.tab_info, text='Système', padx=5, pady=5)
+        self.tab_info.frmSys.grid(row=2, column=3, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.tab_info.sys_l = HMIAnalogList(self.tab_info.frmSys)
+        self.tab_info.sys_l.add('Mot de vie API', self.API_TBX_MDV, width=10)
+        self.tab_info.sys_l.add('Mot de vie REG', self.REG_MDV, width=10)
+        self.tab_info.sys_l.add('Mot de vie Acon.', self.ACON_MDV, '', width=10)
+        self.tab_info.sys_l.build()
 
     def update_tab_info(self):
-        # Energie
         self.tab_info.energie_list.update()
-        # ATD/Feu
         self.tab_info.centrale_list.update()
-        # Pilotage
         self.tab_info.pilotage_list.update()
-        # Configuration
         self.tab_info.conf_list.update()
-        # Transition
         self.tab_info.tran.update()
-        # Laboratoire
         self.tab_info.labo_list.update()
-        # Poste
         self.tab_info.poste_list.update()
+        self.tab_info.v1130_l.update()
+        self.tab_info.v1135_l.update()
+        self.tab_info.v1136_l.update()
+        self.tab_info.mv2_l.update()
+        self.tab_info.sys_l.update()
 
     def init_tab_io_simul(self):
         # TODO remove IO simul at end of project
         # tab "I/O simul"
         # self.tab_sim.resizable(width=FALSE, height=FALSE)
         # Vanne 1130
-        self.lblVal = tk.LabelFrame(self.tab_sim, text='Etat vannes', padx=5, pady=5)
-        self.lblVal.grid(padx=5, pady=5, row=0, columnspan=4, sticky=tk.NSEW)
-        self.frame1130 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1130', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1130But = tk.Button(self.frame1130, text="Open", padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(525, False),
-                                                   Timer(10, lambda: self.tbx.write_bit(524, True)).start()])
-        self.open1130But.pack(fill=tk.X)
-        self.close1130But = tk.Button(self.frame1130, text="Close", padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(524, False),
-                                                    Timer(10, lambda: self.tbx.write_bit(525, True)).start()])
-        self.close1130But.pack(fill=tk.X)
-        self.frame1130.grid(padx=10, pady=10, row=0, column=0)
-        # Vanne 1133
-        self.frame1133 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1133', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1133But = tk.Button(self.frame1133, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(527, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(526, True)).start()])
-        self.open1133But.pack(fill=tk.X)
-        self.close1133But = tk.Button(self.frame1133, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(526, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(527, True)).start()])
-        self.close1133But.pack(fill=tk.X)
-        self.frame1133.grid(padx=10, pady=10, row=0, column=1)
-        # Vanne 1134
-        self.frame1134 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1134', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1134But = tk.Button(self.frame1134, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(529, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(528, True)).start()])
-        self.open1134But.pack(fill=tk.X)
-        self.close1134But = tk.Button(self.frame1134, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(528, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(529, True)).start()])
-        self.close1134But.pack(fill=tk.X)
-        self.frame1134.grid(padx=10, pady=10, row=0, column=2)
-        # Vanne 1135
-        self.frame1135 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1135', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1135But = tk.Button(self.frame1135, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(531, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(530, True)).start()])
-        self.open1135But.pack(fill=tk.X)
-        self.close1135But = tk.Button(self.frame1135, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(530, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(531, True)).start()])
-        self.close1135But.pack(fill=tk.X)
-        self.frame1135.grid(padx=10, pady=10, row=0, column=3)
-        # Vanne 1136
-        self.frame1136 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1136', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1136But = tk.Button(self.frame1136, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(533, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(532, True)).start()])
-        self.open1136But.pack(fill=tk.X)
-        self.close1136But = tk.Button(self.frame1136, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(532, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(533, True)).start()])
-        self.close1136But.pack(fill=tk.X)
-        self.frame1136.grid(padx=10, pady=10, row=1, column=0)
-        # Vanne 1137
-        self.frame1137 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1137', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1137But = tk.Button(self.frame1137, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(535, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(534, True)).start()])
-        self.open1137But.pack(fill=tk.X)
-        self.close1137But = tk.Button(self.frame1137, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(534, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(535, True)).start()])
-        self.close1137But.pack(fill=tk.X)
-        self.frame1137.grid(padx=10, pady=10, row=1, column=1)
-        # Vanne 1138
-        self.frame1138 = tk.LabelFrame(self.lblVal, borderwidth=2, text='V.1138', relief=tk.GROOVE, padx=10, pady=10)
-        self.open1138But = tk.Button(self.frame1138, text='Open', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(537, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(536, True)).start()])
-        self.open1138But.pack(fill=tk.X)
-        self.close1138But = tk.Button(self.frame1138, text='Close', padx=20, pady=15,
-                                   command=lambda: [self.tbx.write_bit(536, False),
-                                                    Timer(3, lambda: self.tbx.write_bit(537, True)).start()])
-        self.close1138But.pack(fill=tk.X)
-        self.frame1138.grid(padx=10, pady=10, row=1, column=2)
-        # Vanne 1138
-        self.frameMV2 = tk.LabelFrame(self.lblVal, borderwidth=2, text='MV2', relief=tk.GROOVE, padx=10, pady=10)
-        self.openMV2But = tk.Button(self.frameMV2, text='Open', padx=20, pady=15,
-                                 command=lambda: [self.tbx.write_bit(548, False),
-                                                  Timer(3, lambda: self.tbx.write_bit(547, True)).start()])
-        self.openMV2But.pack(fill=tk.X)
-        self.closeMV2But = tk.Button(self.frameMV2, text='Close', padx=20, pady=15,
-                                  command=lambda: [self.tbx.write_bit(547, False),
-                                                   Timer(3, lambda: self.tbx.write_bit(548, True)).start()])
-        self.closeMV2But.pack(fill=tk.X)
-        self.frameMV2.grid(padx=10, pady=10, row=1, column=3)
+        self.tab_sim.lblVal = tk.LabelFrame(self.tab_sim, text='Etat vannes', padx=5, pady=5)
+        self.tab_sim.lblVal.grid(padx=5, pady=5, row=0, columnspan=4, sticky=tk.NSEW)
+        self.tab_sim.btn_v_l = HMIButtonList(self.tab_sim.lblVal, dim=4, btn_args={'width': 12},
+                                             grid_args={'padx': 5, 'pady': 5})
+        self.tab_sim.btn_v_l.add('Ouverture V1130', cmd=lambda: self.tbx.write_bits(524, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1130', cmd=lambda: self.tbx.write_bits(524, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1133', cmd=lambda: self.tbx.write_bits(526, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1133', cmd=lambda: self.tbx.write_bits(526, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1134', cmd=lambda: self.tbx.write_bits(528, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1134', cmd=lambda: self.tbx.write_bits(528, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1135', cmd=lambda: self.tbx.write_bits(530, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1135', cmd=lambda: self.tbx.write_bits(530, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1136', cmd=lambda: self.tbx.write_bits(532, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1136', cmd=lambda: self.tbx.write_bits(532, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1137', cmd=lambda: self.tbx.write_bits(534, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1137', cmd=lambda: self.tbx.write_bits(534, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture V1138', cmd=lambda: self.tbx.write_bits(536, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture V1138', cmd=lambda: self.tbx.write_bits(536, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture MV2', cmd=lambda: self.tbx.write_bits(547, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture MV2', cmd=lambda: self.tbx.write_bits(547, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture MV7', cmd=lambda: self.tbx.write_bits(542, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture MV7', cmd=lambda: self.tbx.write_bits(542, [False, True]))
+        self.tab_sim.btn_v_l.add('Ouverture MV10', cmd=lambda: self.tbx.write_bits(540, [True, False]))
+        self.tab_sim.btn_v_l.add('Fermeture MV10', cmd=lambda: self.tbx.write_bits(540, [False, True]))
+        self.tab_sim.btn_v_l.build()
         # Configuration poste
         self.lblConf = tk.LabelFrame(self.tab_sim, text='Configuration', padx=10, pady=10)
         self.lblConf.grid(padx=5, pady=5, row=1, column=0, sticky=tk.NSEW)
-        self.conf_list = HMIBoolList(self.lblConf)
-        self.conf_list.add('Régional', self.CONF_REG, width=10)
-        self.conf_list.add('Neutre', self.CONF_NEU, width=10)
-        self.conf_list.add('Sécurité', self.CONF_SEC, width=10)
-        self.conf_list.add('Non Op.', self.CONF_NOP, width=10)
+        self.conf_list = HMIBoolList(self.lblConf, lbl_args={'width': 10})
+        self.conf_list.add('Régional', self.CONF_REG)
+        self.conf_list.add('Neutre', self.CONF_NEU)
+        self.conf_list.add('Sécurité', self.CONF_SEC)
+        self.conf_list.add('Non Op.', self.CONF_NOP)
         self.conf_list.build()
         # Etat automate
         self.lblPlc = tk.LabelFrame(self.tab_sim, text='Etat de l\'automate', padx=10, pady=10)
         self.lblPlc.grid(padx=5, pady=5, row=1, column=1, sticky=tk.NSEW)
-        self.plc_list = HMIBoolList(self.lblPlc)
-        self.plc_list.add('TC AUTO', self.TC_AUTO, width=15)
-        self.plc_list.add('TRAN. EN COURS', self.TRA_EN_COURS, width=15)
-        self.plc_list.add('SEQ ACT MV1130 ', self.SEQ_MV1130_EN_COURS, width=15)
-        self.plc_list.add('DEF SEQ MV1130', self.DEF_SEQ_MV1130, width=15, alarm=True)
-        self.plc_list.add('SEQ ACT MV1135', self.SEQ_MV1135_EN_COURS, width=15)
-        self.plc_list.add('DEF SEQ MV1135', self.DEF_SEQ_MV1135, width=15, alarm=True)
-        self.plc_list.add('SEQ ACT MV1136', self.SEQ_MV1136_EN_COURS, width=15)
-        self.plc_list.add('DEF SEQ MV1136', self.DEF_SEQ_MV1136, width=15, alarm=True)
+        self.plc_list = HMIBoolList(self.lblPlc, lbl_args={'width': 15})
+        self.plc_list.add('TC AUTO', self.TC_AUTO)
+        self.plc_list.add('TRAN. EN COURS', self.TRA_EN_COURS)
+        self.plc_list.add('SEQ ACT MV1130 ', self.SEQ_MV1130_EN_COURS)
+        self.plc_list.add('DEF SEQ MV1130', self.DEF_SEQ_MV1130, alarm=True)
+        self.plc_list.add('SEQ ACT MV1135', self.SEQ_MV1135_EN_COURS)
+        self.plc_list.add('DEF SEQ MV1135', self.DEF_SEQ_MV1135, alarm=True)
+        self.plc_list.add('SEQ ACT MV1136', self.SEQ_MV1136_EN_COURS)
+        self.plc_list.add('DEF SEQ MV1136', self.DEF_SEQ_MV1136, alarm=True)
         self.plc_list.build()
         # Pilotage
         self.lblPil = tk.LabelFrame(self.tab_sim, text='Pilotage', padx=10, pady=10)
         self.lblPil.grid(padx=5, pady=5, row=1, column=2, sticky=tk.NSEW)
-        self.pilotage_list = HMIBoolList(self.lblPil)
-        self.pilotage_list.add('DISTANT', self.PIL_TELE, width=10)
-        self.pilotage_list.add('LOCAL', self.PIL_LOCAL, width=10)
+        self.pilotage_list = HMIBoolList(self.lblPil, lbl_args={'width': 10})
+        self.pilotage_list.add('DISTANT', self.PIL_TELE)
+        self.pilotage_list.add('LOCAL', self.PIL_LOCAL)
         self.pilotage_list.build()
         # Commandes
         self.lblCmd = tk.LabelFrame(self.tab_sim, text='Commandes', padx=10, pady=10)
-        # Local button
         tk.Button(self.lblCmd, text='Distant', command=lambda: self.tbx.write_bit(520, False)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='Local', command=lambda: self.tbx.write_bit(520, True)).pack(fill=tk.X)
-        # Ack button
         tk.Button(self.lblCmd, text='Acquit défaut', command=self.ack_default).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='TC Auto', background=GREEN,
+                  command=lambda: [self.tbx.write_bit(6005, True),
+                                   Timer(3, lambda: self.tbx.write_bit(6005, False)).start()]).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR Region',  background=ORANGE,
+                  command=lambda: [self.tbx.write_bit(6000, True),
+                                   Timer(3, lambda: self.tbx.write_bit(6000, False)).start()]).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR Neutre',  background=ORANGE,
+                  command=lambda: [self.tbx.write_bit(6001, True),
+                                   Timer(3, lambda: self.tbx.write_bit(6001, False)).start()]).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR Sécurité', background=ORANGE,
+                  command=lambda: [self.tbx.write_bit(6002, True),
+                                   Timer(3, lambda: self.tbx.write_bit(6002, False)).start()]).pack(fill=tk.X)
         self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
 
     def update_tab_simul(self):
         # update valve status
-        # vanne 1130
-        self.frame1130.configure(background=color_tags_valve(self.V1130_FDC_OUV, self.V1130_FDC_FER))
-        # vanne 1133
-        self.frame1133.configure(background=color_tags_valve(self.V1133_FDC_OUV, self.V1133_FDC_FER))
-        # vanne 1134
-        self.frame1134.configure(background=color_tags_valve(self.V1134_FDC_OUV, self.V1134_FDC_FER))
-        # vanne 1135
-        self.frame1135.configure(background=color_tags_valve(self.V1135_FDC_OUV, self.V1135_FDC_FER))
-        # vanne 1136
-        self.frame1136.configure(background=color_tags_valve(self.V1136_FDC_OUV, self.V1136_FDC_FER))
-        # vanne 1137
-        self.frame1137.configure(background=color_tags_valve(self.V1137_FDC_OUV, self.V1137_FDC_FER))
-        # vanne 1138
-        self.frame1138.configure(background=color_tags_valve(self.V1138_FDC_OUV, self.V1138_FDC_FER))
-        # vanne MV1
-        self.frameMV2.configure(background=color_tags_valve(self.MV2_FDC_OUV, self.MV2_FDC_FER))
         # update PLC
         self.plc_list.update()
         # update config.
@@ -689,11 +704,15 @@ class HMIApp(tk.Frame):
     def update_tabs(self):
         # current ID of notebook select tab
         cur_tab = self.note.index(self.note.select())
+        # run
+
         # run current update handler
         if cur_tab == self.note.index(self.tab_int):
             self.update_tab_interco()
         elif cur_tab == self.note.index(self.tab_gny_dn900):
             self.update_tab_gny_dn900()
+        elif cur_tab == self.note.index(self.tab_reg):
+            self.update_tab_reg()
         elif cur_tab == self.note.index(self.tab_info):
             self.update_tab_info()
         elif cur_tab == self.note.index(self.tab_sim):
@@ -728,23 +747,23 @@ class HMIApp(tk.Frame):
 
     def confirm_mv2(self):
         ValveESDDialog(self, title='MV2', text='Action sur vanne de sécurité MV2 ?',
-                       stop_command=lambda: self.MV2_CMD_CLOSE.set(True),
-                       pst_command=lambda: self.MV2_CMD_PST.set(True))
+                       stop_command=lambda: self.CMD_MV2_CLOSE.set(True),
+                       pst_command=lambda: self.CMD_MV2_PST.set(True))
 
     def confirm_v1130(self):
         ValveOpenCloseDialog(self, title='V1130', text='Mouvement V1130 ?',
-                             open_command=lambda: self.V1130_CMD_OPEN.set(True),
-                             close_command=lambda: self.V1130_CMD_CLOSE.set(True))
+                             open_command=lambda: self.CMD_V1130_OPEN.set(True),
+                             close_command=lambda: self.CMD_V1130_CLOSE.set(True))
 
     def confirm_v1135(self):
         ValveOpenCloseDialog(self, title='V1135', text='Mouvement V1135 ?',
-                             open_command=lambda: self.V1135_CMD_OPEN.set(True),
-                             close_command=lambda: self.V1135_CMD_CLOSE.set(True))
+                             open_command=lambda: self.CMD_V1135_OPEN.set(True),
+                             close_command=lambda: self.CMD_V1135_CLOSE.set(True))
 
     def confirm_v1136(self):
         ValveOpenCloseDialog(self, title='V1136', text='Mouvement V1136 ?',
-                             open_command=lambda: self.V1136_CMD_OPEN.set(True),
-                             close_command=lambda: self.V1136_CMD_CLOSE.set(True))
+                             open_command=lambda: self.CMD_V1136_OPEN.set(True),
+                             close_command=lambda: self.CMD_V1136_CLOSE.set(True))
 
 
 if __name__ == '__main__':

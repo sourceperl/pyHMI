@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 class Relay:
     def __init__(self):
         self.value = False

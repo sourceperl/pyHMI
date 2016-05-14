@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import threading
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee
@@ -165,10 +167,18 @@ class ModbusDevice(object):
                 return None
 
     def write_bits(self, addr, value):
-        _addr = addr
-        for _value in value:
-            self.write_bit(_addr, _value)
-            _addr += 1
+        with self._lock:
+            # don't allow write request when device is not in sync
+            if self.connected:
+                _addr = addr
+                for _value in value:
+                    self._w_buffer.append({'type': 'bit', 'addr': _addr, 'value': _value})
+                    _addr += 1
+                # immediate modbus refresh
+                self._wait_evt.set()
+                return True
+            else:
+                return None
 
     def write_word(self, addr, value):
         with self._lock:

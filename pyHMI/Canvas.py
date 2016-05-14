@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
+
 from tkinter import *
 from tkinter import font
-from HMI_Colors import *
+from .Colors import *
 
 
 class SimpleValve(object):
@@ -224,7 +226,7 @@ class HMICanvas(object):
 
     def build(self):
         """
-        Build the HMI canvas with all industrial widget populate on-it. Call this after all add_xxx functions.
+        Build the pyHMI canvas with all industrial widget populate on-it. Call this after all add_xxx functions.
 
         """
         # draw pipes
