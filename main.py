@@ -150,7 +150,7 @@ class Tags(object):
         self.CMD_REG_ARRET = Tag(False, src=self.reg, ref={'type': 'w_bit', 'addr': 221})
         self.CMD_ETL_MARCHE = Tag(False, src=self.reg, ref={'type': 'w_bit', 'addr': 222})
         self.CMD_ETL_ARRET = Tag(False, src=self.reg, ref={'type': 'w_bit', 'addr': 223})
-        # TODO remove this after test
+        # TODO debug remove this after test
         self.r1 = Relay()
         self.r2 = Relay()
         self.r3 = Relay()
@@ -304,8 +304,6 @@ class TabInterco(HMITab):
         self.cnfNop.pack(fill=tk.X)
         self.frmConf.pack()
         self.map_int.can.create_window(55, 120, window=self.frmConf)
-        # self.map_int.can.create_oval(50, 50, 150, 150, fill=HMI_Canvas.RED, outline=HMI_Canvas.RED, tag='CUST_LOCAL')
-        # self.map_int.can.create_text(100, 100, text='LOCAL MODE', tag='CUST_LOCAL')
         # build all
         self.map_int.build()
 
@@ -753,14 +751,14 @@ class HMIApp(tk.Tk):
         self.butAcon.configure(background=GREEN if self.t.acon.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
+    def do_every(self, do_cmd, every_ms=1000):
+        do_cmd()
+        self.after(every_ms, lambda: self.do_every(do_cmd, every_ms=every_ms))
+
     def ack_default(self):
         self.t.tbx.write_bit(522, True)
         time.sleep(.1)
         self.t.tbx.write_bit(522, False)
-
-    def do_every(self, do_cmd, every_ms=1000):
-        do_cmd()
-        self.after(every_ms, lambda: self.do_every(do_cmd, every_ms=every_ms))
 
     def confirm_mv2(self):
         ValveESDDialog(self, title='MV2', text='Action sur vanne de sécurité MV2 ?',
