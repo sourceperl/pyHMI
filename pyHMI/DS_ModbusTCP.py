@@ -6,18 +6,19 @@ from pyModbusTCP.utils import word_list_to_long, decode_ieee
 import time
 
 
-class ModbusDevice(object):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0):
+class ModbusTCPDevice(object):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0):
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
-        self.bits = {}
-        self.words = {}
-        self.floats = {}
-        self.connected = False
-        self.poll_cycle = 0
+        self.refresh = refresh
         # privates vars
+        self._bits = {}
+        self._words = {}
+        self._floats = {}
+        self._connected = False
+        self._poll_cycle = 0
         self._lock = threading.Lock()
         self._wait_evt = threading.Event()
         self._w_buffer = []
@@ -29,6 +30,16 @@ class ModbusDevice(object):
         self._th.daemon = True
         self._th.start()
 
+    @property
+    def connected(self):
+        with self._lock:
+            return self._connected
+
+    @property
+    def poll_cycle(self):
+        with self._lock:
+            return self._poll_cycle
+
     # tag_add, get, err and set are mandatory function to be a valid tag source
     def tag_add(self, tag):
         # modbus read value start with tag error flag set
@@ -37,42 +48,42 @@ class ModbusDevice(object):
         # check a table already reference the tag, raise ValueError if not
         with self._lock:
             if tag.ref['type'] == 'bit':
-                if tag.ref['addr'] not in self.bits:
+                if tag.ref['addr'] not in self._bits:
                     raise ValueError(
                         'Tag address %d have no bits table define on modbus host %s' % (tag.ref['addr'], self.host))
             elif tag.ref['type'] == 'word':
-                if tag.ref['addr'] not in self.words:
+                if tag.ref['addr'] not in self._words:
                     raise ValueError(
                         'Tag address %d have no words table define on modbus host %s' % (tag.ref['addr'], self.host))
             elif tag.ref['type'] == 'float':
-                if tag.ref['addr'] not in self.floats:
+                if tag.ref['addr'] not in self._floats:
                     raise ValueError(
                         'Tag address %d have no floats table define on modbus host %s' % (tag.ref['addr'], self.host))
 
     def get(self, ref):
         if ref['type'] == 'bit':
             with self._lock:
-                b = bool(self.bits[ref['addr']]['bit'])
+                b = bool(self._bits[ref['addr']]['bit'])
                 return not b if ref.get('not', False) else b
         elif ref['type'] == 'word':
             with self._lock:
-                word = int(self.words[ref['addr']]['word'])
+                word = int(self._words[ref['addr']]['word'])
                 return word * ref.get('span', 1) + ref.get('offset', 0)
         elif ref['type'] == 'float':
             with self._lock:
-                flt = float(self.floats[ref['addr']]['float'])
+                flt = float(self._floats[ref['addr']]['float'])
                 return flt * ref.get('span', 1.0) + ref.get('offset', 0.0)
 
     def err(self, ref):
         if ref['type'] == 'bit':
             with self._lock:
-                return self.bits[ref['addr']]['err']
+                return self._bits[ref['addr']]['err']
         elif ref['type'] == 'word':
             with self._lock:
-                return self.words[ref['addr']]['err']
+                return self._words[ref['addr']]['err']
         elif ref['type'] == 'float':
             with self._lock:
-                return self.floats[ref['addr']]['err']
+                return self._floats[ref['addr']]['err']
 
     def set(self, value, ref):
         if ref['type'] == 'w_bit':
@@ -110,13 +121,13 @@ class ModbusDevice(object):
                     if reg_list:
                         with self._lock:
                             for reg in reg_list:
-                                self.bits[addr]['bit'] = reg
-                                self.bits[addr]['err'] = False
+                                self._bits[addr]['bit'] = reg
+                                self._bits[addr]['err'] = False
                                 addr += 1
                     else:
                         with self._lock:
                             for _addr in range(addr, addr + size):
-                                self.bits[_addr]['err'] = True
+                                self._bits[_addr]['err'] = True
                 elif r['type'] is 'word':
                     addr = r['addr']
                     size = r['size']
@@ -125,13 +136,13 @@ class ModbusDevice(object):
                     if reg_list:
                         with self._lock:
                             for reg in reg_list:
-                                self.words[addr]['word'] = reg
-                                self.words[addr]['err'] = False
+                                self._words[addr]['word'] = reg
+                                self._words[addr]['err'] = False
                                 addr += 1
                     else:
                         with self._lock:
                             for _addr in range(addr, addr + size):
-                                self.words[_addr]['err'] = True
+                                self._words[_addr]['err'] = True
                 elif r['type'] is 'float':
                     addr = r['addr']
                     size = r['size']
@@ -141,24 +152,24 @@ class ModbusDevice(object):
                         with self._lock:
                             for off in range(0, size):
                                 flt = decode_ieee(word_list_to_long([reg_list[off * 2], reg_list[off * 2 + 1]])[0])
-                                self.floats[addr + off * 2]['float'] = flt
-                                self.floats[addr + off * 2]['err'] = False
+                                self._floats[addr + off * 2]['float'] = flt
+                                self._floats[addr + off * 2]['err'] = False
                     else:
                         with self._lock:
                             for off in range(0, size):
-                                self.floats[addr + off * 2]['err'] = True
+                                self._floats[addr + off * 2]['err'] = True
             # do stat stuff
             with self._lock:
-                self.connected = self._c.is_open()
-                self.poll_cycle += 1
+                self._connected = self._c.is_open()
+                self._poll_cycle += 1
             # 1s before next polling (or not if a write trig wait event)
-            if self._wait_evt.wait(1.0):
+            if self._wait_evt.wait(self.refresh):
                 self._wait_evt.clear()
 
     def write_bit(self, addr, value):
         with self._lock:
             # don't allow write request when device is not in sync
-            if self.connected:
+            if self._connected:
                 self._w_buffer.append({'type': 'bit', 'addr': addr, 'value': value})
                 # immediate modbus refresh
                 self._wait_evt.set()
@@ -169,7 +180,7 @@ class ModbusDevice(object):
     def write_bits(self, addr, value):
         with self._lock:
             # don't allow write request when device is not in sync
-            if self.connected:
+            if self._connected:
                 _addr = addr
                 for _value in value:
                     self._w_buffer.append({'type': 'bit', 'addr': _addr, 'value': _value})
@@ -183,7 +194,7 @@ class ModbusDevice(object):
     def write_word(self, addr, value):
         with self._lock:
             # don't allow write request when device is not in sync
-            if self.connected:
+            if self._connected:
                 self._w_buffer.append({'type': 'word', 'addr': addr, 'value': value})
                 # immediate modbus refresh
                 self._wait_evt.set()
@@ -197,7 +208,7 @@ class ModbusDevice(object):
             self._r_buffer.append({'type': 'bit', 'addr': addr, 'size': size})
             # init bits table with default value
             for a in range(addr, addr + size):
-                self.bits[a] = {'bit': False, 'err': True}
+                self._bits[a] = {'bit': False, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
@@ -207,7 +218,7 @@ class ModbusDevice(object):
             self._r_buffer.append({'type': 'word', 'addr': addr, 'size': size})
             # init words table with default value
             for a in range(addr, addr + size):
-                self.words[a] = {'word': 0, 'err': True}
+                self._words[a] = {'word': 0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
@@ -217,6 +228,6 @@ class ModbusDevice(object):
             self._r_buffer.append({'type': 'float', 'addr': addr, 'size': size})
             # init words table with default value
             for offset in range(0, size):
-                self.floats[addr + offset * 2] = {'float': 0.0, 'err': True}
+                self._floats[addr + offset * 2] = {'float': 0.0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()

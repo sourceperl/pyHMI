@@ -94,13 +94,13 @@ class MotorValve(object):
 
     def motor_anim(self, name, motor_open, motor_close):
         color = color_valve(motor_open, motor_close)
-        self.canvas.itemconfigure(str(name)+'_HEAD', fill=color, outline=color)
+        self.canvas.itemconfigure(str(name) + '_HEAD', fill=color, outline=color)
 
     def motor_tag_anim(self, name, tag_motor_open, tag_motor_close, tag_default=None):
         color = color_tags_valve(tag_motor_open, tag_motor_close)
         if tag_default:
             color = color if not tag_default.val else VALVE_COLOR[VALVE_DEF]
-        self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
+        self.canvas.itemconfigure(name + '_HEAD', fill=color, outline=color)
 
 
 class FlowValve(object):
@@ -153,16 +153,16 @@ class FlowValve(object):
 
     def motor_anim(self, name, motor_open, motor_close):
         color = color_valve(motor_open, motor_close)
-        self.canvas.itemconfigure(str(name)+'_HEAD', fill=color, outline=color)
+        self.canvas.itemconfigure(str(name) + '_HEAD', fill=color, outline=color)
 
     def motor_tag_anim(self, name, tag_motor_open, tag_motor_close):
         color = color_tags_valve(tag_motor_open, tag_motor_close)
-        self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
+        self.canvas.itemconfigure(name + '_HEAD', fill=color, outline=color)
 
     def pos_tag_anim(self, name, tag_v_pos):
         if tag_v_pos.err:
             color = VALVE_COLOR[VALVE_ERR]
-            self.canvas.itemconfigure(name+'_HEAD', fill=color, outline=color)
+            self.canvas.itemconfigure(name + '_HEAD', fill=color, outline=color)
         else:
             v_pos = sorted([0.0, float(tag_v_pos.val), 100.0])[1]
             if 0.0 <= v_pos <= 15.0:
@@ -294,20 +294,16 @@ class HMICanvas(object):
             # draw text for compute coords
             self.d_widget[key]['id_txt'] = self.can.create_text(
                 (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
-                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key][
-                    'size'] + ' ' +
-                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'],
-                fill=GREEN)
+                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key]['size'] + ' ' +
+                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
             (x0, y0, x1, y1) = self.can.bbox(self.d_widget[key]['id_txt'])
             # draw background
             self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), fill=GRAY, outline=GRAY)
             # redraw text over background
             self.d_widget[key]['id_txt'] = self.can.create_text(
                 (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
-                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key][
-                    'size'] + ' ' +
-                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'],
-                fill=GREEN)
+                text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key]['size'] + ' ' +
+                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
             # draw red outline
             self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), outline=RED, width=2)
             # value box label

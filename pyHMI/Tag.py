@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-class Tags(object):
+
+class Tag(object):
     def __init__(self, init_value, src=None, ref=None, get_cmd=None):
         """Constructor
 
