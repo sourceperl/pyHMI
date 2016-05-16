@@ -24,7 +24,7 @@ class ModbusTCPDevice(object):
         self._w_buffer = []
         self._r_buffer = []
         self._c = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
-                               timeout=self.timeout, auto_open=True)
+                               timeout=self.timeout)
         # start thread
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
@@ -96,6 +96,9 @@ class ModbusTCPDevice(object):
     def polling_thread(self):
         # polling cycle
         while True:
+            # keep socket open
+            if not self._c.is_open():
+                self._c.open()
             # do thread safe copy of read/write buffer for this cycle
             with self._lock:
                 tmp_w_buffer = list(self._w_buffer)
@@ -162,7 +165,7 @@ class ModbusTCPDevice(object):
             with self._lock:
                 self._connected = self._c.is_open()
                 self._poll_cycle += 1
-            # 1s before next polling (or not if a write trig wait event)
+            # wait before next polling (or not if a write trig wait event)
             if self._wait_evt.wait(self.refresh):
                 self._wait_evt.clear()
 

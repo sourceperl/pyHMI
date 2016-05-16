@@ -30,7 +30,11 @@ class Tag(object):
         """
         if value is not None:
             if self._src is not None:
-                self._src.set(value, self.ref)
+                if self._src.set(value, self.ref):
+                    self._val = value
+                    self._err = False
+                else:
+                    self._err = True
             else:
                 self._val = value
                 self._err = False
