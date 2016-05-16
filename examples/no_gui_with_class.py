@@ -43,7 +43,7 @@ class Tags(object):
         self.W_BIT_1.val = self.BIT_2.val ^ self.BIT_3.val
 
 
-class App(object):
+class MainApp(object):
     def __init__(self):
         # jobs
         self.jobs = {}
@@ -71,5 +71,5 @@ class App(object):
 
 if __name__ == '__main__':
     # main App
-    app = App()
-    app.mainloop()
+    main_app = MainApp()
+    main_app.mainloop()

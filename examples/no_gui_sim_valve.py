@@ -18,9 +18,6 @@ class Devices(object):
         self.tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
         # init modbus tables
         self.tbx.add_bits_table(3050, 55)
-        self.tbx.add_bits_table(1536, 8)
-        self.tbx.add_words_table(4000, 5)
-        self.tbx.add_floats_table(5030, 8)
 
 
 class Tags(object):
@@ -92,7 +89,7 @@ class Tags(object):
             Timer(5, lambda: self.d.tbx.write_bit(533, True)).start()
 
 
-class App(object):
+class MainApp(object):
     def __init__(self):
         # jobs
         self.jobs = {}
@@ -120,5 +117,5 @@ class App(object):
 
 if __name__ == '__main__':
     # main App
-    app = App()
-    app.mainloop()
+    main_app = MainApp()
+    main_app.mainloop()
