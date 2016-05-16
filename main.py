@@ -223,7 +223,7 @@ class HMITab(tk.Frame):
 
 
 class TabInterco(HMITab):
-    def __init__(self, notebook, update_ms=1000, *args, **kwargs):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # tab "interconnexion"
         self.map_int = HMICanvas(self, width=800, height=550, debug=False)
@@ -361,7 +361,7 @@ class TabInterco(HMITab):
 
 
 class TabGnyDN900(HMITab):
-    def __init__(self, notebook, update_ms=1000, *args, **kwargs):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # tab "Gournay DN900"
         self.map_gny_dn900 = HMICanvas(self, width=800, height=550, debug=False)
@@ -424,7 +424,7 @@ class TabGnyDN900(HMITab):
 
 
 class TabReg(HMITab):
-    def __init__(self, notebook, update_ms=1000, *args, **kwargs):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # Etats régulateur
         self.frmEtatReg = tk.LabelFrame(self, text='Etats régulateur', padx=10, pady=10)
@@ -472,7 +472,7 @@ class TabReg(HMITab):
 
 
 class TabInfo(HMITab):
-    def __init__(self, notebook, update_ms=1000, *args, **kwargs):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # Energie
         self.frmEnergie = tk.LabelFrame(self, text='Energie', padx=10, pady=10)
@@ -614,7 +614,7 @@ class TabInfo(HMITab):
 
 
 class TabSim(HMITab):
-    def __init__(self, notebook, update_ms=1000, *args, **kwargs):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # TODO remove IO simul at end of project
         # tab "I/O simul"
@@ -747,9 +747,9 @@ class HMIApp(tk.Tk):
         self.wm_title('Poste de Chilly')
         # self.attributes('-fullscreen', True)
         self.geometry("800x600")
-        # manage devices
+        # create devices
         self.d = Devices()
-        # manage tags
+        # create tags
         self.t = Tags(self, update_ms=500)
         # build a notebook with tabs
         self.note = ttk.Notebook(self)
