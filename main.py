@@ -5,7 +5,6 @@ from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ValveOpenCloseDialog, ValveESDDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
-from pyHMI.Misc import Relay
 from pyHMI.Tag import Tag
 import time
 import tkinter as tk
@@ -157,13 +156,6 @@ class Tags(object):
         self.CMD_REG_ARRET = Tag(False, src=self.d.reg, ref={'type': 'w_bit', 'addr': 221})
         self.CMD_ETL_MARCHE = Tag(False, src=self.d.reg, ref={'type': 'w_bit', 'addr': 222})
         self.CMD_ETL_ARRET = Tag(False, src=self.d.reg, ref={'type': 'w_bit', 'addr': 223})
-        # TODO debug remove this after test
-        self.r1 = Relay()
-        self.r2 = Relay()
-        self.r3 = Relay()
-        self.r4 = Relay()
-        self.r5 = Relay()
-        self.r6 = Relay()
         # launch update loop
         self.tk_app.do_every(self.update_tags, every_ms=self.update_ms)
 
@@ -171,34 +163,6 @@ class Tags(object):
         # update tags
         self.HMI_WORD.set(self.HMI_WORD.val + 1)
         self.HMI_WORD2.set(self.HMI_WORD2.val + 3)
-        # TODO debug remove this after test
-        self.r1.state = self.V1130_EV_OUV.val
-        self.r2.state = self.V1130_EV_FER.val
-        self.r3.state = self.V1135_EV_OUV.val
-        self.r4.state = self.V1135_EV_FER.val
-        self.r5.state = self.V1136_EV_OUV.val
-        self.r6.state = self.V1136_EV_FER.val
-        # V1130
-        if self.r1.trigger_pos():
-            self.d.tbx.write_bit(525, False)
-            Timer(15, lambda: self.d.tbx.write_bit(524, True)).start()
-        if self.r2.trigger_pos():
-            self.d.tbx.write_bit(524, False)
-            Timer(15, lambda: self.d.tbx.write_bit(525, True)).start()
-        # V1135
-        if self.r3.trigger_pos():
-            self.d.tbx.write_bit(531, False)
-            Timer(5, lambda: self.d.tbx.write_bit(530, True)).start()
-        if self.r4.trigger_pos():
-            self.d.tbx.write_bit(530, False)
-            Timer(5, lambda: self.d.tbx.write_bit(531, True)).start()
-        # V1136
-        if self.r5.trigger_pos():
-            self.d.tbx.write_bit(533, False)
-            Timer(5, lambda: self.d.tbx.write_bit(532, True)).start()
-        if self.r6.trigger_pos():
-            self.d.tbx.write_bit(532, False)
-            Timer(5, lambda: self.d.tbx.write_bit(533, True)).start()
 
 
 class HMITab(tk.Frame):
@@ -209,6 +173,7 @@ class HMITab(tk.Frame):
         # from main app
         self.app = notebook.master
         self.t = notebook.master.t
+        self.d = notebook.master.d
         # setup auto-refresh of notebook tab (on-visibility and every update_ms)
         self.bind('<Visibility>', lambda evt: self.tab_update())
         self._tab_update()
@@ -613,10 +578,10 @@ class TabInfo(HMITab):
         self.sys_l.update()
 
 
+# TODO remove IO simul at end of project
 class TabSim(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        # TODO remove IO simul at end of project
         # tab "I/O simul"
         # self.tab_sim.resizable(width=FALSE, height=FALSE)
         # Vanne 1130
@@ -625,26 +590,26 @@ class TabSim(HMITab):
         self.btn_v_l = HMIButtonList(self.lblVal, dim=4, btn_args={'width': 12},
                                      grid_args={'padx': 5, 'pady': 5})
         c = ({'background': GREEN}, {'background': RED})
-        self.btn_v_l.add('Ouverture V1130', cmd=lambda: self.t.tbx.write_bits(524, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1130', cmd=lambda: self.t.tbx.write_bits(524, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1133', cmd=lambda: self.t.tbx.write_bits(526, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1133', cmd=lambda: self.t.tbx.write_bits(526, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1134', cmd=lambda: self.t.tbx.write_bits(528, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1134', cmd=lambda: self.t.tbx.write_bits(528, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1135', cmd=lambda: self.t.tbx.write_bits(530, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1135', cmd=lambda: self.t.tbx.write_bits(530, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1136', cmd=lambda: self.t.tbx.write_bits(532, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1136', cmd=lambda: self.t.tbx.write_bits(532, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1137', cmd=lambda: self.t.tbx.write_bits(534, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1137', cmd=lambda: self.t.tbx.write_bits(534, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1138', cmd=lambda: self.t.tbx.write_bits(536, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1138', cmd=lambda: self.t.tbx.write_bits(536, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV2', cmd=lambda: self.t.tbx.write_bits(547, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV2', cmd=lambda: self.t.tbx.write_bits(547, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV7', cmd=lambda: self.t.tbx.write_bits(542, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV7', cmd=lambda: self.t.tbx.write_bits(542, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV10', cmd=lambda: self.t.tbx.write_bits(540, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV10', cmd=lambda: self.t.tbx.write_bits(540, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1130', cmd=lambda: self.d.tbx.write_bits(524, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1130', cmd=lambda: self.d.tbx.write_bits(524, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1133', cmd=lambda: self.d.tbx.write_bits(526, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1133', cmd=lambda: self.d.tbx.write_bits(526, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1134', cmd=lambda: self.d.tbx.write_bits(528, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1134', cmd=lambda: self.d.tbx.write_bits(528, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1135', cmd=lambda: self.d.tbx.write_bits(530, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1135', cmd=lambda: self.d.tbx.write_bits(530, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1136', cmd=lambda: self.d.tbx.write_bits(532, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1136', cmd=lambda: self.d.tbx.write_bits(532, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1137', cmd=lambda: self.d.tbx.write_bits(534, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1137', cmd=lambda: self.d.tbx.write_bits(534, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture V1138', cmd=lambda: self.d.tbx.write_bits(536, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture V1138', cmd=lambda: self.d.tbx.write_bits(536, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture MV2', cmd=lambda: self.d.tbx.write_bits(547, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture MV2', cmd=lambda: self.d.tbx.write_bits(547, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture MV7', cmd=lambda: self.d.tbx.write_bits(542, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture MV7', cmd=lambda: self.d.tbx.write_bits(542, [False, True]), btn_args=c[1])
+        self.btn_v_l.add('Ouverture MV10', cmd=lambda: self.d.tbx.write_bits(540, [True, False]), btn_args=c[0])
+        self.btn_v_l.add('Fermeture MV10', cmd=lambda: self.d.tbx.write_bits(540, [False, True]), btn_args=c[1])
         self.btn_v_l.build()
         # Configuration poste
         self.lblConf = tk.LabelFrame(self, text='Configuration', padx=10, pady=10)
@@ -678,23 +643,23 @@ class TabSim(HMITab):
         # Commandes
         self.lblCmd = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
         tk.Button(self.lblCmd, text='Distant', background='tomato2',
-                  command=lambda: self.t.tbx.write_bit(520, False)).pack(fill=tk.X)
+                  command=lambda: self.d.tbx.write_bit(520, False)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='Local', background='tomato2',
-                  command=lambda: self.t.tbx.write_bit(520, True)).pack(
+                  command=lambda: self.d.tbx.write_bit(520, True)).pack(
             fill=tk.X)
         tk.Button(self.lblCmd, text='Acquit défaut', background=BLUE, command=self.app.ack_default).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='TC Auto', background=GREEN,
-                  command=lambda: [self.t.tbx.write_bit(6005, True),
-                                   Timer(3, lambda: self.t.tbx.write_bit(6005, False)).start()]).pack(fill=tk.X)
+                  command=lambda: [self.d.tbx.write_bit(6005, True),
+                                   Timer(3, lambda: self.d.tbx.write_bit(6005, False)).start()]).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR Region', background=ORANGE,
-                  command=lambda: [self.t.tbx.write_bit(6000, True),
-                                   Timer(3, lambda: self.t.tbx.write_bit(6000, False)).start()]).pack(fill=tk.X)
+                  command=lambda: [self.d.tbx.write_bit(6000, True),
+                                   Timer(3, lambda: self.d.tbx.write_bit(6000, False)).start()]).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR Neutre', background=ORANGE,
-                  command=lambda: [self.t.tbx.write_bit(6001, True),
-                                   Timer(3, lambda: self.t.tbx.write_bit(6001, False)).start()]).pack(fill=tk.X)
+                  command=lambda: [self.d.tbx.write_bit(6001, True),
+                                   Timer(3, lambda: self.d.tbx.write_bit(6001, False)).start()]).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR Sécurité', background=ORANGE,
-                  command=lambda: [self.t.tbx.write_bit(6002, True),
-                                   Timer(3, lambda: self.t.tbx.write_bit(6002, False)).start()]).pack(fill=tk.X)
+                  command=lambda: [self.d.tbx.write_bit(6002, True),
+                                   Timer(3, lambda: self.d.tbx.write_bit(6002, False)).start()]).pack(fill=tk.X)
         self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
 
     def tab_update(self):

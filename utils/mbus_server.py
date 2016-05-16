@@ -21,5 +21,5 @@ store = ModbusSlaveContext(di=bits, co=bits, hr=words, ir=words)
 context = ModbusServerContext(slaves=store, single=True)
 
 # start server
-StartTcpServer(context, address=('localhost', 502))
+StartTcpServer(context, address=('0.0.0.0', 502))
 
