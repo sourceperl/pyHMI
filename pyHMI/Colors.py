@@ -51,6 +51,8 @@ def color_label(tk_label, tag, fmt='%s'):
 class HMIBoolList(object):
     def __init__(self, tk_parent, head_str='', lbl_args=None, grid_args=None):
         self.tk_parent = tk_parent
+        self.frame = tk.Frame(tk_parent)
+        self.frame.pack(anchor=tk.CENTER)
         self.items_list = []
         self.head_str = head_str
         self._ref_tk_lbl = []
@@ -70,13 +72,13 @@ class HMIBoolList(object):
         # head
         i_row = 0
         if self.head_str:
-            tk.Label(self.tk_parent, self._lbl_args, text=self.head_str).grid(self._grid_args, row=i_row)
+            tk.Label(self.frame, self._lbl_args, text=self.head_str).grid(self._grid_args, row=i_row)
             i_row += 1
         # body
         for d_item in self.items_list:
             d_item['lbl_args'].update(self._lbl_args)
             d_item['grid_args'].update(self._grid_args)
-            l = tk.Label(self.tk_parent, d_item['lbl_args'], text=d_item['name'])
+            l = tk.Label(self.frame, d_item['lbl_args'], text=d_item['name'])
             l.grid(d_item['grid_args'], row=i_row, column=0)
             i_row += 1
             self._ref_tk_lbl.append({'label': l, 'tag': d_item['tag'], 'alarm': d_item['alarm']})
@@ -90,20 +92,31 @@ class HMIBoolList(object):
 
 
 class HMIAnalogList(object):
-    def __init__(self, tk_parent):
+    def __init__(self, tk_parent, lbl_args=None, grid_args=None):
         self.tk_parent = tk_parent
+        self.frame = tk.Frame(tk_parent)
+        self.frame.pack(anchor=tk.CENTER)
         self.items_list = []
         self._ref_tk_lbl = []
+        self._lbl_args = {} if lbl_args is None else lbl_args
+        self._grid_args = {} if grid_args is None else grid_args
 
-    def add(self, name, tag, unit='', fmt='%s', **tk_label_args):
-        self.items_list.append({'name': name, 'tag': tag, 'unit': unit, 'fmt': fmt, 'tk_args': tk_label_args})
+    def add(self, name, tag, unit='', fmt='%s', lbl_args=None, grid_args=None):
+        if lbl_args is None:
+            lbl_args = {}
+        if grid_args is None:
+            grid_args = {}
+        self.items_list.append(
+            {'name': name, 'tag': tag, 'unit': unit, 'fmt': fmt, 'lbl_args': lbl_args, 'grid_args': grid_args})
 
     def build(self):
         for i, d_item in enumerate(self.items_list):
-            tk.Label(self.tk_parent, text=d_item['name']).grid(padx=10, pady=2, row=i, column=0)
-            l = tk.Label(self.tk_parent, d_item['tk_args'])
-            l.grid(padx=10, row=i, column=1)
-            tk.Label(self.tk_parent, text=d_item['unit']).grid(padx=5, sticky=tk.W, row=i, column=2)
+            d_item['lbl_args'].update(self._lbl_args)
+            d_item['grid_args'].update(self._grid_args)
+            tk.Label(self.frame, text=d_item['name']).grid(d_item['grid_args'], padx=10, pady=2, row=i, column=0)
+            l = tk.Label(self.frame, d_item['lbl_args'])
+            l.grid(d_item['grid_args'], padx=10, row=i, column=1)
+            tk.Label(self.frame, text=d_item['unit']).grid(d_item['grid_args'], padx=5, sticky=tk.W, row=i, column=2)
             self._ref_tk_lbl.append({'label': l, 'tag': d_item['tag'], 'fmt': d_item['fmt']})
 
     def update(self):
@@ -114,6 +127,8 @@ class HMIAnalogList(object):
 class HMIButtonList(object):
     def __init__(self, tk_parent, dim=1, btn_args=None, grid_args=None):
         self.tk_parent = tk_parent
+        self.frame = tk.Frame(tk_parent)
+        self.frame.pack(anchor=tk.CENTER)
         self.dim = dim
         self.items_list = []
         self._ref_tk_btn = []
@@ -132,7 +147,7 @@ class HMIButtonList(object):
         for i, d_item in enumerate(self.items_list):
             d_item['btn_args'].update(self._btn_args)
             d_item['grid_args'].update(self._grid_args)
-            b = tk.Button(self.tk_parent, d_item['btn_args'], text=d_item['name'], command=d_item['cmd'])
+            b = tk.Button(self.frame, d_item['btn_args'], text=d_item['name'], command=d_item['cmd'])
             b.grid(d_item['grid_args'], row=int(i / self.dim), column=i % self.dim)
             self._ref_tk_btn.append({'button': b, 'tag_v': d_item['tag_v']})
 
