@@ -18,7 +18,7 @@ class Devices(object):
         # PLC TBox
         self.tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
         # init modbus tables
-        self.tbx.add_bits_table(3050, 55)
+        self.tbx.add_bits_table(3050, 57)
         self.tbx.add_bits_table(1536, 8)
         self.tbx.add_words_table(4000, 5)
         self.tbx.add_floats_table(5030, 8)
@@ -94,6 +94,8 @@ class Tags(object):
         self.SEQ_MV1130_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3102})
         self.SEQ_MV1135_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3103})
         self.SEQ_MV1136_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3104})
+        self.DELTA_P_INF_1_5 = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3105})
+        self.DELTA_P_INF_0_5 = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3106})
         self.TRA_REG_V_NEU = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4000})
         self.TRA_REG_V_SEC = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4001})
         self.TRA_NEU_V_REG = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4002})
@@ -138,6 +140,19 @@ class Tags(object):
         # virtual (a tag from tag(s))
         self.GET_TAG_TEST = Tag(False, get_cmd=lambda: self.V1130_FDC_FER.val and self.V1133_FDC_FER.val)
         self.DELTA_P_VL = Tag(0, get_cmd=lambda: self.REG_P_AM_VL.e_val - self.REG_P_AV_VL.e_val)
+        self.TRA_NVR_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_REG.e_val == 1)
+        self.TRA_RVN_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 1)
+        self.TRA_RVN_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 2)
+        self.TRA_RVN_STEP_3 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 3)
+        self.TRA_RVN_STEP_4 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 4)
+        self.TRA_RVN_STEP_5 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 5)
+        self.TRA_RVN_STEP_6 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 6)
+        self.TRA_NVS_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_SEC.e_val == 1)
+        self.TRA_NVS_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_SEC.e_val == 2)
+        self.TRA_RVS_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 1)
+        self.TRA_RVS_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 2)
+        self.TRA_RVS_STEP_3 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 3)
+        self.TRA_RVS_STEP_4 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 4)
         # local (no external source)
         self.HMI_WORD = Tag(0)
         self.HMI_WORD2 = Tag(0)
@@ -151,6 +166,8 @@ class Tags(object):
         self.CMD_V1136_CLOSE = Tag(False, src=self.d.tbx, ref={'type': 'w_bit', 'addr': 6022})
         self.CMD_MV2_CLOSE = Tag(False, src=self.d.tbx, ref={'type': 'w_bit', 'addr': 6023})
         self.CMD_MV2_PST = Tag(False, src=self.d.tbx, ref={'type': 'w_bit', 'addr': 6025})
+        self.CMD_CONF_REGION = Tag(False, src=self.d.tbx, ref={'type': 'w_bit', 'addr': 6026})
+        self.CMD_CONF_NEUTRE = Tag(False, src=self.d.tbx, ref={'type': 'w_bit', 'addr': 6027})
         # REG
         self.CMD_REG_MARCHE = Tag(False, src=self.d.reg, ref={'type': 'w_bit', 'addr': 220})
         self.CMD_REG_ARRET = Tag(False, src=self.d.reg, ref={'type': 'w_bit', 'addr': 221})
@@ -272,7 +289,7 @@ class TabInterco(HMITab):
         self.cnfReg.pack(fill=tk.X)
         self.cnfNeu = tk.Label(self.frmConf, text='Neutre', background=WHITE)
         self.cnfNeu.pack(fill=tk.X)
-        self.cnfSec = tk.Label(self.frmConf, text='Sécruité', background=WHITE)
+        self.cnfSec = tk.Label(self.frmConf, text='Sécurité', background=WHITE)
         self.cnfSec.pack(fill=tk.X)
         self.cnfNop = tk.Label(self.frmConf, text='Non op.', background=WHITE)
         self.cnfNop.pack(fill=tk.X)
@@ -578,6 +595,81 @@ class TabInfo(HMITab):
         self.sys_l.update()
 
 
+class TabTran(HMITab):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
+        HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
+        # Transitions
+        self.lblTrans = tk.LabelFrame(self, text='Transitions', padx=0, pady=10)
+        self.lblTrans.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.tran = HMIAnalogList(self.lblTrans)
+        self.tran.add('Neutre vers régionale', self.t.TRA_NEU_V_REG, unit='niv')
+        self.tran.add('Régionale vers neutre', self.t.TRA_REG_V_NEU, unit='niv')
+        self.tran.add('Neutre vers sécurité', self.t.TRA_NEU_V_SEC, unit='niv')
+        self.tran.add('Régionale vers sécurité', self.t.TRA_REG_V_SEC, unit='niv')
+        self.tran.build()
+        # Configuration
+        self.lblConf = tk.LabelFrame(self, text='Configuration', padx=10, pady=10)
+        self.lblConf.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.conf_list = HMIBoolList(self.lblConf, lbl_args={'width': 20})
+        self.conf_list.add('En Transition', self.t.TRA_EN_COURS)
+        self.conf_list.add('Régional', self.t.CONF_REG)
+        self.conf_list.add('Neutre', self.t.CONF_NEU)
+        self.conf_list.add('Sécurité', self.t.CONF_SEC)
+        self.conf_list.add('Non Op.', self.t.CONF_NOP)
+        self.conf_list.build()
+        # Lancement des transitions
+        self.frmCmdTra = tk.LabelFrame(self, text='Commandes transitions', padx=10, pady=10)
+        self.frmCmdTra.grid(row=2, column=0, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.cmd_l = HMIButtonList(self.frmCmdTra, btn_args={'width': 12}, grid_args={'pady': 40})
+        self.cmd_l.add('Vers Régionale', tag_valid=self.t.PIL_LOCAL, cmd=lambda: self.t.CMD_CONF_REGION.set(True),
+                       btn_args={'bg': GREEN})
+        self.cmd_l.add('Vers Neutre', tag_valid=self.t.PIL_LOCAL, cmd=lambda: self.t.CMD_CONF_NEUTRE.set(True),
+                       btn_args={'bg': GREEN})
+        self.cmd_l.build()
+        # Neutre vers régionale
+        self.frmCmdNVR = tk.LabelFrame(self, text='Neutre vers régionale', padx=10, pady=10)
+        self.frmCmdNVR.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.nvr_list = HMIBoolList(self.frmCmdNVR, lbl_args={'width': 60})
+        self.nvr_list.add('1. Fermeture vanne 1136', self.t.TRA_NVR_STEP_1)
+        self.nvr_list.build()
+        # Réginale vers neutre
+        self.frmCmdRVN = tk.LabelFrame(self, text='Régionale vers neutre', padx=10, pady=10)
+        self.frmCmdRVN.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.rvn_list = HMIBoolList(self.frmCmdRVN, lbl_args={'width': 60})
+        self.rvn_list.add('1. Arrêt régulation (ouv. VL à 100% en pente douce)', self.t.TRA_RVN_STEP_1)
+        self.rvn_list.add('2. Attente delta P VL < 1.5 bar', self.t.TRA_RVN_STEP_2)
+        self.rvn_list.add('3. Ouverture V1135 (mise en bipasse comptage)', self.t.TRA_RVN_STEP_3)
+        self.rvn_list.add('4. Attente delta P VL < 0.5 bar', self.t.TRA_RVN_STEP_4)
+        self.rvn_list.add('5. Ouverture V1136', self.t.TRA_RVN_STEP_5)
+        self.rvn_list.add('6. Fermeture V1135 (arrêt du bipasse comptage)', self.t.TRA_RVN_STEP_6)
+        self.rvn_list.build()
+        # Neutre vers sécurité
+        self.frmCmdNVS = tk.LabelFrame(self, text='Neutre vers sécurité', padx=10, pady=10)
+        self.frmCmdNVS.grid(row=2, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.nvs_list = HMIBoolList(self.frmCmdNVS, lbl_args={'width': 60})
+        self.nvs_list.add('1. Ouverture V1135', self.t.TRA_NVS_STEP_1)
+        self.nvs_list.add('2. Arrêt régulation (ouv. VL à 100% en pente douce)', self.t.TRA_NVS_STEP_2)
+        self.nvs_list.build()
+        # Régionale vers sécurité
+        self.frmCmdRVS = tk.LabelFrame(self, text='Régionale vers sécurité', padx=10, pady=10)
+        self.frmCmdRVS.grid(row=3, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.rvs_list = HMIBoolList(self.frmCmdRVS, lbl_args={'width': 60})
+        self.rvs_list.add('1. Ouverture V1135', self.t.TRA_RVS_STEP_1)
+        self.rvs_list.add('2. Arrêt régulation (ouv. VL à 100% en pente douce)', self.t.TRA_RVS_STEP_2)
+        self.rvs_list.add('3. Attente delta P VL < 0.5 bar ou attente 3 min', self.t.TRA_RVS_STEP_3)
+        self.rvs_list.add('4. Ouverture V1136', self.t.TRA_RVS_STEP_4)
+        self.rvs_list.build()
+
+    def tab_update(self):
+        self.tran.update()
+        self.cmd_l.update()
+        self.conf_list.update()
+        self.nvr_list.update()
+        self.rvn_list.update()
+        self.nvs_list.update()
+        self.rvs_list.update()
+
+
 # TODO remove IO simul at end of project
 class TabSim(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
@@ -642,22 +734,22 @@ class TabSim(HMITab):
         self.pilotage_list.build()
         # Commandes
         self.lblCmd = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
-        tk.Button(self.lblCmd, text='Distant', background='tomato2',
+        tk.Button(self.lblCmd, text='Commutateur Distant', background='tomato2',
                   command=lambda: self.d.tbx.write_bit(520, False)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='Local', background='tomato2',
+        tk.Button(self.lblCmd, text='Commutateur Local', background='tomato2',
                   command=lambda: self.d.tbx.write_bit(520, True)).pack(
             fill=tk.X)
-        tk.Button(self.lblCmd, text='Acquit défaut', background=BLUE, command=self.app.ack_default).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='TC Auto', background=GREEN,
+        tk.Button(self.lblCmd, text='BP Acquit défaut', background=BLUE, command=self.app.ack_default).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR TC Autorisation', background=GREEN,
                   command=lambda: [self.d.tbx.write_bit(6005, True),
                                    Timer(3, lambda: self.d.tbx.write_bit(6005, False)).start()]).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR Region', background=ORANGE,
+        tk.Button(self.lblCmd, text='CSR TC conf. Région', background=ORANGE,
                   command=lambda: [self.d.tbx.write_bit(6000, True),
                                    Timer(3, lambda: self.d.tbx.write_bit(6000, False)).start()]).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR Neutre', background=ORANGE,
+        tk.Button(self.lblCmd, text='CSR TC conf. Neutre', background=ORANGE,
                   command=lambda: [self.d.tbx.write_bit(6001, True),
                                    Timer(3, lambda: self.d.tbx.write_bit(6001, False)).start()]).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR Sécurité', background=ORANGE,
+        tk.Button(self.lblCmd, text='CSR TC conf. Sécurité', background=ORANGE,
                   command=lambda: [self.d.tbx.write_bit(6002, True),
                                    Timer(3, lambda: self.d.tbx.write_bit(6002, False)).start()]).pack(fill=tk.X)
         self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
@@ -722,12 +814,14 @@ class HMIApp(tk.Tk):
         self.tab_gny_dn900 = TabGnyDN900(self.note)
         self.tab_reg = TabReg(self.note)
         self.tab_info = TabInfo(self.note)
+        self.tab_tran = TabTran(self.note)
         self.tab_sim = TabSim(self.note)
         self.note.add(self.tab_int, text='Interconnexion (F1)')
         self.note.add(self.tab_gny_dn900, text='Gournay DN900 (F2)')
         self.note.add(self.tab_reg, text='Régulation (F3)')
         self.note.add(self.tab_info, text='Informations (F4)')
-        self.note.add(self.tab_sim, text='I/O simul (F5)')
+        self.note.add(self.tab_tran, text='Transitions (F5)')
+        self.note.add(self.tab_sim, text='I/O simul (F6)')
         # defaut selected tab
         self.note.select(self.tab_int)
         self.note.pack(fill=tk.BOTH, expand=True)
@@ -736,7 +830,8 @@ class HMIApp(tk.Tk):
         self.bind('<F2>', lambda evt: self.note.select(self.tab_gny_dn900))
         self.bind('<F3>', lambda evt: self.note.select(self.tab_reg))
         self.bind('<F4>', lambda evt: self.note.select(self.tab_info))
-        self.bind('<F5>', lambda evt: self.note.select(self.tab_sim))
+        self.bind('<F5>', lambda evt: self.note.select(self.tab_tran))
+        self.bind('<F6>', lambda evt: self.note.select(self.tab_sim))
         # build toolbar
         self.toolbar = HMIToolbar(self, update_ms=500)
 
