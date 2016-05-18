@@ -1,7 +1,5 @@
 #!/usr/bin/env python2
 
-# install pymodbus : sudo apt-get install pymodbus
-
 from pymodbus.server.async import StartTcpServer
 from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
