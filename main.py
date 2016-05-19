@@ -5,7 +5,7 @@ from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ValveOpenCloseDialog, ValveESDDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
-from pyHMI.Tag import Tag
+from pyHMI.Tag import Tag, tag_equal
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -140,19 +140,19 @@ class Tags(object):
         # virtual (a tag from tag(s))
         self.GET_TAG_TEST = Tag(False, get_cmd=lambda: self.V1130_FDC_FER.val and self.V1133_FDC_FER.val)
         self.DELTA_P_VL = Tag(0, get_cmd=lambda: self.REG_P_AM_VL.e_val - self.REG_P_AV_VL.e_val)
-        self.TRA_NVR_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_REG.e_val == 1)
-        self.TRA_RVN_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 1)
-        self.TRA_RVN_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 2)
-        self.TRA_RVN_STEP_3 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 3)
-        self.TRA_RVN_STEP_4 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 4)
-        self.TRA_RVN_STEP_5 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 5)
-        self.TRA_RVN_STEP_6 = Tag(0, get_cmd=lambda: self.TRA_REG_V_NEU.e_val == 6)
-        self.TRA_NVS_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_SEC.e_val == 1)
-        self.TRA_NVS_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_NEU_V_SEC.e_val == 2)
-        self.TRA_RVS_STEP_1 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 1)
-        self.TRA_RVS_STEP_2 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 2)
-        self.TRA_RVS_STEP_3 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 3)
-        self.TRA_RVS_STEP_4 = Tag(0, get_cmd=lambda: self.TRA_REG_V_SEC.e_val == 4)
+        self.TRA_NVR_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_NEU_V_REG, 1))
+        self.TRA_RVN_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 1))
+        self.TRA_RVN_STEP_2 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 2))
+        self.TRA_RVN_STEP_3 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 3))
+        self.TRA_RVN_STEP_4 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 4))
+        self.TRA_RVN_STEP_5 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 5))
+        self.TRA_RVN_STEP_6 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_NEU, 6))
+        self.TRA_NVS_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_NEU_V_SEC, 1))
+        self.TRA_NVS_STEP_2 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_NEU_V_SEC, 2))
+        self.TRA_RVS_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_SEC, 1))
+        self.TRA_RVS_STEP_2 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_SEC, 2))
+        self.TRA_RVS_STEP_3 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_SEC, 3))
+        self.TRA_RVS_STEP_4 = Tag(0, get_cmd=lambda: tag_equal(self.TRA_REG_V_SEC, 4))
         # local (no external source)
         self.HMI_WORD = Tag(0)
         self.HMI_WORD2 = Tag(0)

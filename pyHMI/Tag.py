@@ -112,3 +112,10 @@ class Tag(object):
         :type bool
         """
         self._err = bool(value)
+
+
+def tag_equal(tag, value):
+    if not tag.err:
+        return tag == value
+    else:
+        return None
