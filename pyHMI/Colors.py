@@ -59,13 +59,15 @@ class HMIBoolList(object):
         self._lbl_args = {} if lbl_args is None else lbl_args
         self._grid_args = {} if grid_args is None else grid_args
 
-    def add(self, name, tag, alarm=False, lbl_args=None, grid_args=None):
+    def add(self, label_0, tag, label_1=None, state=True, alarm=False, lbl_args=None, grid_args=None):
+        if label_1 is None:
+            label_1 = label_0
         if lbl_args is None:
             lbl_args = {}
         if grid_args is None:
             grid_args = {}
         self.items_list.append(
-            {'name': name, 'tag': tag, 'alarm': alarm, 'lbl_args': lbl_args,
+            {'label_0': label_0, 'tag': tag, 'label_1': label_1, 'state': state, 'alarm': alarm, 'lbl_args': lbl_args,
              'grid_args': grid_args})
 
     def build(self):
@@ -78,17 +80,24 @@ class HMIBoolList(object):
         for d_item in self.items_list:
             d_item['lbl_args'].update(self._lbl_args)
             d_item['grid_args'].update(self._grid_args)
-            l = tk.Label(self.frame, d_item['lbl_args'], text=d_item['name'])
+            l = tk.Label(self.frame, d_item['lbl_args'], text=d_item['label_1'], background=WHITE)
             l.grid(d_item['grid_args'], row=i_row, column=0)
             i_row += 1
-            self._ref_tk_lbl.append({'label': l, 'tag': d_item['tag'], 'alarm': d_item['alarm']})
+            self._ref_tk_lbl.append({'tk_label': l, 'tag': d_item['tag'], 'label_0': d_item['label_0'],
+                                     'label_1': d_item['label_1'], 'state': d_item['state'], 'alarm': d_item['alarm']})
 
     def update(self):
         for d in self._ref_tk_lbl:
+            # set color
             if d['alarm']:
-                d['label'].configure(background=color_tag_alarm(d['tag']))
+                d['tk_label'].configure(background=color_tag_alarm(d['tag']))
+            elif d['state']:
+                d['tk_label'].configure(background=color_tag_state(d['tag']))
+            # set text
+            if d['tag'].val:
+                d['tk_label'].configure(text=d['label_1'])
             else:
-                d['label'].configure(background=color_tag_state(d['tag']))
+                d['tk_label'].configure(text=d['label_0'])
 
 
 class HMIAnalogList(object):

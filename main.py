@@ -6,10 +6,10 @@ from pyHMI.Colors import *
 from pyHMI.Dialog import ValveOpenCloseDialog, ValveESDDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag, tag_equal
+import os
 import time
 import tkinter as tk
 from tkinter import ttk
-from threading import Timer
 
 
 class Devices(object):
@@ -18,17 +18,19 @@ class Devices(object):
         # PLC TBox
         self.tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
         # init modbus tables
-        self.tbx.add_bits_table(3050, 57)
+        self.tbx.add_bits_table(3050, 59)
         self.tbx.add_bits_table(1536, 8)
         self.tbx.add_words_table(4000, 5)
         self.tbx.add_floats_table(5030, 8)
         # Reg. T640
-        self.reg = ModbusTCPDevice('163.111.181.84', port=502, timeout=2.0, refresh=1.0)
+        self.reg = ModbusTCPDevice('163.111.181.84', port=502, unit_id=2, timeout=5.0, refresh=1.0)
         self.reg.add_bits_table(240, 9)
         self.reg.add_words_table(201, 6)
         # Aconcagua supervisor
         self.acon = ModbusTCPDevice('163.111.181.83', port=502, timeout=2.0, refresh=1.0)
         self.acon.add_words_table(12288, 11)
+        # PSLS
+        self.psls = ModbusTCPDevice('163.111.181.80', port=502, timeout=2.0, refresh=1.0)
 
 
 class Tags(object):
@@ -96,6 +98,8 @@ class Tags(object):
         self.SEQ_MV1136_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3104})
         self.DELTA_P_INF_1_5 = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3105})
         self.DELTA_P_INF_0_5 = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3106})
+        self.MV2_PST_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3107})
+        self.MV2_DEF_PST = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3108})
         self.TRA_REG_V_NEU = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4000})
         self.TRA_REG_V_SEC = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4001})
         self.TRA_NEU_V_REG = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4002})
@@ -386,6 +390,15 @@ class TabGnyDN900(HMITab):
         self.mv7_list.add('Défaut élec.', self.t.MV7_DEF_ELEC)
         self.mv7_list.build()
         self.map_gny_dn900.can.create_window(600, 160, window=self.frmMV7)
+        # MV2 info panel
+        self.frmMV2 = tk.Frame(self.map_gny_dn900.can, padx=0, pady=0)
+        self.frmMV2.pack()
+        self.mv2_list = HMIBoolList(self.frmMV2, head_str='Etat MV2', lbl_args={'width': 10})
+        self.mv2_list.add('PST actif', self.t.MV2_PST_EN_COURS)
+        self.mv2_list.add('Défaut PST', self.t.MV2_DEF_PST, alarm=True)
+        self.mv2_list.build()
+        self.map_gny_dn900.can.create_window(380, 150, window=self.frmMV2)
+        # build panel
         self.map_gny_dn900.build()
 
     def tab_update(self):
@@ -403,6 +416,8 @@ class TabGnyDN900(HMITab):
             self.map_gny_dn900.d_widget['MANAGE_MV2']['obj'].configure(state='disabled')
         # update MV7 info panel
         self.mv7_list.update()
+        # update MV2 info panel
+        self.mv2_list.update()
 
 
 class TabReg(HMITab):
@@ -538,28 +553,28 @@ class TabInfo(HMITab):
         self.frmV1130 = tk.Frame(self.frmValves, padx=0, pady=0)
         self.frmV1130.grid(row=0, column=0, padx=6, pady=5, sticky=tk.NSEW)
         self.v1130_l = HMIBoolList(self.frmV1130, head_str='V1130', lbl_args={'width': 10})
-        self.v1130_l.add('OUV', self.t.V1130_FDC_OUV)
-        self.v1130_l.add('FER', self.t.V1130_FDC_FER)
-        self.v1130_l.add('DEF SEQ', self.t.DEF_SEQ_MV1130, alarm=True)
-        self.v1130_l.add('SEQ ACT', self.t.SEQ_MV1130_EN_COURS)
+        self.v1130_l.add('Ouv', self.t.V1130_FDC_OUV)
+        self.v1130_l.add('Fer', self.t.V1130_FDC_FER)
+        self.v1130_l.add('Def. seq.', self.t.DEF_SEQ_MV1130, alarm=True)
+        self.v1130_l.add('Seq. act.', self.t.SEQ_MV1130_EN_COURS)
         self.v1130_l.build()
         # V1135
         self.frmV1135 = tk.Frame(self.frmValves, padx=0, pady=0)
         self.frmV1135.grid(row=0, column=1, padx=6, pady=5, sticky=tk.NSEW)
         self.v1135_l = HMIBoolList(self.frmV1135, head_str='V1135', lbl_args={'width': 10})
-        self.v1135_l.add('OUV', self.t.V1135_FDC_OUV)
-        self.v1135_l.add('FER', self.t.V1135_FDC_FER)
-        self.v1135_l.add('DEF SEQ', self.t.DEF_SEQ_MV1135, alarm=True)
-        self.v1135_l.add('SEQ ACT', self.t.SEQ_MV1135_EN_COURS)
+        self.v1135_l.add('Ouv', self.t.V1135_FDC_OUV)
+        self.v1135_l.add('Fer', self.t.V1135_FDC_FER)
+        self.v1135_l.add('Def. seq.', self.t.DEF_SEQ_MV1135, alarm=True)
+        self.v1135_l.add('Seq. act.', self.t.SEQ_MV1135_EN_COURS)
         self.v1135_l.build()
         # V1136
         self.frmV1136 = tk.Frame(self.frmValves, padx=0, pady=0)
         self.frmV1136.grid(row=0, column=2, padx=6, pady=5, sticky=tk.NSEW)
         self.v1136_l = HMIBoolList(self.frmV1136, head_str='V1136', lbl_args={'width': 10})
-        self.v1136_l.add('OUV', self.t.V1136_FDC_OUV)
-        self.v1136_l.add('FER', self.t.V1136_FDC_FER)
-        self.v1136_l.add('DEF SEQ', self.t.DEF_SEQ_MV1136, alarm=True)
-        self.v1136_l.add('SEQ ACT', self.t.SEQ_MV1136_EN_COURS)
+        self.v1136_l.add('Ouv', self.t.V1136_FDC_OUV)
+        self.v1136_l.add('Fer', self.t.V1136_FDC_FER)
+        self.v1136_l.add('Def. seq.', self.t.DEF_SEQ_MV1136, alarm=True)
+        self.v1136_l.add('Seq. act.', self.t.SEQ_MV1136_EN_COURS)
         self.v1136_l.build()
         # Vanne ESD
         self.frmESDValves = tk.LabelFrame(self, text='Vanne ESD', padx=5, pady=5)
@@ -568,8 +583,10 @@ class TabInfo(HMITab):
         self.frmMV2 = tk.Frame(self.frmESDValves, padx=0, pady=0)
         self.frmMV2.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.mv2_l = HMIBoolList(self.frmMV2, head_str='MV2', lbl_args={'width': 10})
-        self.mv2_l.add('OUV', self.t.MV2_FDC_OUV)
-        self.mv2_l.add('FER', self.t.MV2_FDC_FER)
+        self.mv2_l.add('Ouv', self.t.MV2_FDC_OUV)
+        self.mv2_l.add('Fer', self.t.MV2_FDC_FER)
+        self.mv2_l.add('PST actif', self.t.MV2_PST_EN_COURS)
+        self.mv2_l.add('Défaut PST', self.t.MV2_DEF_PST, alarm=True)
         self.mv2_l.build()
         # Système
         self.frmSys = tk.LabelFrame(self, text='Système', padx=5, pady=5)
@@ -734,24 +751,22 @@ class TabSim(HMITab):
         self.pilotage_list.build()
         # Commandes
         self.lblCmd = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
-        tk.Button(self.lblCmd, text='Commutateur Distant', background='tomato2',
-                  command=lambda: self.d.tbx.write_bit(520, False)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='Commutateur Local', background='tomato2',
-                  command=lambda: self.d.tbx.write_bit(520, True)).pack(
-            fill=tk.X)
-        tk.Button(self.lblCmd, text='BP Acquit défaut', background=BLUE, command=self.app.ack_default).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='Login PSLS', background=BLUE,
+                  command=lambda: os.system('write_rtu_id.py 163.111.181.80')).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR TC Acquittement défaut', background=GREEN,
+                  command=lambda: self.d.psls.write_word(20706, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC Autorisation', background=GREEN,
-                  command=lambda: [self.d.tbx.write_bit(6005, True),
-                                   Timer(3, lambda: self.d.tbx.write_bit(6005, False)).start()]).pack(fill=tk.X)
+                  command=lambda: self.d.psls.write_word(20709, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC conf. Région', background=ORANGE,
-                  command=lambda: [self.d.tbx.write_bit(6000, True),
-                                   Timer(3, lambda: self.d.tbx.write_bit(6000, False)).start()]).pack(fill=tk.X)
+                  command=lambda: self.d.psls.write_word(20701, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC conf. Neutre', background=ORANGE,
-                  command=lambda: [self.d.tbx.write_bit(6001, True),
-                                   Timer(3, lambda: self.d.tbx.write_bit(6001, False)).start()]).pack(fill=tk.X)
+                  command=lambda: self.d.psls.write_word(20702, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC conf. Sécurité', background=ORANGE,
-                  command=lambda: [self.d.tbx.write_bit(6002, True),
-                                   Timer(3, lambda: self.d.tbx.write_bit(6002, False)).start()]).pack(fill=tk.X)
+                  command=lambda: self.d.psls.write_word(20703, 1)).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR Ouv. V1135', background=BLUE,
+                  command=lambda: self.d.psls.write_word(20707, 1)).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR Fer. V1135', background=BLUE,
+                  command=lambda: self.d.psls.write_word(20708, 1)).pack(fill=tk.X)
         self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
 
     def tab_update(self):
