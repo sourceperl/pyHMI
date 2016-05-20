@@ -9,7 +9,7 @@ from pyHMI.Tag import Tag, tag_equal
 import os
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 
 class Devices(object):
@@ -18,7 +18,7 @@ class Devices(object):
         # PLC TBox
         self.tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
         # init modbus tables
-        self.tbx.add_bits_table(3050, 59)
+        self.tbx.add_bits_table(3050, 61)
         self.tbx.add_bits_table(1536, 8)
         self.tbx.add_words_table(4000, 5)
         self.tbx.add_floats_table(5030, 8)
@@ -100,6 +100,8 @@ class Tags(object):
         self.DELTA_P_INF_0_5 = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3106})
         self.MV2_PST_EN_COURS = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3107})
         self.MV2_DEF_PST = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3108})
+        self.DEF_DJ_220V = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3109})
+        self.DEF_DJ_24V = Tag(False, src=self.d.tbx, ref={'type': 'bit', 'addr': 3110})
         self.TRA_REG_V_NEU = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4000})
         self.TRA_REG_V_SEC = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4001})
         self.TRA_NEU_V_REG = Tag(False, src=self.d.tbx, ref={'type': 'word', 'addr': 4002})
@@ -478,6 +480,8 @@ class TabInfo(HMITab):
         self.energie_list.add('Absence EDF', self.t.DEF_EDF, alarm=True)
         self.energie_list.add('Défaut chargeur', self.t.DEF_CHG, alarm=True)
         self.energie_list.add('Défaut onduleur', self.t.DEF_OND, alarm=True)
+        self.energie_list.add('Défaut disj. 220V', self.t.DEF_DJ_220V, alarm=True)
+        self.energie_list.add('Défaut disj. 24V', self.t.DEF_DJ_24V, alarm=True)
         self.energie_list.build()
         # ATD/Feu
         self.frmCentrale = tk.LabelFrame(self, text='ATD/Feu', padx=10, pady=10)
@@ -637,10 +641,10 @@ class TabTran(HMITab):
         # Lancement des transitions
         self.frmCmdTra = tk.LabelFrame(self, text='Commandes transitions', padx=10, pady=10)
         self.frmCmdTra.grid(row=2, column=0, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
-        self.cmd_l = HMIButtonList(self.frmCmdTra, btn_args={'width': 12}, grid_args={'pady': 40})
-        self.cmd_l.add('Vers Régionale', tag_valid=self.t.PIL_LOCAL, cmd=lambda: self.t.CMD_CONF_REGION.set(True),
+        self.cmd_l = HMIButtonList(self.frmCmdTra, btn_args={'width': 10}, grid_args={'pady': 40})
+        self.cmd_l.add('Vers régionale', tag_valid=self.t.PIL_LOCAL, cmd=self.app.confirm_region,
                        btn_args={'bg': GREEN})
-        self.cmd_l.add('Vers Neutre', tag_valid=self.t.PIL_LOCAL, cmd=lambda: self.t.CMD_CONF_NEUTRE.set(True),
+        self.cmd_l.add('Vers neutre', tag_valid=self.t.PIL_LOCAL, cmd=self.app.confirm_neutre,
                        btn_args={'bg': GREEN})
         self.cmd_l.build()
         # Neutre vers régionale
@@ -752,7 +756,7 @@ class TabSim(HMITab):
         # Commandes
         self.lblCmd = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
         tk.Button(self.lblCmd, text='Login PSLS', background=BLUE,
-                  command=lambda: os.system('write_rtu_id.py 163.111.181.80')).pack(fill=tk.X)
+                  command=lambda: os.system('write_rtu_id.py 163.111.181.80 ')).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC Acquittement défaut', background=GREEN,
                   command=lambda: self.d.psls.write_word(20706, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR TC Autorisation', background=GREEN,
@@ -767,6 +771,8 @@ class TabSim(HMITab):
                   command=lambda: self.d.psls.write_word(20707, 1)).pack(fill=tk.X)
         tk.Button(self.lblCmd, text='CSR Fer. V1135', background=BLUE,
                   command=lambda: self.d.psls.write_word(20708, 1)).pack(fill=tk.X)
+        tk.Button(self.lblCmd, text='CSR isol. MV2', background=RED,
+                  command=lambda: self.d.psls.write_word(20710, 1)).pack(fill=tk.X)
         self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
 
     def tab_update(self):
@@ -858,6 +864,14 @@ class HMIApp(tk.Tk):
         self.d.tbx.write_bit(522, True)
         time.sleep(.1)
         self.d.tbx.write_bit(522, False)
+
+    def confirm_region(self):
+        if messagebox.askokcancel('Confirmation', message='Passage en régionale ?', default='cancel'):
+            self.t.CMD_CONF_REGION.set(True)
+
+    def confirm_neutre(self):
+        if messagebox.askokcancel('Confirmation', message='Passage en neutre ?', default='cancel'):
+            self.t.CMD_CONF_NEUTRE.set(True)
 
     def confirm_mv2(self):
         ValveESDDialog(self, title='MV2', text='Action sur vanne de sécurité MV2 ?',

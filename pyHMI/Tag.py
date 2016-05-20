@@ -116,6 +116,6 @@ class Tag(object):
 
 def tag_equal(tag, value):
     if not tag.err:
-        return tag == value
+        return tag.val == value
     else:
         return None
