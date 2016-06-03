@@ -15,8 +15,8 @@ from tkinter import ttk
 class Devices(object):
     # init datasource
     # PLC TBox
-    # tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
-    tbx = ModbusTCPDevice('192.168.0.11', port=502, timeout=2.0, refresh=1.0)
+    tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
+    # tbx = ModbusTCPDevice('192.168.0.11', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
     tbx.add_bits_table(3050, 61)
     tbx.add_bits_table(1536, 8)
@@ -427,10 +427,10 @@ class TabReg(HMITab):
         self.etat_l.add('Auto Distant', Tags.REG_AUTO_D)
         self.etat_l.add('Auto Local', Tags.REG_AUTO_L)
         self.etat_l.add('Manuel', Tags.REG_MANU)
-        self.etat_l.add('En etalonnage', Tags.REG_EN_ETL)
+        self.etat_l.add('En etalonnage', Tags.REG_EN_ETL, alarm=True)
         self.etat_l.add('Hors etalonnage', Tags.REG_HORS_ETL)
-        self.etat_l.add('Défaut mesure P', Tags.REG_DEF_MES_P)
-        self.etat_l.add('Erreur consigne', Tags.REG_ERR_CONS)
+        self.etat_l.add('Défaut mesure P', Tags.REG_DEF_MES_P, alarm=True)
+        self.etat_l.add('Erreur consigne', Tags.REG_ERR_CONS, alarm=True)
         self.etat_l.build()
         # Mesures régulateur
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
@@ -440,7 +440,7 @@ class TabReg(HMITab):
         self.mes_l.add('Pression aval VL', Tags.REG_P_AV_VL, unit='bars rel.', fmt='%0.2f')
         self.mes_l.add('Retour consigne active', Tags.REG_C_ACTIVE, unit='bars rel.', fmt='%0.2f')
         self.mes_l.add('Retour consigne CSR', Tags.REG_C_CSR, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.add('Sortie régulateur', Tags.REG_C_CSR, unit='%', fmt='%0.2f')
+        self.mes_l.add('Sortie régulateur', Tags.REG_SORTIE, unit='%', fmt='%0.2f')
         self.mes_l.add('Calcul Delta P VL', Tags.DELTA_P_VL, unit='bars rel.', fmt='%0.2f')
         self.mes_l.build()
         # Commande du régulateur
