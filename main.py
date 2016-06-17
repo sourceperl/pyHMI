@@ -16,7 +16,6 @@ class Devices(object):
     # init datasource
     # PLC TBox
     tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
-    # tbx = ModbusTCPDevice('192.168.0.11', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
     tbx.add_bits_table(3050, 61)
     tbx.add_bits_table(1536, 8)
@@ -684,100 +683,6 @@ class TabTran(HMITab):
         self.rvs_list.update()
 
 
-# TODO remove IO simul at end of project
-class TabSim(HMITab):
-    def __init__(self, notebook, update_ms=500, *args, **kwargs):
-        HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        # tab "I/O simul"
-        # self.tab_sim.resizable(width=FALSE, height=FALSE)
-        # Vanne 1130
-        self.lblVal = tk.LabelFrame(self, text='Etat des vannes', padx=5, pady=5)
-        self.lblVal.grid(padx=5, pady=5, row=0, columnspan=4, sticky=tk.NSEW)
-        self.btn_v_l = HMIButtonList(self.lblVal, dim=4, btn_args={'width': 12},
-                                     grid_args={'padx': 5, 'pady': 5})
-        c = ({'background': GREEN}, {'background': RED})
-        self.btn_v_l.add('Ouverture V1130', cmd=lambda: Devices.tbx.write_bits(524, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1130', cmd=lambda: Devices.tbx.write_bits(524, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1133', cmd=lambda: Devices.tbx.write_bits(526, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1133', cmd=lambda: Devices.tbx.write_bits(526, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1134', cmd=lambda: Devices.tbx.write_bits(528, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1134', cmd=lambda: Devices.tbx.write_bits(528, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1135', cmd=lambda: Devices.tbx.write_bits(530, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1135', cmd=lambda: Devices.tbx.write_bits(530, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1136', cmd=lambda: Devices.tbx.write_bits(532, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1136', cmd=lambda: Devices.tbx.write_bits(532, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1137', cmd=lambda: Devices.tbx.write_bits(534, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1137', cmd=lambda: Devices.tbx.write_bits(534, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture V1138', cmd=lambda: Devices.tbx.write_bits(536, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture V1138', cmd=lambda: Devices.tbx.write_bits(536, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV2', cmd=lambda: Devices.tbx.write_bits(547, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV2', cmd=lambda: Devices.tbx.write_bits(547, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV7', cmd=lambda: Devices.tbx.write_bits(542, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV7', cmd=lambda: Devices.tbx.write_bits(542, [False, True]), btn_args=c[1])
-        self.btn_v_l.add('Ouverture MV10', cmd=lambda: Devices.tbx.write_bits(540, [True, False]), btn_args=c[0])
-        self.btn_v_l.add('Fermeture MV10', cmd=lambda: Devices.tbx.write_bits(540, [False, True]), btn_args=c[1])
-        self.btn_v_l.build()
-        # Configuration poste
-        self.lblConf = tk.LabelFrame(self, text='Configuration', padx=10, pady=10)
-        self.lblConf.grid(padx=5, pady=5, row=1, column=0, sticky=tk.NSEW)
-        self.conf_list = HMIBoolList(self.lblConf, lbl_args={'width': 10})
-        self.conf_list.add('Régional', Tags.CONF_REG)
-        self.conf_list.add('Neutre', Tags.CONF_NEU)
-        self.conf_list.add('Sécurité', Tags.CONF_SEC)
-        self.conf_list.add('Non Op.', Tags.CONF_NOP)
-        self.conf_list.build()
-        # Etat automate
-        self.lblPlc = tk.LabelFrame(self, text='Etat de l\'automate', padx=10, pady=10)
-        self.lblPlc.grid(padx=5, pady=5, row=1, column=1, sticky=tk.NSEW)
-        self.plc_list = HMIBoolList(self.lblPlc, lbl_args={'width': 15})
-        self.plc_list.add('TC Auto', Tags.TC_AUTO)
-        self.plc_list.add('Tran. en cours', Tags.TRA_EN_COURS)
-        self.plc_list.add('Seq. act. MV1130 ', Tags.SEQ_MV1130_EN_COURS)
-        self.plc_list.add('Def.seq. MV1130', Tags.DEF_SEQ_MV1130, alarm=True)
-        self.plc_list.add('Seq. act. MV1135', Tags.SEQ_MV1135_EN_COURS)
-        self.plc_list.add('Def.seq. MV1135', Tags.DEF_SEQ_MV1135, alarm=True)
-        self.plc_list.add('Seq. act. MV1136', Tags.SEQ_MV1136_EN_COURS)
-        self.plc_list.add('Def.seq. MV1136', Tags.DEF_SEQ_MV1136, alarm=True)
-        self.plc_list.build()
-        # Pilotage
-        self.lblPil = tk.LabelFrame(self, text='Pilotage', padx=10, pady=10)
-        self.lblPil.grid(padx=5, pady=5, row=1, column=2, sticky=tk.NSEW)
-        self.pilotage_list = HMIBoolList(self.lblPil, lbl_args={'width': 10})
-        self.pilotage_list.add('Distant', Tags.PIL_TELE)
-        self.pilotage_list.add('Local', Tags.PIL_LOCAL)
-        self.pilotage_list.build()
-        # Commandes
-        self.lblCmd = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
-        tk.Button(self.lblCmd, text='Login PSLS', background=BLUE,
-                  command=lambda: os.system('write_rtu_id.py 163.111.181.80 ')).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR TC Acquittement défaut', background=GREEN,
-                  command=lambda: Devices.psls.write_word(20706, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR TC Autorisation', background=GREEN,
-                  command=lambda: Devices.psls.write_word(20709, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR TC conf. Région', background=ORANGE,
-                  command=lambda: Devices.psls.write_word(20701, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR TC conf. Neutre', background=ORANGE,
-                  command=lambda: Devices.psls.write_word(20702, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR TC conf. Sécurité', background=ORANGE,
-                  command=lambda: Devices.psls.write_word(20703, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR Ouv. V1135', background=BLUE,
-                  command=lambda: Devices.psls.write_word(20707, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR Fer. V1135', background=BLUE,
-                  command=lambda: Devices.psls.write_word(20708, 1)).pack(fill=tk.X)
-        tk.Button(self.lblCmd, text='CSR isol. MV2', background=RED,
-                  command=lambda: Devices.psls.write_word(20710, 1)).pack(fill=tk.X)
-        self.lblCmd.grid(padx=5, pady=5, row=1, column=3, sticky=tk.NSEW)
-
-    def tab_update(self):
-        # update valve status
-        # update PLC
-        self.plc_list.update()
-        # update config.
-        self.conf_list.update()
-        # update pilotage
-        self.pilotage_list.update()
-
-
 class HMIToolbar(tk.Frame):
     def __init__(self, tk_app, update_ms=500, *args, **kwargs):
         tk.Frame.__init__(self, tk_app, *args, **kwargs)
@@ -816,7 +721,7 @@ class HMIApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         # configure main window
         self.wm_title('Poste de Chilly')
-        # self.attributes('-fullscreen', True)
+        self.attributes('-fullscreen', True)
         # self.geometry("800x600")
         # periodic tags update
         self.do_every(Tags.update_tags, every_ms=500)
@@ -827,13 +732,11 @@ class HMIApp(tk.Tk):
         self.tab_reg = TabReg(self.note)
         self.tab_info = TabInfo(self.note)
         self.tab_tran = TabTran(self.note)
-        self.tab_sim = TabSim(self.note)
         self.note.add(self.tab_int, text='Interconnexion (F1)')
         self.note.add(self.tab_gny_dn900, text='Gournay DN900 (F2)')
         self.note.add(self.tab_reg, text='Régulation (F3)')
         self.note.add(self.tab_info, text='Informations (F4)')
         self.note.add(self.tab_tran, text='Transitions (F5)')
-        self.note.add(self.tab_sim, text='I/O simul (F6)')
         self.note.pack(fill=tk.BOTH, expand=True)
         # defaut selected tab
         self.note.select(self.tab_int)
@@ -843,7 +746,6 @@ class HMIApp(tk.Tk):
         self.bind('<F3>', lambda evt: self.note.select(self.tab_reg))
         self.bind('<F4>', lambda evt: self.note.select(self.tab_info))
         self.bind('<F5>', lambda evt: self.note.select(self.tab_tran))
-        self.bind('<F6>', lambda evt: self.note.select(self.tab_sim))
         # build toolbar
         self.toolbar = HMIToolbar(self, update_ms=500)
 
