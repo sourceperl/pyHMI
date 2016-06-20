@@ -140,6 +140,7 @@ class Tags(object):
     # virtual (a tag from tag(s))
     GET_TAG_TEST = Tag(False, get_cmd=lambda: Tags.V1130_FDC_FER.val and Tags.V1133_FDC_FER.val)
     DELTA_P_VL = Tag(0, get_cmd=lambda: Tags.REG_P_AM_VL.e_val - Tags.REG_P_AV_VL.e_val)
+    P_ANTENNES = Tag(0, get_cmd=lambda: Tags.P_CPTGE.e_val - 1.0)
     TRA_NVR_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(Tags.TRA_NEU_V_REG, 1))
     TRA_RVN_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(Tags.TRA_REG_V_NEU, 1))
     TRA_RVN_STEP_2 = Tag(0, get_cmd=lambda: tag_equal(Tags.TRA_REG_V_NEU, 2))
@@ -265,8 +266,9 @@ class TabInterco(HMITab):
         self.map_int.add_vbox('P_ARL', 640, 300, get_value=lambda: Tags.P_ARL, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: Tags.REG_P_AV_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('POS_VL', 160, 190, get_value=lambda: Tags.POS_VL, prefix='', suffix='%')
-        self.map_int.add_vbox('Q_ANTENNES', 400, 50, get_value=lambda: Tags.Q_ANTENNES, prefix='Q', suffix='Nm3/h',
+        self.map_int.add_vbox('Q_ANTENNES', 375, 50, get_value=lambda: Tags.Q_ANTENNES, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
+        self.map_int.add_vbox('P_ANTENNES', 500, 50, get_value=lambda: Tags.P_ANTENNES, prefix='P', suffix='bars')
         # custom widget
         # Pilotage poste
         self.frmConf = tk.Frame(self.map_int.can)
