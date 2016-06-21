@@ -6,7 +6,6 @@ from pyHMI.Colors import *
 from pyHMI.Dialog import ConfirmDialog, ValveOpenCloseDialog, ValveESDDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag, tag_equal
-import os
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -58,7 +57,7 @@ class Tags(object):
     V1135_EV_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3069})
     V1136_EV_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3070})
     V1136_EV_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3071})
-    MV2_EV_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3072})
+    V1741_EV_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3072})
     V1130_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3074})
     V1130_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3075})
     V1133_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3076})
@@ -75,15 +74,15 @@ class Tags(object):
     V1138_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3087})
     VL_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3088})
     VL_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3089})
-    MV10_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3090})
-    MV10_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3091})
+    V1740_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3090})
+    V1740_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3091})
     MV7_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3092})
     MV7_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3093})
     MV7_DEF_ELEC = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3094})
     MV7_DIST = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3095})
     MV7_HS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3096})
-    MV2_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3097})
-    MV2_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3098})
+    V1741_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3097})
+    V1741_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3098})
     DEF_SEQ_MV1130 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3099})
     DEF_SEQ_MV1135 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3100})
     DEF_SEQ_MV1136 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3101})
@@ -92,8 +91,8 @@ class Tags(object):
     SEQ_MV1136_EN_COURS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3104})
     DELTA_P_INF_1_5 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3105})
     DELTA_P_INF_0_5 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3106})
-    MV2_PST_EN_COURS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3107})
-    MV2_DEF_PST = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3108})
+    V1741_PST_EN_COURS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3107})
+    V1741_DEF_PST = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3108})
     DEF_DJ_220V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3109})
     DEF_DJ_24V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3110})
     TRA_REG_V_NEU = Tag(False, src=Devices.tbx, ref={'type': 'word', 'addr': 4000})
@@ -165,8 +164,8 @@ class Tags(object):
     CMD_V1135_CLOSE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6020})
     CMD_V1136_OPEN = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6021})
     CMD_V1136_CLOSE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6022})
-    CMD_MV2_CLOSE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6023})
-    CMD_MV2_PST = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6025})
+    CMD_V1741_CLOSE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6023})
+    CMD_V1741_PST = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6025})
     CMD_CONF_REGION = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6026})
     CMD_CONF_NEUTRE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6027})
     # REG
@@ -223,8 +222,8 @@ class TabInterco(HMITab):
                                 command=self.app.confirm_v1135, state='disabled')
         self.map_int.add_button('MANAGE_V1136', 480, 200, text='V1136',
                                 command=self.app.confirm_v1136, state='disabled')
-        self.map_int.add_button('MANAGE_MV2', 480, 470, text='MV2',
-                                command=self.app.confirm_mv2, state='disabled')
+        self.map_int.add_button('MANAGE_V1741', 480, 470, text='V1741',
+                                command=self.app.confirm_v1741, state='disabled')
         # add simple valve
         self.map_int.add_s_valve('V1133', 570, 340, label='V1133', zoom=0.8, align='v')
         self.map_int.add_s_valve('V1134', 230, 340, label='V1134', zoom=0.8, align='v')
@@ -234,7 +233,7 @@ class TabInterco(HMITab):
         self.map_int.add_m_valve('V1130', 400, 400, label='V1130', zoom=1)
         self.map_int.add_m_valve('V1135', 570, 140, label='V1135', zoom=0.8, align='v')
         self.map_int.add_m_valve('V1136', 400, 230, label='V1136', zoom=0.8)
-        self.map_int.add_m_valve('MV2', 400, 500, label='MV2', zoom=1)
+        self.map_int.add_m_valve('V1741', 400, 500, label='V1741', zoom=1)
         # add flow valve
         self.map_int.add_f_valve('VL1', 230, 190, label='VL', zoom=0.8, align='v')
         # add point
@@ -251,8 +250,8 @@ class TabInterco(HMITab):
         self.map_int.add_pipe('t11', from_name='V1130', to_name='p4')
         self.map_int.add_pipe('t12', from_name='p4', to_name='ARL')
         self.map_int.add_pipe('t13', from_name='GNY_800', to_name='p3')
-        self.map_int.add_pipe('t14', from_name='GNY_900', to_name='MV2')
-        self.map_int.add_pipe('t15', from_name='p4', to_name='MV2')
+        self.map_int.add_pipe('t14', from_name='GNY_900', to_name='V1741')
+        self.map_int.add_pipe('t15', from_name='p4', to_name='V1741')
         self.map_int.add_pipe('t16', from_name='p1', to_name='V1136')
         self.map_int.add_pipe('t17', from_name='V1136', to_name='p5')
         self.map_int.add_pipe('t18', from_name='p1', to_name='Q_ANTENNES')
@@ -319,8 +318,8 @@ class TabInterco(HMITab):
         self.map_int.motor_valve.tag_anim('V1136', Tags.V1136_FDC_OUV, Tags.V1136_FDC_FER)
         self.map_int.motor_valve.motor_tag_anim('V1136', Tags.V1136_EV_OUV, Tags.V1136_EV_FER,
                                                 Tags.DEF_SEQ_MV1136)
-        self.map_int.motor_valve.tag_anim('MV2', Tags.MV2_FDC_OUV, Tags.MV2_FDC_FER)
-        self.map_int.motor_valve.motor_tag_anim('MV2', Tags.NULL_TAG, Tags.MV2_EV_FER)
+        self.map_int.motor_valve.tag_anim('V1741', Tags.V1741_FDC_OUV, Tags.V1741_FDC_FER)
+        self.map_int.motor_valve.motor_tag_anim('V1741', Tags.NULL_TAG, Tags.V1741_EV_FER)
         # update config.
         self.cnfDist.configure(background=color_tag_state(Tags.PIL_TELE))
         self.cnfLoc.configure(background=color_tag_state(Tags.PIL_LOCAL))
@@ -334,12 +333,12 @@ class TabInterco(HMITab):
             self.map_int.d_widget['MANAGE_V1130']['obj'].configure(state='normal')
             self.map_int.d_widget['MANAGE_V1135']['obj'].configure(state='normal')
             self.map_int.d_widget['MANAGE_V1136']['obj'].configure(state='normal')
-            self.map_int.d_widget['MANAGE_MV2']['obj'].configure(state='normal')
+            self.map_int.d_widget['MANAGE_V1741']['obj'].configure(state='normal')
         else:
             self.map_int.d_widget['MANAGE_V1130']['obj'].configure(state='disabled')
             self.map_int.d_widget['MANAGE_V1135']['obj'].configure(state='disabled')
             self.map_int.d_widget['MANAGE_V1136']['obj'].configure(state='disabled')
-            self.map_int.d_widget['MANAGE_MV2']['obj'].configure(state='disabled')
+            self.map_int.d_widget['MANAGE_V1741']['obj'].configure(state='disabled')
 
 
 class TabGnyDN900(HMITab):
@@ -348,9 +347,9 @@ class TabGnyDN900(HMITab):
         # tab "Gournay DN900"
         self.map_gny_dn900 = HMICanvas(self, width=800, height=550, debug=False)
         # add valves
-        self.map_gny_dn900.add_m_valve('MV2', 300, 200, label='MV2', zoom=1, align='v')
+        self.map_gny_dn900.add_m_valve('V1741', 300, 200, label='V1741', zoom=1, align='v')
         self.map_gny_dn900.add_s_valve('MV7', 500, 200, label='MV7', zoom=0.8, align='v')
-        self.map_gny_dn900.add_s_valve('MV10', 600, 300, label='MV10', zoom=0.8)
+        self.map_gny_dn900.add_s_valve('V1740', 600, 300, label='V1740', zoom=0.8)
         # add points
         self.map_gny_dn900.add_point('p2', 300, 300)
         self.map_gny_dn900.add_point('p3', 500, 300)
@@ -363,17 +362,17 @@ class TabGnyDN900(HMITab):
                                       borderwidth=0)
         self.map_gny_dn900.add_button('ARL', 300, 100, text='Arleux DN800', state='disabled', disabledforeground=BLACK,
                                       borderwidth=0)
-        self.map_gny_dn900.add_button('MANAGE_MV2', 220, 200, text='MV2',
-                                      command=self.app.confirm_mv2, state='disabled')
+        self.map_gny_dn900.add_button('MANAGE_V1741', 220, 200, text='V1741',
+                                      command=self.app.confirm_v1741, state='disabled')
         # add pipes
         self.map_gny_dn900.add_pipe('t1', from_name='GNY', to_name='p2')
         self.map_gny_dn900.add_pipe('t2', from_name='p2', to_name='p3')
-        self.map_gny_dn900.add_pipe('t3', from_name='p3', to_name='MV10')
+        self.map_gny_dn900.add_pipe('t3', from_name='p3', to_name='V1740')
         self.map_gny_dn900.add_pipe('t4', from_name='p3', to_name='MV7')
-        self.map_gny_dn900.add_pipe('t5', from_name='p2', to_name='MV2')
+        self.map_gny_dn900.add_pipe('t5', from_name='p2', to_name='V1741')
         self.map_gny_dn900.add_pipe('t6', from_name='MV7', to_name='EVENT')
-        self.map_gny_dn900.add_pipe('t7', from_name='MV10', to_name='GARE')
-        self.map_gny_dn900.add_pipe('t8', from_name='MV2', to_name='ARL')
+        self.map_gny_dn900.add_pipe('t7', from_name='V1740', to_name='GARE')
+        self.map_gny_dn900.add_pipe('t8', from_name='V1741', to_name='ARL')
         # add vbox
         self.map_gny_dn900.add_vbox('POS_MV7', 430, 200, get_value=lambda: Tags.POS_MV7, prefix='', suffix='%')
 
@@ -386,14 +385,14 @@ class TabGnyDN900(HMITab):
         self.mv7_list.add('Défaut élec.', Tags.MV7_DEF_ELEC)
         self.mv7_list.build()
         self.map_gny_dn900.can.create_window(600, 160, window=self.frmMV7)
-        # MV2 info panel
-        self.frmMV2 = tk.Frame(self.map_gny_dn900.can, padx=0, pady=0)
-        self.frmMV2.pack()
-        self.mv2_list = HMIBoolList(self.frmMV2, head_str='Etat MV2', lbl_args={'width': 10})
-        self.mv2_list.add('PST actif', Tags.MV2_PST_EN_COURS)
-        self.mv2_list.add('Défaut PST', Tags.MV2_DEF_PST, alarm=True)
-        self.mv2_list.build()
-        self.map_gny_dn900.can.create_window(380, 150, window=self.frmMV2)
+        # V1741 info panel
+        self.frmV1741 = tk.Frame(self.map_gny_dn900.can, padx=0, pady=0)
+        self.frmV1741.pack()
+        self.v1741_list = HMIBoolList(self.frmV1741, head_str='Etat V1741', lbl_args={'width': 10})
+        self.v1741_list.add('PST actif', Tags.V1741_PST_EN_COURS)
+        self.v1741_list.add('Défaut PST', Tags.V1741_DEF_PST, alarm=True)
+        self.v1741_list.build()
+        self.map_gny_dn900.can.create_window(380, 150, window=self.frmV1741)
         # build panel
         self.map_gny_dn900.build()
 
@@ -401,19 +400,19 @@ class TabGnyDN900(HMITab):
         # update vbox
         self.map_gny_dn900.update_vbox()
         # update valves on canvas
-        self.map_gny_dn900.motor_valve.tag_anim('MV2', Tags.MV2_FDC_OUV, Tags.MV2_FDC_FER)
-        self.map_gny_dn900.motor_valve.motor_tag_anim('MV2', Tags.NULL_TAG, Tags.MV2_EV_FER)
+        self.map_gny_dn900.motor_valve.tag_anim('V1741', Tags.V1741_FDC_OUV, Tags.V1741_FDC_FER)
+        self.map_gny_dn900.motor_valve.motor_tag_anim('V1741', Tags.NULL_TAG, Tags.V1741_EV_FER)
         self.map_gny_dn900.simple_valve.tag_anim('MV7', Tags.MV7_FDC_OUV, Tags.MV7_FDC_FER)
-        self.map_gny_dn900.simple_valve.tag_anim('MV10', Tags.MV10_FDC_OUV, Tags.MV10_FDC_FER)
+        self.map_gny_dn900.simple_valve.tag_anim('V1740', Tags.V1740_FDC_OUV, Tags.V1740_FDC_FER)
         # validate command when local mode active
         if Tags.PIL_LOCAL.val:
-            self.map_gny_dn900.d_widget['MANAGE_MV2']['obj'].configure(state='normal')
+            self.map_gny_dn900.d_widget['MANAGE_V1741']['obj'].configure(state='normal')
         else:
-            self.map_gny_dn900.d_widget['MANAGE_MV2']['obj'].configure(state='disabled')
+            self.map_gny_dn900.d_widget['MANAGE_V1741']['obj'].configure(state='disabled')
         # update MV7 info panel
         self.mv7_list.update()
-        # update MV2 info panel
-        self.mv2_list.update()
+        # update V1741 info panel
+        self.v1741_list.update()
 
 
 class TabReg(HMITab):
@@ -534,7 +533,7 @@ class TabInfo(HMITab):
         self.poste_list = HMIAnalogList(self.frmPoste, lbl_args={'width': 10})
         self.poste_list.add('Q vers antennes régionales', Tags.Q_ANTENNES, 'Nm3/h', fmt='%d')
         self.poste_list.add('P comptage (aval VL)', Tags.P_CPTGE, 'bars abs.', fmt='%.02f')
-        self.poste_list.add('P Gournay DN900 (amt MV2)', Tags.P_GNY_DN900, 'bars rel.', fmt='%.02f')
+        self.poste_list.add('P Gournay DN900 (amt V1741)', Tags.P_GNY_DN900, 'bars rel.', fmt='%.02f')
         self.poste_list.add('P Arleux', Tags.P_ARL, 'bars rel.', fmt='%.02f')
         self.poste_list.add('P amont VL', Tags.REG_P_AM_VL, 'bars rel.', fmt='%.02f')
         self.poste_list.add('P aval VL', Tags.REG_P_AV_VL, 'bars rel.', fmt='%.02f')
@@ -577,15 +576,15 @@ class TabInfo(HMITab):
         # Vanne ESD
         self.frmESDValves = tk.LabelFrame(self, text='Vanne ESD', padx=5, pady=5)
         self.frmESDValves.grid(row=2, column=2, padx=5, pady=5, sticky=tk.NSEW)
-        # MV2
-        self.frmMV2 = tk.Frame(self.frmESDValves, padx=0, pady=0)
-        self.frmMV2.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.mv2_l = HMIBoolList(self.frmMV2, head_str='MV2', lbl_args={'width': 10})
-        self.mv2_l.add('Ouv', Tags.MV2_FDC_OUV)
-        self.mv2_l.add('Fer', Tags.MV2_FDC_FER)
-        self.mv2_l.add('PST actif', Tags.MV2_PST_EN_COURS)
-        self.mv2_l.add('Défaut PST', Tags.MV2_DEF_PST, alarm=True)
-        self.mv2_l.build()
+        # V1741
+        self.frmV1741 = tk.Frame(self.frmESDValves, padx=0, pady=0)
+        self.frmV1741.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.v1741_l = HMIBoolList(self.frmV1741, head_str='V1741', lbl_args={'width': 10})
+        self.v1741_l.add('Ouv', Tags.V1741_FDC_OUV)
+        self.v1741_l.add('Fer', Tags.V1741_FDC_FER)
+        self.v1741_l.add('PST actif', Tags.V1741_PST_EN_COURS)
+        self.v1741_l.add('Défaut PST', Tags.V1741_DEF_PST, alarm=True)
+        self.v1741_l.build()
         # Système
         self.frmSys = tk.LabelFrame(self, text='Système', padx=5, pady=5)
         self.frmSys.grid(row=2, column=3, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
@@ -606,7 +605,7 @@ class TabInfo(HMITab):
         self.v1130_l.update()
         self.v1135_l.update()
         self.v1136_l.update()
-        self.mv2_l.update()
+        self.v1741_l.update()
         self.sys_l.update()
 
 
@@ -763,10 +762,10 @@ class HMIApp(tk.Tk):
         ConfirmDialog(self, title='Confirmation', text='Passage en configuration neutre ?',
                       valid_command=lambda: Tags.CMD_CONF_NEUTRE.set(True))
 
-    def confirm_mv2(self):
-        ValveESDDialog(self, title='MV2', text='Action sur vanne de sécurité MV2 ?',
-                       stop_command=lambda: Tags.CMD_MV2_CLOSE.set(True),
-                       pst_command=lambda: Tags.CMD_MV2_PST.set(True))
+    def confirm_v1741(self):
+        ValveESDDialog(self, title='V1741', text='Action sur vanne de sécurité V1741 ?',
+                       stop_command=lambda: Tags.CMD_V1741_CLOSE.set(True),
+                       pst_command=lambda: Tags.CMD_V1741_PST.set(True))
 
     def confirm_v1130(self):
         ValveOpenCloseDialog(self, title='V1130', text='Mouvement V1130 ?',
