@@ -264,7 +264,7 @@ class TabInterco(HMITab):
         self.map_int.add_vbox('P_GNY_DN800', 160, 300, get_value=lambda: Tags.REG_P_AM_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_ARL', 640, 300, get_value=lambda: Tags.P_ARL, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: Tags.REG_P_AV_VL, prefix='P', suffix='bars')
-        self.map_int.add_vbox('POS_VL', 160, 190, get_value=lambda: Tags.POS_VL, prefix='', suffix='%')
+        self.map_int.add_vbox('OUV_VL', 160, 190, get_value=lambda: Tags.REG_SORTIE, prefix='', suffix='%')
         self.map_int.add_vbox('Q_ANTENNES', 375, 50, get_value=lambda: Tags.Q_ANTENNES, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
         self.map_int.add_vbox('P_ANTENNES', 500, 50, get_value=lambda: Tags.P_ANTENNES, prefix='P', suffix='bars')
@@ -441,6 +441,7 @@ class TabReg(HMITab):
         self.mes_l.add('Retour consigne active', Tags.REG_C_ACTIVE, unit='bars rel.', fmt='%0.2f')
         self.mes_l.add('Retour consigne CSR', Tags.REG_C_CSR, unit='bars rel.', fmt='%0.2f')
         self.mes_l.add('Sortie régulateur', Tags.REG_SORTIE, unit='%', fmt='%0.2f')
+        self.mes_l.add('Position VL', Tags.POS_VL, unit='%', fmt='%0.2f')
         self.mes_l.add('Calcul Delta P VL', Tags.DELTA_P_VL, unit='bars rel.', fmt='%0.2f')
         self.mes_l.build()
         # Commande du régulateur
