@@ -4,6 +4,7 @@
 from pyHMI.Colors import *
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
+from pyHMI.Dialog import SetIntValueDialog
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -14,21 +15,16 @@ class Devices(object):
     # PLC TBox
     plc = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
-    plc.add_bits_table(0, 4)
+    plc.add_longs_table(0, 1)
 
 
 class Tags(object):
     # tags list
     # from PLC
-    BIT_0 = Tag(False, src=Devices.plc, ref={'type': 'bit', 'addr': 0})
-    BIT_1 = Tag(False, src=Devices.plc, ref={'type': 'bit', 'addr': 1})
-    BIT_2 = Tag(False, src=Devices.plc, ref={'type': 'bit', 'addr': 2})
-    BIT_3 = Tag(False, src=Devices.plc, ref={'type': 'bit', 'addr': 3})
+    R_LONG_0 = Tag(False, src=Devices.plc, ref={'type': 'long', 'addr': 0})
     # to PLC
-    W_BIT_0 = Tag(False, src=Devices.plc, ref={'type': 'w_bit', 'addr': 0})
-    W_BIT_1 = Tag(False, src=Devices.plc, ref={'type': 'w_bit', 'addr': 1})
-    W_BIT_2 = Tag(False, src=Devices.plc, ref={'type': 'w_bit', 'addr': 2})
-    W_BIT_3 = Tag(False, src=Devices.plc, ref={'type': 'w_bit', 'addr': 3})
+    W_WORD_0 = Tag(False, src=Devices.plc, ref={'type': 'w_word', 'addr': 0})
+    W_WORD_1 = Tag(False, src=Devices.plc, ref={'type': 'w_word', 'addr': 1})
 
     @classmethod
     def update_tags(cls):
@@ -60,31 +56,37 @@ class HMITab(tk.Frame):
 class TabMisc(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        # Bits
-        self.frmState = tk.LabelFrame(self, text='Bits state', padx=10, pady=10)
+        # Long
+        self.frmState = tk.LabelFrame(self, text='Long value', padx=10, pady=10)
         self.frmState.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.state_list = HMIBoolList(self.frmState, lbl_args={'width': 15})
-        self.state_list.add('PLC Bit 0', Tags.BIT_0, alarm=False)
-        self.state_list.add('PLC Bit 1', Tags.BIT_1, alarm=False)
-        self.state_list.add('PLC Bit 2', Tags.BIT_2, alarm=False)
-        self.state_list.add('PLC Bit 3', Tags.BIT_3, alarm=False)
-        self.state_list.build()
+        self.longs_list = HMIAnalogList(self.frmState, lbl_args={'width': 15})
+        self.longs_list.add('Long @0', Tags.R_LONG_0)
+        self.longs_list.build()
         self.frmCmd = tk.LabelFrame(self, text='Set/Reset', padx=10, pady=10)
         self.frmCmd.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
-        self.cmd_list = HMIButtonList(self.frmCmd, dim=2, btn_args={'width': 10})
+        self.cmd_list = HMIButtonList(self.frmCmd, dim=2, btn_args={'width': 15})
         c = ('light salmon', 'OliveDrab1')
-        self.cmd_list.add('Set Bit 0', cmd=lambda: Tags.W_BIT_0.set(True), btn_args={'bg': c[0]})
-        self.cmd_list.add('Reset Bit 0', cmd=lambda: Tags.W_BIT_0.set(False), btn_args={'bg': c[1]})
-        self.cmd_list.add('Set Bit 1', cmd=lambda: Tags.W_BIT_1.set(True), btn_args={'bg': c[0]})
-        self.cmd_list.add('Reset Bit 1', cmd=lambda: Tags.W_BIT_1.set(False), btn_args={'bg': c[1]})
-        self.cmd_list.add('Set Bit 2', cmd=lambda: Tags.W_BIT_2.set(True), btn_args={'bg': c[0]})
-        self.cmd_list.add('Reset Bit 2', cmd=lambda: Tags.W_BIT_2.set(False), btn_args={'bg': c[1]})
-        self.cmd_list.add('Set Bit 3', cmd=lambda: Tags.W_BIT_3.set(True), btn_args={'bg': c[0]})
-        self.cmd_list.add('Reset Bit 3', cmd=lambda: Tags.W_BIT_3.set(False), btn_args={'bg': c[1]})
+        self.cmd_list.add('Word @0 = 0xffff', cmd=lambda: Tags.W_WORD_0.set(0xffff), btn_args={'bg': c[0]})
+        self.cmd_list.add('Word @0 = 0x0000', cmd=lambda: Tags.W_WORD_0.set(0x0), btn_args={'bg': c[1]})
+        self.cmd_list.add('Word @1= 0xffff', cmd=lambda: Tags.W_WORD_1.set(0xffff), btn_args={'bg': c[0]})
+        self.cmd_list.add('Word @1 = 0x0000', cmd=lambda: Tags.W_WORD_1.set(0x0), btn_args={'bg': c[1]})
         self.cmd_list.build()
+        # frame "set value of word"
+        self.frmEntry = tk.LabelFrame(self, text='Set value of words', padx=10, pady=10)
+        self.frmEntry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.button1 = tk.Button(self.frmEntry, text='Write @0',
+                                 command=lambda: SetIntValueDialog(self, title='Saisie de valeur',
+                                                                   text='Valeur du mot @0',
+                                                                   valid_command=Tags.W_WORD_0.set))
+        self.button1.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.button2 = tk.Button(self.frmEntry, text='Write @1',
+                                 command=lambda: SetIntValueDialog(self, title='Saisie de valeur',
+                                                                   text='Valeur du mot @1',
+                                                                   valid_command=Tags.W_WORD_1.set))
+        self.button2.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
 
     def tab_update(self):
-        self.state_list.update()
+        self.longs_list.update()
 
 
 class HMIToolbar(tk.Frame):
