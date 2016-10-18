@@ -71,3 +71,26 @@ class ValveESDDialog(Toplevel):
     def pst(self):
         self.pst_command()
         self.destroy()
+
+
+class SetIntValueDialog(Toplevel):
+    def __init__(self, parent, title, text, valid_command):
+        super(SetIntValueDialog, self).__init__(parent)
+        self.transient(parent)
+        self.grab_set()
+        self.title(title)
+        self.valid_command = valid_command
+        self.value = IntVar()
+        Label(self, text=text).grid(row=0, column=0, columnspan=2, padx=20, pady=20)
+        Entry(self, textvariable=self.value).grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+        Button(self, text='Validation', command=self.ok).grid(row=2, column=0, padx=10, pady=10)
+        Button(self, text='Annulation', command=self.cancel).grid(row=2, column=1, padx=10, pady=10)
+        self.bind('<Escape>', lambda evt: self.destroy())
+        self.after(45000, self.destroy)
+
+    def ok(self):
+        self.valid_command(self.value.get())
+        self.destroy()
+
+    def cancel(self):
+        self.destroy()
