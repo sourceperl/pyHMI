@@ -7,7 +7,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='pyHMI',
-    version='0.0.dev0',
+    version='0.0.1',
     description='A set of class for easy build tkinter HMI with Python',
     long_description='',
     author='Loic Lefebvre',

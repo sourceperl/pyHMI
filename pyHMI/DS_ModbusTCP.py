@@ -16,6 +16,7 @@ class ModbusTCPDevice(object):
         # privates vars
         self._bits = {}
         self._words = {}
+        self._longs = {}
         self._floats = {}
         self._connected = False
         self._poll_cycle = 0
@@ -43,7 +44,7 @@ class ModbusTCPDevice(object):
     # tag_add, get, err and set are mandatory function to be a valid tag source
     def tag_add(self, tag):
         # modbus read value start with tag error flag set
-        if any(tag.ref['type'] in s for s in ('bit', 'word', 'float')):
+        if any(tag.ref['type'] in s for s in ('bit', 'word', 'long', 'float')):
             tag.err = True
         # check a table already reference the tag, raise ValueError if not
         with self._lock:
@@ -55,10 +56,21 @@ class ModbusTCPDevice(object):
                 if tag.ref['addr'] not in self._words:
                     raise ValueError(
                         'Tag address %d have no words table define on modbus host %s' % (tag.ref['addr'], self.host))
+            elif tag.ref['type'] == 'long':
+                if tag.ref['addr'] not in self._longs:
+                    raise ValueError(
+                        'Tag address %d have no longs table define on modbus host %s' % (tag.ref['addr'], self.host))
             elif tag.ref['type'] == 'float':
                 if tag.ref['addr'] not in self._floats:
                     raise ValueError(
                         'Tag address %d have no floats table define on modbus host %s' % (tag.ref['addr'], self.host))
+            elif tag.ref['type'] == 'w_bit':
+                pass
+            elif tag.ref['type'] == 'w_word':
+                pass
+            else:
+                raise ValueError(
+                    'Wrong tag type %s for modbus host %s' % (tag.ref['type'], self.host))
 
     def get(self, ref):
         if ref['type'] == 'bit':
@@ -69,6 +81,10 @@ class ModbusTCPDevice(object):
             with self._lock:
                 word = int(self._words[ref['addr']]['word'])
                 return word * ref.get('span', 1) + ref.get('offset', 0)
+        elif ref['type'] == 'long':
+            with self._lock:
+                long = int(self._longs[ref['addr']]['long'])
+                return long * ref.get('span', 1) + ref.get('offset', 0)
         elif ref['type'] == 'float':
             with self._lock:
                 flt = float(self._floats[ref['addr']]['float'])
@@ -81,6 +97,9 @@ class ModbusTCPDevice(object):
         elif ref['type'] == 'word':
             with self._lock:
                 return self._words[ref['addr']]['err']
+        elif ref['type'] == 'long':
+            with self._lock:
+                return self._longs[ref['addr']]['err']
         elif ref['type'] == 'float':
             with self._lock:
                 return self._floats[ref['addr']]['err']
@@ -90,8 +109,8 @@ class ModbusTCPDevice(object):
             return self.write_bit(ref['addr'], value)
         elif ref['type'] == 'w_word':
             return self.write_word(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
-            # elif ref['type'] == 'w_float':
-            #     return self.write_float(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
+        # elif ref['type'] == 'w_float':
+        #     return self.write_float(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
 
     def polling_thread(self):
         # polling cycle
@@ -146,6 +165,21 @@ class ModbusTCPDevice(object):
                         with self._lock:
                             for _addr in range(addr, addr + size):
                                 self._words[_addr]['err'] = True
+                elif r['type'] is 'long':
+                    addr = r['addr']
+                    size = r['size']
+                    reg_list = self._c.read_holding_registers(addr, size * 2)
+                    # if read is ok, store result in dict (with thread _lock synchronization)
+                    if reg_list:
+                        with self._lock:
+                            for off in range(0, size):
+                                long = word_list_to_long([reg_list[off * 2], reg_list[off * 2 + 1]])[0]
+                                self._longs[addr + off * 2]['long'] = long
+                                self._longs[addr + off * 2]['err'] = False
+                    else:
+                        with self._lock:
+                            for off in range(0, size):
+                                self._longs[addr + off * 2]['err'] = True
                 elif r['type'] is 'float':
                     addr = r['addr']
                     size = r['size']
@@ -222,6 +256,16 @@ class ModbusTCPDevice(object):
             # init words table with default value
             for a in range(addr, addr + size):
                 self._words[a] = {'word': 0, 'err': True}
+        # immediate modbus refresh
+        self._wait_evt.set()
+
+    def add_longs_table(self, addr, size=1):
+        with self._lock:
+            # add bit table to read buffer
+            self._r_buffer.append({'type': 'long', 'addr': addr, 'size': size})
+            # init longs table with default value
+            for offset in range(0, size):
+                self._longs[addr + offset * 2] = {'long': 0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
