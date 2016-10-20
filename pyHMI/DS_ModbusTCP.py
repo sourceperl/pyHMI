@@ -43,9 +43,6 @@ class ModbusTCPDevice(object):
 
     # tag_add, get, err and set are mandatory function to be a valid tag source
     def tag_add(self, tag):
-        # modbus read value start with tag error flag set
-        if any(tag.ref['type'] in s for s in ('bit', 'word', 'long', 'float')):
-            tag.err = True
         # check a table already reference the tag, raise ValueError if not
         with self._lock:
             if tag.ref['type'] == 'bit':
