@@ -34,16 +34,16 @@ class Tags(object):
     DEF_ANALYSE = Tag(0, src=Devices.cp, ref={'type': 'long', 'addr': 20})
     DEF_CAPTEUR = Tag(0, src=Devices.cp, ref={'type': 'long', 'addr': 22})
     # to Redis
-    RD_CP_LOOP_COUNT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:cp2redis:loop_count'})
-    RD_CP_COM_OK = Tag(0, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_ok'})
-    RD_CP_THT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:tht'})
-    RD_CP_RETENTION_TIME = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:retention_time'})
-    RD_CP_PEAK_AREA = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:peak_area'})
-    RD_CP_PRESSURE_GAS = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:pressure_gas'})
-    RD_CP_FLOW_GAS = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:flow_gas'})
-    RD_CP_ANALYSIS_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:analysis_fault'})
-    RD_CP_SENSOR_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:sensor_fault'})
-    RD_CP_STATE = Tag(0, src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state'})
+    RD_CP_LOOP_COUNT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:cp2redis:loop_count', 'ttl': 10})
+    RD_CP_COM_FAULT = Tag(0, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_fault', 'ttl': 10})
+    RD_CP_THT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:tht', 'ttl': 10})
+    RD_CP_RETENTION_TIME = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:retention_time', 'ttl': 10})
+    RD_CP_PEAK_AREA = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:peak_area', 'ttl': 10})
+    RD_CP_PRESSURE_GAS = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:pressure_gas', 'ttl': 10})
+    RD_CP_FLOW_GAS = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:flow_gas', 'ttl': 10})
+    RD_CP_ANALYSIS_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:analysis_fault', 'ttl': 10})
+    RD_CP_SENSOR_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:sensor_fault', 'ttl': 10})
+    RD_CP_STATE = Tag(0, src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state', 'ttl': 10})
     # virtual
     LOOP_COUNT = Tag(0)
 
@@ -53,7 +53,7 @@ class Tags(object):
         cls.LOOP_COUNT.val += 1
         # status keys
         Tags.RD_CP_LOOP_COUNT.val = Tags.LOOP_COUNT.val
-        Tags.RD_CP_COM_OK.val = Devices.cp.connected
+        Tags.RD_CP_COM_FAULT.val = not Devices.cp.connected
         # data keys
         Tags.RD_CP_THT.val = Tags.THT.val
         Tags.RD_CP_RETENTION_TIME.val = Tags.RT.val

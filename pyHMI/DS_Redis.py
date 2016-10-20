@@ -5,17 +5,20 @@ import threading
 
 
 class RedisKey(object):
-    def __init__(self, var_type='int', init_value=0):
+    def __init__(self, var_type='int', init_value=0, ttl=0):
+
         self.var_type = var_type
+        self.error = True
         self.redis_read = init_value
         self.redis_write = init_value
         self.write_flag = False
-        self.error = True
+        self.ttl = ttl
 
     def value(self):
+        # read value with format
         if self.var_type == 'bool':
             try:
-                return bool(self.redis_read)
+                return self.redis_read == b'True'
             except ValueError:
                 return False
         elif self.var_type == 'int':
@@ -37,8 +40,22 @@ class RedisKey(object):
                 return ''
 
     def update(self, value):
-        self.redis_write = value
-        self.write_flag = True
+        # format data for write
+        if self.var_type == 'bool':
+            self.redis_write = bool(value)
+            self.write_flag = True
+        elif self.var_type == 'int':
+            self.redis_write = int(value)
+            self.write_flag = True
+        elif self.var_type == 'float':
+            self.redis_write = float(value)
+            self.write_flag = True
+        elif self.var_type == 'str':
+            if type(value) is bytes:
+                self.redis_write = value
+            else:
+                self.redis_write = bytes(value, 'utf-8')
+            self.write_flag = True
 
 
 class RedisDevice(object):
@@ -81,7 +98,7 @@ class RedisDevice(object):
             raise ValueError('Wrong tag type %s for Redis host %s' % (tag.ref['type'], self.host))
         # add tag to keys dict
         with self._lock:
-            self._all_keys[tag.ref['key']] = RedisKey(var_type=tag.ref['type'])
+            self._all_keys[tag.ref['key']] = RedisKey(var_type=tag.ref['type'], ttl=tag.ref.get('ttl', 0))
 
     def get(self, ref):
         with self._lock:
@@ -107,7 +124,7 @@ class RedisDevice(object):
                     # write value in redis if need
                     if self._tmp_keys[k].write_flag:
                         self._tmp_keys[k].write_flag = False
-                        self._r.set(k, self._tmp_keys[k].redis_write)
+                        self._r.set(k, self._tmp_keys[k].redis_write, ex=self._tmp_keys[k].ttl)
                     # read value in redis
                     redis_val = self._r.get(k)
                     if redis_val is not None:
