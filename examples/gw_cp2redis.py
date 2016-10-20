@@ -13,11 +13,12 @@ import time
 class Devices(object):
     # init datasource
     # CP-4900
-    cp = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
+    cp = ModbusTCPDevice('163.111.182.171', port=502, timeout=2.0, refresh=1.0)
+    #cp = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
-    cp.add_floats_table(1, 7)
-    cp.add_words_table(17, 1)
-    cp.add_longs_table(20, 2)
+    cp.add_floats_table(1, 7, use_f4=True)
+    cp.add_words_table(17, 1, use_f4=True)
+    cp.add_longs_table(20, 2, use_f4=True)
     # Redis on localhost
     rd = RedisDevice()
 

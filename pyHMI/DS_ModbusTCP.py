@@ -135,7 +135,10 @@ class ModbusTCPDevice(object):
                 if r['type'] is 'bit':
                     addr = r['addr']
                     size = r['size']
-                    reg_list = self._c.read_discrete_inputs(addr, size)
+                    if r['use_f1']:
+                        reg_list = self._c.read_coils(addr, size)
+                    else:
+                        reg_list = self._c.read_discrete_inputs(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._lock:
@@ -150,7 +153,10 @@ class ModbusTCPDevice(object):
                 elif r['type'] is 'word':
                     addr = r['addr']
                     size = r['size']
-                    reg_list = self._c.read_holding_registers(addr, size)
+                    if r['use_f4']:
+                        reg_list = self._c.read_input_registers(addr, size)
+                    else:
+                        reg_list = self._c.read_holding_registers(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._lock:
@@ -165,7 +171,10 @@ class ModbusTCPDevice(object):
                 elif r['type'] is 'long':
                     addr = r['addr']
                     size = r['size']
-                    reg_list = self._c.read_holding_registers(addr, size * 2)
+                    if r['use_f4']:
+                        reg_list = self._c.read_input_registers(addr, size * 2)
+                    else:
+                        reg_list = self._c.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._lock:
@@ -180,7 +189,10 @@ class ModbusTCPDevice(object):
                 elif r['type'] is 'float':
                     addr = r['addr']
                     size = r['size']
-                    reg_list = self._c.read_holding_registers(addr, size * 2)
+                    if r['use_f4']:
+                        reg_list = self._c.read_input_registers(addr, size * 2)
+                    else:
+                        reg_list = self._c.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._lock:
@@ -236,40 +248,40 @@ class ModbusTCPDevice(object):
             else:
                 return None
 
-    def add_bits_table(self, addr, size=1):
+    def add_bits_table(self, addr, size=1, use_f1=False):
         with self._lock:
             # add bit table to read buffer
-            self._r_buffer.append({'type': 'bit', 'addr': addr, 'size': size})
+            self._r_buffer.append({'type': 'bit', 'addr': addr, 'size': size, 'use_f1': use_f1})
             # init bits table with default value
             for a in range(addr, addr + size):
                 self._bits[a] = {'bit': False, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
-    def add_words_table(self, addr, size=1):
+    def add_words_table(self, addr, size=1, use_f4=False):
         with self._lock:
-            # add bit table to read buffer
-            self._r_buffer.append({'type': 'word', 'addr': addr, 'size': size})
+            # add word table to read buffer
+            self._r_buffer.append({'type': 'word', 'addr': addr, 'size': size, 'use_f4': use_f4})
             # init words table with default value
             for a in range(addr, addr + size):
                 self._words[a] = {'word': 0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
-    def add_longs_table(self, addr, size=1):
+    def add_longs_table(self, addr, size=1, use_f4=False):
         with self._lock:
-            # add bit table to read buffer
-            self._r_buffer.append({'type': 'long', 'addr': addr, 'size': size})
+            # add long table to read buffer
+            self._r_buffer.append({'type': 'long', 'addr': addr, 'size': size, 'use_f4': use_f4})
             # init longs table with default value
             for offset in range(0, size):
                 self._longs[addr + offset * 2] = {'long': 0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
-    def add_floats_table(self, addr, size=1):
+    def add_floats_table(self, addr, size=1, use_f4=False):
         with self._lock:
-            # add bit table to read buffer
-            self._r_buffer.append({'type': 'float', 'addr': addr, 'size': size})
+            # add float table to read buffer
+            self._r_buffer.append({'type': 'float', 'addr': addr, 'size': size, 'use_f4': use_f4})
             # init words table with default value
             for offset in range(0, size):
                 self._floats[addr + offset * 2] = {'float': 0.0, 'err': True}
