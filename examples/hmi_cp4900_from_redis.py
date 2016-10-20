@@ -19,7 +19,15 @@ class Tags(object):
     # tags list
     # from PLC
     CP_LOOP_COUNT = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:cp2redis:loop_count'})
+    CP_COM_FAULT= Tag(0, src=Devices.redis, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_fault'})
     CP_THT = Tag(0, src=Devices.redis, ref={'type': 'float', 'key': 'cp4900:tht'})
+    CP_STATE = Tag(0, src=Devices.redis, ref={'type': 'str', 'key': 'cp4900:state'})
+    CP_RETENTION_TIME = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:retention_time'})
+    CP_PEAK_AREA = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:peak_area'})
+    CP_PRESSURE_GAS = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:pressure_gas'})
+    CP_FLOW_GAS = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:flow_gas'})
+    CP_ANALYSIS_FAULT = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:analysis_fault'})
+    CP_SENSOR_FAULT = Tag(0, src=Devices.redis, ref={'type': 'int', 'key': 'cp4900:sensor_fault'})
     CP_STATE = Tag(0, src=Devices.redis, ref={'type': 'str', 'key': 'cp4900:state'})
 
     @classmethod
@@ -52,21 +60,33 @@ class HMITab(tk.Frame):
 class TabMisc(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        # Long
-        self.frmStateCom = tk.LabelFrame(self, text='Etat Com avec CP-4900', padx=10, pady=10)
+        # Com state
+        self.frmStateCom = tk.LabelFrame(self, text='Etat Com CP-4900 vers Redis', padx=10, pady=10)
         self.frmStateCom.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.state_list = HMIAnalogList(self.frmStateCom, lbl_args={'width': 15})
+        self.com_l = HMIBoolList(self.frmStateCom, lbl_args={'width': 25})
+        self.com_l.add('Liaison modbus ok', Tags.CP_COM_FAULT, label_1='Liaison modbus en défaut', alarm=True)
+        self.com_l.build()
+        self.frmInfoRedis = tk.LabelFrame(self, text='Gateway Redis', padx=10, pady=10)
+        self.frmInfoRedis.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.state_list = HMIAnalogList(self.frmInfoRedis, lbl_args={'width': 15})
         self.state_list.add('Loop count', Tags.CP_LOOP_COUNT)
         self.state_list.build()
-
+        # CP values
         self.frmValue = tk.LabelFrame(self, text='Valeurs CP-4900', padx=10, pady=10)
-        self.frmValue.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmValue.grid(row=0, column=1, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.val_list = HMIAnalogList(self.frmValue, lbl_args={'width': 15})
         self.val_list.add('Etat CP-4900', Tags.CP_STATE)
-        self.val_list.add('THT', Tags.CP_THT)
+        self.val_list.add('THT', Tags.CP_THT, unit='mg/nm3')
+        self.val_list.add('Surface du peak', Tags.CP_PEAK_AREA)
+        self.val_list.add('Temps de rétention', Tags.CP_RETENTION_TIME, unit='s')
+        self.val_list.add('Pression du gaz', Tags.CP_PRESSURE_GAS, unit='mbar')
+        self.val_list.add('Débit du gaz', Tags.CP_FLOW_GAS, unit='ml/h')
+        self.val_list.add('Défaut analyse', Tags.CP_ANALYSIS_FAULT, unit='ok si égal à 0')
+        self.val_list.add('Défaut capteur', Tags.CP_SENSOR_FAULT, unit='ok si < 10000')
         self.val_list.build()
 
     def tab_update(self):
+        self.com_l.update()
         self.state_list.update()
         self.val_list.update()
 
@@ -77,7 +97,7 @@ class HMIToolbar(tk.Frame):
         self.tk_app = tk_app
         self.update_ms = update_ms
         # build toolbar
-        self.butTbox = tk.Button(self, text='PLC', relief=tk.SUNKEN,
+        self.butTbox = tk.Button(self, text='DB Redis', relief=tk.SOLID,
                                  state='disabled', disabledforeground='black')
         self.butTbox.pack(side=tk.LEFT)
         self.lblDate = tk.Label(self, text='', font=('TkDefaultFont', 12))
@@ -100,9 +120,9 @@ class HMIApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         # configure main window
-        self.wm_title('HMI nano test')
+        self.wm_title('CP-4900 nano HMI')
         # self.attributes('-fullscreen', True)
-        self.geometry("800x600")
+        self.geometry("800x300")
         # periodic tags update
         self.do_every(Tags.update_tags, every_ms=500)
         # build a notebook with tabs
