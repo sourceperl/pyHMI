@@ -1,6 +1,18 @@
 # -*- coding: utf-8 -*-
 
 
+def limit(value, v_min, v_max):
+    """
+    limit a float or int python var
+
+    :param value: value to limit
+    :param v_min: minimum value
+    :param v_max: maximum value
+    :return: limited value
+    """
+    return min(max(value, v_min), v_max)
+
+
 class Relay:
     def __init__(self):
         self._value = False
