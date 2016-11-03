@@ -7,6 +7,7 @@
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.DS_Redis import RedisDevice
 from pyHMI.Tag import Tag
+from pyHMI.Misc import limit
 import time
 
 
@@ -14,7 +15,6 @@ class Devices(object):
     # init datasource
     # CP-4900
     cp = ModbusTCPDevice('163.111.182.171', port=502, timeout=2.0, refresh=1.0)
-    #cp = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
     cp.add_floats_table(1, 7, use_f4=True)
     cp.add_words_table(17, 1, use_f4=True)
@@ -36,15 +36,15 @@ class Tags(object):
     DEF_CAPTEUR = Tag(0, src=Devices.cp, ref={'type': 'long', 'addr': 22})
     # to Redis
     RD_CP_LOOP_COUNT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:cp2redis:loop_count', 'ttl': 10})
-    RD_CP_COM_FAULT = Tag(0, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_fault', 'ttl': 10})
-    RD_CP_THT = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:tht', 'ttl': 10})
-    RD_CP_RETENTION_TIME = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:retention_time', 'ttl': 10})
-    RD_CP_PEAK_AREA = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:peak_area', 'ttl': 10})
-    RD_CP_PRESSURE_GAS = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:pressure_gas', 'ttl': 10})
-    RD_CP_FLOW_GAS = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:flow_gas', 'ttl': 10})
+    RD_CP_COM_FAULT = Tag(False, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_fault', 'ttl': 10})
+    RD_CP_THT = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:tht', 'ttl': 10})
+    RD_CP_RETENTION_TIME = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:retention_time', 'ttl': 10})
+    RD_CP_PEAK_AREA = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:peak_area', 'ttl': 10})
+    RD_CP_PRESSURE_GAS = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:pressure_gas', 'ttl': 10})
+    RD_CP_FLOW_GAS = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:flow_gas', 'ttl': 10})
     RD_CP_ANALYSIS_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:analysis_fault', 'ttl': 10})
     RD_CP_SENSOR_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:sensor_fault', 'ttl': 10})
-    RD_CP_STATE = Tag(0, src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state', 'ttl': 10})
+    RD_CP_STATE = Tag('', src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state', 'ttl': 10})
     # virtual
     LOOP_COUNT = Tag(0)
 
@@ -56,11 +56,11 @@ class Tags(object):
         Tags.RD_CP_LOOP_COUNT.val = Tags.LOOP_COUNT.val
         Tags.RD_CP_COM_FAULT.val = not Devices.cp.connected
         # data keys
-        Tags.RD_CP_THT.val = Tags.THT.val
-        Tags.RD_CP_RETENTION_TIME.val = Tags.RT.val
-        Tags.RD_CP_PEAK_AREA.val = Tags.SURFACE.val
-        Tags.RD_CP_PRESSURE_GAS.val = Tags.PRES_V2.val
-        Tags.RD_CP_FLOW_GAS.val = Tags.DEBIT_CHROM.val
+        Tags.RD_CP_THT.val = limit(Tags.THT.val, 0.0, 250.0)
+        Tags.RD_CP_RETENTION_TIME.val = limit(Tags.RT.val, 0.0, 1000.0)
+        Tags.RD_CP_PEAK_AREA.val = limit(Tags.SURFACE.val, 0.0, 1000.0)
+        Tags.RD_CP_PRESSURE_GAS.val = limit(Tags.PRES_V2.val, 0.0, 10000.0)
+        Tags.RD_CP_FLOW_GAS.val = limit(Tags.DEBIT_CHROM.val, 0.0, 100.0)
         Tags.RD_CP_ANALYSIS_FAULT.val = Tags.DEF_ANALYSE.val
         Tags.RD_CP_SENSOR_FAULT.val = Tags.DEF_CAPTEUR.val
         # cp state
