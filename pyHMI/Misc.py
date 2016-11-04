@@ -10,7 +10,10 @@ def limit(value, v_min, v_max):
     :param v_max: maximum value
     :return: limited value
     """
-    return min(max(value, v_min), v_max)
+    try:
+        return min(max(value, v_min), v_max)
+    except TypeError:
+        return None
 
 
 class Relay:

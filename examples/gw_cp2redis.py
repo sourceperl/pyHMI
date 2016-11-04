@@ -16,6 +16,7 @@ class Devices(object):
     # CP-4900
     cp = ModbusTCPDevice('163.111.182.171', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
+    cp.add_bits_table(1, 3, use_f1=True)
     cp.add_floats_table(1, 7, use_f4=True)
     cp.add_words_table(17, 1, use_f4=True)
     cp.add_longs_table(20, 2, use_f4=True)
@@ -26,6 +27,9 @@ class Devices(object):
 class Tags(object):
     # tags list
     # from CP-4900
+    NEW_DATA_PC1 = Tag(False, src=Devices.cp, ref={'type': 'bit', 'addr': 1})
+    CALIB = Tag(False, src=Devices.cp, ref={'type': 'bit', 'addr': 2})
+    NEW_DATA_PC2 = Tag(False, src=Devices.cp, ref={'type': 'bit', 'addr': 3})
     THT = Tag(0.0, src=Devices.cp, ref={'type': 'float', 'addr': 1})
     RT = Tag(0.0, src=Devices.cp, ref={'type': 'float', 'addr': 3})
     SURFACE = Tag(0.0, src=Devices.cp, ref={'type': 'float', 'addr': 5})
@@ -35,9 +39,13 @@ class Tags(object):
     DEF_ANALYSE = Tag(0, src=Devices.cp, ref={'type': 'long', 'addr': 20})
     DEF_CAPTEUR = Tag(0, src=Devices.cp, ref={'type': 'long', 'addr': 22})
     # to Redis
+    RD_CP_NEW_DATA_PC1 = Tag(False, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:new_data_flag_1', 'ttl': 10})
+    RD_CP_NEW_DATA_PC2 = Tag(False, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:new_data_flag_2', 'ttl': 10})
+    RD_CP_CALIB = Tag(False, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:calibration', 'ttl': 10})
     RD_CP_LOOP_COUNT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:cp2redis:loop_count', 'ttl': 10})
     RD_CP_COM_FAULT = Tag(False, src=Devices.rd, ref={'type': 'bool', 'key': 'cp4900:cp2redis:com_fault', 'ttl': 10})
     RD_CP_THT = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:tht', 'ttl': 10})
+    RD_CP_AGE = Tag(0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:age', 'ttl': 10})
     RD_CP_RETENTION_TIME = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:retention_time', 'ttl': 10})
     RD_CP_PEAK_AREA = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:peak_area', 'ttl': 10})
     RD_CP_PRESSURE_GAS = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:pressure_gas', 'ttl': 10})
@@ -47,22 +55,32 @@ class Tags(object):
     RD_CP_STATE = Tag('', src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state', 'ttl': 10})
     # virtual
     LOOP_COUNT = Tag(0)
+    CP_REFRESH = Tag(time.time())
 
     @classmethod
     def update_tags(cls):
         # update tags
-        cls.LOOP_COUNT.val += 1
+        Tags.LOOP_COUNT.val += 1
         # status keys
         Tags.RD_CP_LOOP_COUNT.val = Tags.LOOP_COUNT.val
         Tags.RD_CP_COM_FAULT.val = not Devices.cp.connected
+        # CP-4900 age
+        Tags.RD_CP_AGE.val = (time.time() - Tags.CP_REFRESH.val) / 60
+        # store refresh date when new data flag is set
+        if Tags.NEW_DATA_PC1.val:
+            Tags.CP_REFRESH.val = time.time()
         # data keys
-        Tags.RD_CP_THT.val = limit(Tags.THT.val, 0.0, 250.0)
-        Tags.RD_CP_RETENTION_TIME.val = limit(Tags.RT.val, 0.0, 1000.0)
-        Tags.RD_CP_PEAK_AREA.val = limit(Tags.SURFACE.val, 0.0, 1000.0)
-        Tags.RD_CP_PRESSURE_GAS.val = limit(Tags.PRES_V2.val, 0.0, 10000.0)
-        Tags.RD_CP_FLOW_GAS.val = limit(Tags.DEBIT_CHROM.val, 0.0, 100.0)
-        Tags.RD_CP_ANALYSIS_FAULT.val = Tags.DEF_ANALYSE.val
-        Tags.RD_CP_SENSOR_FAULT.val = Tags.DEF_CAPTEUR.val
+        Tags.RD_CP_NEW_DATA_PC1.val = Tags.NEW_DATA_PC1.e_val
+        Tags.RD_CP_NEW_DATA_PC2.val = Tags.NEW_DATA_PC2.e_val
+        Tags.RD_CP_CALIB.val = Tags.CALIB.e_val
+        Tags.RD_CP_THT.val = limit(Tags.THT.e_val, 0.0, 250.0)
+        Tags.RD_CP_RETENTION_TIME.val = limit(Tags.RT.e_val, 0.0, 1000.0)
+        Tags.RD_CP_PEAK_AREA.val = limit(Tags.SURFACE.e_val, 0.0, 1000.0)
+        Tags.RD_CP_PRESSURE_GAS.val = limit(Tags.PRES_V2.e_val, 0.0, 10000.0)
+        Tags.RD_CP_FLOW_GAS.val = limit(Tags.DEBIT_CHROM.e_val, 0.0, 100.0)
+        Tags.RD_CP_ANALYSIS_FAULT.val = Tags.DEF_ANALYSE.e_val
+        Tags.RD_CP_SENSOR_FAULT.val = Tags.DEF_CAPTEUR.e_val
+
         # cp state
         cp_status = {
             0: 'initialisation',
