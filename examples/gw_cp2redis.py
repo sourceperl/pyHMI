@@ -10,6 +10,19 @@ from pyHMI.Tag import Tag
 from pyHMI.Misc import limit
 import time
 
+# some const
+CP_STATUS = {
+    0: 'initialisation',
+    1: 'purge',
+    2: 'analyse en cours',
+    3: 'stabilisation',
+    4: 'prêt',
+    5: 'erreur',
+    6: 'erreur temporaire',
+    7: 'défectueux',
+    8: 'pas prêt'
+}
+
 
 class Devices(object):
     # init datasource
@@ -80,20 +93,10 @@ class Tags(object):
         Tags.RD_CP_FLOW_GAS.val = limit(Tags.DEBIT_CHROM.e_val, 0.0, 100.0)
         Tags.RD_CP_ANALYSIS_FAULT.val = Tags.DEF_ANALYSE.e_val
         Tags.RD_CP_SENSOR_FAULT.val = Tags.DEF_CAPTEUR.e_val
-
-        # cp state
-        cp_status = {
-            0: 'initialisation',
-            1: 'purge',
-            2: 'analyse en cours',
-            3: 'stabilisation',
-            4: 'prêt',
-            5: 'erreur',
-            6: 'erreur temporaire',
-            7: 'défectueux',
-            8: 'pas prêt'
-        }
-        Tags.RD_CP_STATE.val = cp_status.get(Tags.ETAT_GC.val, 'état inconnu').encode('utf-8')
+        if Tags.ETAT_GC.err:
+            Tags.RD_CP_STATE.err = True
+        else:
+            Tags.RD_CP_STATE.val = CP_STATUS.get(Tags.ETAT_GC.val, 'état inconnu').encode('utf-8')
 
 
 class Job(object):
