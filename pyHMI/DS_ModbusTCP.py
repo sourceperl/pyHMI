@@ -179,7 +179,11 @@ class ModbusTCPDevice(object):
                     if reg_list:
                         with self._lock:
                             for off in range(0, size):
-                                long = word_list_to_long([reg_list[off * 2], reg_list[off * 2 + 1]])[0]
+                                if r['swap_word']:
+                                    w_list = [reg_list[off * 2 + 1], reg_list[off * 2]]
+                                else:
+                                    w_list = [reg_list[off * 2], reg_list[off * 2 + 1]]
+                                long = word_list_to_long(w_list)[0]
                                 self._longs[addr + off * 2]['long'] = long
                                 self._longs[addr + off * 2]['err'] = False
                     else:
@@ -197,7 +201,11 @@ class ModbusTCPDevice(object):
                     if reg_list:
                         with self._lock:
                             for off in range(0, size):
-                                flt = decode_ieee(word_list_to_long([reg_list[off * 2], reg_list[off * 2 + 1]])[0])
+                                if r['swap_word']:
+                                    w_list = [reg_list[off * 2 + 1], reg_list[off * 2]]
+                                else:
+                                    w_list = [reg_list[off * 2], reg_list[off * 2 + 1]]
+                                flt = decode_ieee(word_list_to_long(w_list)[0])
                                 self._floats[addr + off * 2]['float'] = flt
                                 self._floats[addr + off * 2]['err'] = False
                     else:
@@ -268,20 +276,22 @@ class ModbusTCPDevice(object):
         # immediate modbus refresh
         self._wait_evt.set()
 
-    def add_longs_table(self, addr, size=1, use_f4=False):
+    def add_longs_table(self, addr, size=1, use_f4=False, swap_word=False):
         with self._lock:
             # add long table to read buffer
-            self._r_buffer.append({'type': 'long', 'addr': addr, 'size': size, 'use_f4': use_f4})
+            self._r_buffer.append({'type': 'long', 'addr': addr, 'size': size,
+                                   'use_f4': use_f4, 'swap_word': swap_word})
             # init longs table with default value
             for offset in range(0, size):
                 self._longs[addr + offset * 2] = {'long': 0, 'err': True}
         # immediate modbus refresh
         self._wait_evt.set()
 
-    def add_floats_table(self, addr, size=1, use_f4=False):
+    def add_floats_table(self, addr, size=1, use_f4=False, swap_word=False):
         with self._lock:
             # add float table to read buffer
-            self._r_buffer.append({'type': 'float', 'addr': addr, 'size': size, 'use_f4': use_f4})
+            self._r_buffer.append({'type': 'float', 'addr': addr, 'size': size,
+                                   'use_f4': use_f4, 'swap_word': swap_word})
             # init words table with default value
             for offset in range(0, size):
                 self._floats[addr + offset * 2] = {'float': 0.0, 'err': True}
