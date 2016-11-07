@@ -68,10 +68,10 @@ class TabMisc(HMITab):
         self.com_l = HMIBoolList(self.frmStateCom, lbl_args={'width': 25})
         self.com_l.add('Liaison modbus ok', Tags.CP_COM_FAULT, label_1='Liaison modbus en défaut', alarm=True)
         self.com_l.build()
-        self.frmInfoRedis = tk.LabelFrame(self, text='Redis', padx=10, pady=10)
+        self.frmInfoRedis = tk.LabelFrame(self, text='Base de données Redis', padx=10, pady=10)
         self.frmInfoRedis.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.state_list = HMIAnalogList(self.frmInfoRedis, lbl_args={'width': 15})
-        self.state_list.add('Vie CP-4900 vers Redis', Tags.CP_LOOP_COUNT, unit='+1/0.5s')
+        self.state_list.add('Gateway CP-4900 vers DB', Tags.CP_LOOP_COUNT, unit='+1/0.5s')
         self.state_list.add('Ancienneté envoi Sigfox', Tags.RPI_SIGFOX_SINCE_TX, unit='s')
         self.state_list.build()
         # CP values
