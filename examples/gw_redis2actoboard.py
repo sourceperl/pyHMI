@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Upload redis tags to thingspeak IoT platform
+# Upload redis tags to actoboard IoT platform
 
 from MyPrivateConstants import Redis2Actoboard
 from pyHMI.DS_Redis import RedisDevice
@@ -46,8 +46,8 @@ class Actoboard(object):
     HEADS = {'Content-type': 'application/json'}
 
     def __init__(self, push_url, api_key):
-        self.push_url = push_url
-        self.api_key = api_key
+        self.push_url = str(push_url)
+        self.api_key = str(api_key)
 
     def update(self, fields):
         # format headers
@@ -58,7 +58,7 @@ class Actoboard(object):
         # do update request
         try:
             request = urllib.request.Request(self.push_url, headers=acto_head, data=json.dumps(fields).encode('utf-8'))
-            urllib.request.urlopen(request).read()
+            urllib.request.urlopen(request)
             return True
         except urllib.error.URLError:
             return False
@@ -66,7 +66,7 @@ class Actoboard(object):
 
 class IotJobs(object):
     # define an actoboard push data source
-    actob1 = Actoboard(api_key=Redis2Actoboard.API,
+    actob1 = Actoboard(api_key=Redis2Actoboard.API_KEY,
                        push_url=Redis2Actoboard.PUSH_URL)
 
     @classmethod

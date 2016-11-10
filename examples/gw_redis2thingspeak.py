@@ -42,10 +42,10 @@ class Tags(object):
 
 class Thingspeak(object):
     HEADS = {'Content-type': 'application/x-www-form-urlencoded', 'Accept': 'text/plain'}
-    URL_UPDATE = 'https://api.thingspeak.com/update'
+    UPDATE_URL = 'https://api.thingspeak.com/update'
 
     def __init__(self, api_key):
-        self.api_key = api_key
+        self.api_key = str(api_key)
 
     def update(self, fields):
         # format update params (key, field1, field2...)
@@ -54,7 +54,7 @@ class Thingspeak(object):
         params = urllib.parse.urlencode(d_params).encode('utf-8')
         # do update request
         try:
-            request = urllib.request.Request(Thingspeak.URL_UPDATE, headers=Thingspeak.HEADS, data=params)
+            request = urllib.request.Request(Thingspeak.UPDATE_URL, headers=Thingspeak.HEADS, data=params)
             urllib.request.urlopen(request)
             return True
         except urllib.error.URLError:
@@ -63,7 +63,7 @@ class Thingspeak(object):
 
 class IotJobs(object):
     # "Test" thingspeak channel
-    tspeak1 = Thingspeak(api_key=Redis2Thingspeak.API)
+    tspeak1 = Thingspeak(api_key=Redis2Thingspeak.API_KEY)
 
     @classmethod
     def thingspeak(cls):
