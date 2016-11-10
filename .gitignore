@@ -90,3 +90,6 @@ ENV/
 
 # Idea workspace
 .idea/workspace.xml
+
+# Some keys or password
+examples/MyPrivateConstants.py
