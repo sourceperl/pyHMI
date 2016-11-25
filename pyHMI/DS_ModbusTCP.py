@@ -2,7 +2,7 @@
 
 import threading
 from pyModbusTCP.client import ModbusClient
-from pyModbusTCP.utils import word_list_to_long, decode_ieee
+from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee
 import time
 
 
@@ -65,6 +65,8 @@ class ModbusTCPDevice(object):
                 pass
             elif tag.ref['type'] == 'w_word':
                 pass
+            elif tag.ref['type'] == 'w_float':
+                pass
             else:
                 raise ValueError(
                     'Wrong tag type %s for modbus host %s' % (tag.ref['type'], self.host))
@@ -106,8 +108,9 @@ class ModbusTCPDevice(object):
             return self.write_bit(ref['addr'], value)
         elif ref['type'] == 'w_word':
             return self.write_word(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
-        # elif ref['type'] == 'w_float':
-        #     return self.write_float(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
+        elif ref['type'] == 'w_float':
+            return self.write_float(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value,
+                                    swap_word=ref.get('swap_word', False))
 
     def polling_thread(self):
         # polling cycle
@@ -130,6 +133,11 @@ class ModbusTCPDevice(object):
                 elif w['type'] is 'word':
                     print('%s: write single register @%d=%d' % (str_now, w['addr'], w['value']))
                     self._c.write_single_register(w['addr'], w['value'])
+                elif w['type'] is 'float':
+                    print('%s: write float register @%d=%.2f' % (str_now, w['addr'], w['value']))
+                    i32 = encode_ieee(w['value'])
+                    (msb, lsb) = [(i32 & 0xFFFF0000) >> 16, i32 & 0xFFFF]
+                    self._c.write_multiple_registers(w['addr'], [lsb, msb] if w['swap_word'] else [msb, lsb])
             # do modbus reading on socket
             for r in tmp_r_buffer:
                 if r['type'] is 'bit':
@@ -250,6 +258,17 @@ class ModbusTCPDevice(object):
             # don't allow write request when device is not in sync
             if self._connected:
                 self._w_buffer.append({'type': 'word', 'addr': addr, 'value': value})
+                # immediate modbus refresh
+                self._wait_evt.set()
+                return True
+            else:
+                return None
+
+    def write_float(self, addr, value, swap_word=False):
+        with self._lock:
+            # don't allow write request when device is not in sync
+            if self._connected:
+                self._w_buffer.append({'type': 'float', 'addr': addr, 'value': value, 'swap_word': swap_word})
                 # immediate modbus refresh
                 self._wait_evt.set()
                 return True
