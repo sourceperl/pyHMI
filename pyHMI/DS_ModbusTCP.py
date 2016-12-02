@@ -7,12 +7,13 @@ import time
 
 
 class ModbusTCPDevice(object):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False):
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
+        self.debug = debug
         # privates vars
         self._bits = {}
         self._words = {}
@@ -128,13 +129,16 @@ class ModbusTCPDevice(object):
                 # TODO improve debug system (move from com thread to main)
                 str_now = time.strftime('%Y-%m-%d %H:%M:%S')
                 if w['type'] is 'bit':
-                    print('%s: write single coil @%d=%d' % (str_now, w['addr'], w['value']))
+                    if self.debug:
+                        print('%s: write single coil @%d=%d' % (str_now, w['addr'], w['value']))
                     self._c.write_single_coil(w['addr'], w['value'])
                 elif w['type'] is 'word':
-                    print('%s: write single register @%d=%d' % (str_now, w['addr'], w['value']))
+                    if self.debug:
+                        print('%s: write single register @%d=%d' % (str_now, w['addr'], w['value']))
                     self._c.write_single_register(w['addr'], w['value'])
                 elif w['type'] is 'float':
-                    print('%s: write float register @%d=%.2f' % (str_now, w['addr'], w['value']))
+                    if self.debug:
+                        print('%s: write float register @%d=%.2f' % (str_now, w['addr'], w['value']))
                     i32 = encode_ieee(w['value'])
                     (msb, lsb) = [(i32 & 0xFFFF0000) >> 16, i32 & 0xFFFF]
                     self._c.write_multiple_registers(w['addr'], [lsb, msb] if w['swap_word'] else [msb, lsb])
