@@ -7,6 +7,7 @@ from MyPrivateConstants import Redis2Thingspeak
 from pyHMI.DS_Redis import RedisDevice
 from pyHMI.Tag import Tag
 import time
+import socket
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -46,6 +47,8 @@ class Thingspeak(object):
 
     def __init__(self, api_key):
         self.api_key = str(api_key)
+        # set timeout to 10 seconds (default is none)
+        socket.setdefaulttimeout(10)
 
     def update(self, fields):
         # format update params (key, field1, field2...)
@@ -57,7 +60,8 @@ class Thingspeak(object):
             request = urllib.request.Request(Thingspeak.UPDATE_URL, headers=Thingspeak.HEADS, data=params)
             urllib.request.urlopen(request)
             return True
-        except urllib.error.URLError:
+        except:
+        #except urllib.error.URLError:
             return False
 
 
@@ -69,10 +73,14 @@ class IotJobs(object):
     def thingspeak(cls):
         # add Tags with no error to update fields dict
         fields = {}
-        if not Tags.CP_THT.err:
-            fields['field1'] = Tags.CP_THT.val
-        if not Tags.CP_AGE.err:
-            fields['field2'] = Tags.CP_AGE.val
+        fields['field1'] = round(Tags.CP_THT.val, 2)
+        fields['field2'] = round(Tags.CP_AGE.val, 2)
+        fields['field3'] = round(Tags.CP_PRESSURE_GAS.val, 2)
+        fields['field4'] = round(Tags.CP_FLOW_GAS.val, 2)
+        fields['field5'] = round(Tags.CP_PEAK_AREA.val, 2)
+        fields['field6'] = round(Tags.CP_RETENTION_TIME.val, 2)
+        fields['field7'] = Tags.CP_ANALYSIS_FAULT.val
+        fields['field8'] = Tags.CP_SENSOR_FAULT.val
         # refresh thingspeak
         cls.tspeak1.update(fields)
 
@@ -90,7 +98,7 @@ class MainApp(object):
         self.jobs = []
         # periodic update tags
         self.do_every(Tags.update_tags, every_ms=500)
-        self.do_every(IotJobs.thingspeak, every_ms=15000)
+        self.do_every(IotJobs.thingspeak, every_ms=60000, do_now=False)
 
     def mainloop(self):
         # basic scheduler (replace tk after)
@@ -102,11 +110,12 @@ class MainApp(object):
                 job.last_do += 0.1
             time.sleep(.1)
 
-    def do_every(self, do_cmd, every_ms=1000):
+    def do_every(self, do_cmd, every_ms=1000, do_now=True):
         # store jobs
         self.jobs.append(Job(do_cmd=do_cmd, every_ms=every_ms))
-        # first launch
-        do_cmd()
+        # first call (now or after every_ms)
+        if do_now:
+            do_cmd()
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ from pyHMI.DS_Redis import RedisDevice
 from pyHMI.Tag import Tag
 import time
 import json
+import socket
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -47,15 +48,18 @@ class Dweet(object):
 
     def __init__(self, dweet_id):
         self.dweet_id = str(dweet_id)
+        # set timeout to 10 seconds (default is none)
+        socket.setdefaulttimeout(10)
 
     def update(self, fields):
         # do update request
         try:
             request = urllib.request.Request(Dweet.UPDATE_URL + self.dweet_id, headers=Dweet.HEADS,
-                                             data=json.dumps(fields).encode('utf-8'))
+                                            data=json.dumps(fields).encode('utf-8'))
             urllib.request.urlopen(request)
             return True
-        except urllib.error.URLError:
+        except:
+#        except urllib.error.URLError:
             return False
 
 
@@ -67,12 +71,18 @@ class IotJobs(object):
     def dweet(cls):
         # add Tags with no error to update fields dict
         fields = {}
-        if not Tags.CP_THT.err:
-            fields['IO'] = round(Tags.CP_THT.val, 1)
-        if not Tags.CP_AGE.err:
-            fields['AGE'] = round(Tags.CP_AGE.val, 2)
-        if not Tags.CP_LOOP_COUNT.err:
-            fields['LOOP'] = Tags.CP_LOOP_COUNT.val
+        fields['CP_LOOP_COUNT'] = Tags.CP_LOOP_COUNT.val
+        fields['CP_COM_FAULT'] = Tags.CP_COM_FAULT.val
+        fields['CP_THT'] = round(Tags.CP_THT.val, 2)
+        fields['CP_AGE'] = round(Tags.CP_AGE.val, 2)
+        fields['CP_STATE'] = Tags.CP_STATE.val
+        fields['CP_RETENTION_TIME'] = round(Tags.CP_RETENTION_TIME.val, 2)
+        fields['CP_PEAK_AREA'] = round(Tags.CP_PEAK_AREA.val, 2)
+        fields['CP_PRESSURE_GAS'] = round(Tags.CP_PRESSURE_GAS.val, 2)
+        fields['CP_FLOW_GAS'] = round(Tags.CP_FLOW_GAS.val, 2)
+        fields['CP_ANALYSIS_FAULT'] = Tags.CP_ANALYSIS_FAULT.val
+        fields['CP_SENSOR_FAULT'] = Tags.CP_SENSOR_FAULT.val
+        fields['RPI_SIGFOX_SINCE_TX'] = Tags.RPI_SIGFOX_SINCE_TX.val
         # refresh actoboard data source
         cls.dweet1.update(fields)
 
@@ -90,7 +100,7 @@ class MainApp(object):
         self.jobs = []
         # periodic update tags
         self.do_every(Tags.update_tags, every_ms=500)
-        self.do_every(IotJobs.dweet, every_ms=2000)
+        self.do_every(IotJobs.dweet, every_ms=30000, do_now=False)
 
     def mainloop(self):
         # basic scheduler (replace tk after)
@@ -102,11 +112,12 @@ class MainApp(object):
                 job.last_do += 0.1
             time.sleep(.1)
 
-    def do_every(self, do_cmd, every_ms=1000):
+    def do_every(self, do_cmd, every_ms=1000, do_now=True):
         # store jobs
         self.jobs.append(Job(do_cmd=do_cmd, every_ms=every_ms))
-        # first launch
-        do_cmd()
+        # first call (now or after every_ms)
+        if do_now:
+            do_cmd()
 
 
 if __name__ == '__main__':
