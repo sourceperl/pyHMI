@@ -147,6 +147,9 @@ class Tags(object):
     # virtuals
     REG1_LOCAL = Tag(False, get_cmd=lambda: not Tags.REG1_AUTO_D.val)
     REG1_ARRET = Tag(False, get_cmd=lambda: not Tags.REG1_MARCHE.val)
+    REG1_DLT_C_WOBBE = Tag(0.0, get_cmd=lambda: Tags.REG1_C_WOBBE_ACT.e_val - Tags.REG1_M_WOBBE.e_val)
+    REG1_DLT_C_PCS = Tag(0.0, get_cmd=lambda: Tags.REG1_C_PCS_ACT.e_val - Tags.REG1_M_PCS.e_val)
+    REG1_DLT_C_DEBIT = Tag(0.0, get_cmd=lambda: Tags.REG1_C_DEBIT_ACT.e_val - Tags.REG1_M_DEBIT.e_val)
     # write bits
     REG1_MODE_AUTO = Tag(False, src=Devices.tbx_reg1, ref={'type': 'w_bit', 'addr': 20560})
     REG1_MODE_MANU = Tag(False, src=Devices.tbx_reg1, ref={'type': 'w_bit', 'addr': 20561})
@@ -339,7 +342,7 @@ class TabRegL1(HMITab):
         self.cons_d_str = tk.StringVar(value='0')
         # Etats régulateur
         self.frmEtatReg = tk.LabelFrame(self, text='Etats régulateur', padx=10, pady=10)
-        self.frmEtatReg.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmEtatReg.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.etat_l = HMIBoolList(self.frmEtatReg, lbl_args={'width': 20}, grid_args={'padx': 20})
         self.etat_l.add('Marche', Tags.REG1_MARCHE)
         self.etat_l.add('Arrêt', Tags.REG1_ARRET)
@@ -355,7 +358,7 @@ class TabRegL1(HMITab):
         self.etat_l.build()
         # Consignes régulateur
         self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
-        self.frmConsReg.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmConsReg.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
         self.cons_r = HMIAnalogList(self.frmConsReg, lbl_args={'width': 10})
         self.cons_r.add('Consigne Wobbe active', Tags.REG1_C_WOBBE_ACT, unit='wh/nm3', fmt='%0.f')
         self.cons_r.add('Consigne Wobbe CSR', Tags.REG1_C_WOBBE_CSR, unit='wh/nm3', fmt='%0.f')
@@ -389,26 +392,25 @@ class TabRegL1(HMITab):
         tk.Label(self.frmAutoReg, text='nm3/h').grid(row=2, column=2, padx=5, pady=5)
         self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
         self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
-        # Etats PID
+        # PID menant
         self.frmEtatPid = tk.LabelFrame(self, text='PID menant', padx=10, pady=10)
         self.frmEtatPid.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.etat_pid = HMIBoolList(self.frmEtatPid, lbl_args={'width': 20}, grid_args={'padx': 20})
-        self.etat_pid.add('PID Wobbe', Tags.REG1_PID_WOBBE_A)
-        self.etat_pid.add('PID PCS', Tags.REG1_PID_PCS_A)
-        self.etat_pid.add('PID débit', Tags.REG1_PID_DEBIT_A)
+        self.etat_pid = HMIBoolList(self.frmEtatPid, lbl_args={'width': 10}, grid_args={'padx': 10})
+        self.etat_pid.add('Wobbe', Tags.REG1_PID_WOBBE_A)
+        self.etat_pid.add('PCS', Tags.REG1_PID_PCS_A)
+        self.etat_pid.add('débit', Tags.REG1_PID_DEBIT_A)
         self.etat_pid.build()
-        # Choix des modes du régulateur
-        self.frmManuReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
-        self.frmManuReg.grid(row=2, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_AUTO.set(True),
-                        btn_args={'bg': GREEN})
-        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_MANU.set(True),
-                        btn_args={'bg': RED})
-        self.mode_l.build()
+        # PID inhibition
+        self.frmInhPid = tk.LabelFrame(self, text='PID inhibition', padx=10, pady=10)
+        self.frmInhPid.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.inh_pid = HMIBoolList(self.frmInhPid, lbl_args={'width': 10}, grid_args={'padx': 10})
+        self.inh_pid.add('Wobbe', Tags.REG1_INH_M_WOBBE)
+        self.inh_pid.add('PCS', Tags.REG1_INH_M_PCS)
+        self.inh_pid.add('débit', Tags.REG1_INH_M_DEBIT)
+        self.inh_pid.build()
         # Mesures régulateur
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
-        self.frmMesReg.grid(row=1, column=1, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmMesReg.grid(row=1, column=2, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_r = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
         self.mes_r.add('Mesure Wobbe', Tags.REG1_M_WOBBE, unit='wh/nm3', fmt='%0.f')
         self.mes_r.add('Mesure PCS', Tags.REG1_M_PCS, unit='wh/nm3', fmt='%0.f')
@@ -418,15 +420,32 @@ class TabRegL1(HMITab):
         self.mes_r.add('PID PCS', Tags.REG1_OUT_PID_PCS, unit='%', fmt='%0.2f')
         self.mes_r.add('PID débit', Tags.REG1_OUT_PID_DEBIT, unit='%', fmt='%0.2f')
         self.mes_r.build()
+        # Divers
+        self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
+        self.frmErr.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.err_l = HMIAnalogList(self.frmErr, lbl_args={'width': 10})
+        self.err_l.add('Ecart Wobbe', Tags.REG1_DLT_C_WOBBE, unit='wh/nm3', fmt='%0.f')
+        self.err_l.add('Ecart PCS', Tags.REG1_DLT_C_PCS, unit='wh/nm3', fmt='%0.f')
+        self.err_l.add('Ecart débit', Tags.REG1_DLT_C_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.err_l.build()
         # Commande de la sortie du régulateur
         self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
-        self.frmManuReg.grid(row=3, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmManuReg.grid(row=1, column=3, padx=5, pady=5, sticky=tk.NSEW)
         tk.Label(self.frmManuReg, text='Sortie').grid(row=0, column=0, padx=5, pady=5)
         self.ent_man = tk.Entry(self.frmManuReg, width='6', justify=tk.RIGHT, textvariable=self.manu_str)
         self.ent_man.grid(row=0, column=1, padx=5, pady=5)
         tk.Label(self.frmManuReg, text='%').grid(row=0, column=2, padx=5, pady=5)
         self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
         self.but_man.grid(row=0, column=3, padx=5, pady=5)
+        # Choix des modes du régulateur
+        self.frmManuReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
+        self.frmManuReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_AUTO.set(True),
+                        btn_args={'bg': GREEN})
+        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_MANU.set(True),
+                        btn_args={'bg': RED})
+        self.mode_l.build()
         # install callback
         self.manu_str.trace('w', self.manu_str_refresh)
         self.cons_w_str.trace('w', self.cons_w_str_refresh)
@@ -438,8 +457,10 @@ class TabRegL1(HMITab):
         self.etat_l.update()
         self.cons_r.update()
         self.mes_r.update()
+        self.err_l.update()
         self.mode_l.update()
         self.etat_pid.update()
+        self.inh_pid.update()
         # update manu entry
         self.manu_str_refresh()
         self.cons_w_str_refresh()
