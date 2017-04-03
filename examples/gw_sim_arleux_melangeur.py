@@ -7,6 +7,7 @@ from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
 import math
 import time
+import random as rd
 import sys
 sys.path.append('../pyHMI/')
 from SimGas import GasPipe, FlowValve
@@ -47,12 +48,12 @@ class SimJob(object):
 
     @classmethod
     def sim(cls):
-        # some const
-        q_ao = 100000
-        wbe_ae = 12900
-        pcs_ae = 10350
-        wbe_mine = 6000
-        pcs_mine = 4900
+        # some vars with random noise
+        q_ao = 100000 + rd.randint(-100, 100)
+        wbe_ae = 12900 + rd.randint(-5, 5)
+        pcs_ae = 10350 + rd.randint(-5, 5)
+        wbe_mine = 6000 + rd.randint(-5, 5)
+        pcs_mine = 4900 + rd.randint(-5, 5)
         # fix P aval
         Tags.P_MINE.val = SimJob.pipe_mine.avg_p
         Tags.P_AVAL_MEL.val = SimJob.pipe_aval.avg_p
