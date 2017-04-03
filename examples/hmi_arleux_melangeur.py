@@ -14,10 +14,10 @@ from tkinter import ttk
 class Devices(object):
     # init datasource
     # PLC TBox
-    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, timeout=2.0, refresh=1.0)
+    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0)
     # init modbus tables
-    tbx_api.add_bits_table(3050, 61)
-    tbx_api.add_floats_table(5030, 8)
+    tbx_api.add_bits_table(20800, 96)
+    tbx_api.add_floats_table(20900, 32)
     # Reg. L1
     tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
     tbx_reg1.add_bits_table(20500, 16)
@@ -32,8 +32,83 @@ class Tags(object):
     # tags list
     NULL_TAG = Tag(False)
     # Tbox API
-    DEF_EDF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 3050})
-    POS_VL = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 5040})
+    # read bits
+    API_POSTE_ARRET = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20800})
+    API_L1_ARRET = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20801})
+    API_L2_ARRET = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20802})
+    API_POSTE_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20803})
+    API_L1_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20804})
+    API_L2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20805})
+    API_LOCAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20806})
+    API_TELE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20807})
+    API_MODE_I3 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20808})
+    API_MODE_I4 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20809})
+    API_MEL_AU = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20810})
+    API_PCS_VTL_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20812})
+    API_PCS_VTL_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20813})
+    API_DEF_MES_CON_L1 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20814})
+    API_DEF_MES_CON_L2 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20815})
+    API_ANL_GNY_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20816})
+    API_ANL_GNY_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20817})
+    API_ANL_C4_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20818})
+    API_ANNU_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20820})
+    API_RATIO_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20821})
+    API_SEC_L1_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20822})
+    API_SEC_L2_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20823})
+    API_Q_MINE_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20824})
+    API_Q_AE_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20825})
+    API_Q_AO_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20826})
+    API_REL_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20829})
+    API_WBE_VTL_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20830})
+    API_WBE_VTL_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20831})
+    API_WBE_L1_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20832})
+    API_WBE_L2_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20833})
+    API_WBE_L1_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20834})
+    API_WBE_L2_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20835})
+    API_PCS_L1_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20836})
+    API_PCS_L2_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20837})
+    API_PCS_L1_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20838})
+    API_PCS_L2_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20839})
+    API_Q_AE_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20840})
+    API_Q_AE_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20841})
+    API_Q_MINE_PP = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20842})
+    API_Q_AO_M = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20843})
+    API_Q_AO_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20844})
+    API_Q_ANNU_MM = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20845})
+    API_ANL_SEC_L1_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20846})
+    API_ANL_SEC_L2_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20847})
+    API_DEF_EDF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20848})
+    API_ABS_U_AV_DJ = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20849})
+    API_DEF_CHG_24V = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20850})
+    API_ANL_SEC_L1_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20856})
+    API_ANL_REG_L1_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20857})
+    API_ANL_SEC_L2_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20858})
+    API_ANL_REG_L2_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20859})
+    API_ANL_C4_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20860})
+    API_ANL_REG_L1_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20861})
+    API_ANL_REG_L2_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20862})
+    API_DEF_ATD1 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20864})
+    API_DEF_ATD2 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20865})
+    API_DEF_O2_1 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20866})
+    API_DEF_O2_2 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20867})
+    API_DEF_FEU_1 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20868})
+    API_DEF_FEU_2 = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20869})
+    API_AU_DIDG = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20870})
+    API_DEF_CENT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20871})
+    API_ETL_CENT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20872})
+    # read floats
+    API_POS_VL1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20900})
+    API_POS_VL2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20902})
+    API_Q_MINE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20904})
+    API_P_MINE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20906})
+    API_P_AO1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20908})
+    API_P_AO2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20910})
+    API_WBE_REG_L1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20912})
+    API_WBE_SEC_L1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20914})
+    API_PCS_L1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20916})
+    API_WBE_REG_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20918})
+    API_WBE_SEC_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20920})
+    API_PCS_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20922})
     # T-Box Reg L1
     # read bits
     REG1_MARCHE = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20500})
@@ -126,11 +201,11 @@ class TabSyno(HMITab):
         # add simple valve
         self.map_int.add_s_valve('V12', 400, 350, label='V12', zoom=0.6, align='h')
         # add motor valve
-        self.map_int.add_m_valve('B0', 250, 50, label='B0', zoom=0.8, align='h')
-        self.map_int.add_m_valve('B1', 550, 200, label='B1', zoom=0.8, align='v')
-        self.map_int.add_m_valve('B2', 250, 200, label='B2', zoom=0.8, align='v')
-        self.map_int.add_m_valve('SII4', 550, 425, label='SII4', zoom=0.8, align='v')
-        self.map_int.add_m_valve('SII3', 250, 425, label='SII3', zoom=0.8, align='v')
+        self.map_int.add_s_valve('B0', 250, 50, label='B0', zoom=0.8, align='h')
+        self.map_int.add_s_valve('B1', 550, 200, label='B1', zoom=0.8, align='v')
+        self.map_int.add_s_valve('B2', 250, 200, label='B2', zoom=0.8, align='v')
+        self.map_int.add_s_valve('SII4', 550, 425, label='SII4', zoom=0.8, align='v')
+        self.map_int.add_s_valve('SII3', 250, 425, label='SII3', zoom=0.8, align='v')
         # add flow valve
         self.map_int.add_f_valve('VL1', 550, 275, label='VL1', zoom=0.8, align='v')
         self.map_int.add_f_valve('VL2', 250, 275, label='VL2', zoom=0.8, align='v')
@@ -160,19 +235,23 @@ class TabSyno(HMITab):
         self.map_int.add_pipe('t17', from_name='SII3', to_name='B_ASP')
         self.map_int.add_pipe('t18', from_name='SII4', to_name='AO')
         # add value box
-        self.map_int.add_vbox('OUV_VL1', 475, 275, get_value=lambda: Tags.NULL_TAG, prefix='', suffix='%')
-        self.map_int.add_vbox('OUV_VL2', 175, 275, get_value=lambda: Tags.NULL_TAG, prefix='', suffix='%')
-        self.map_int.add_vbox('P_AVION', 400, 50, get_value=lambda: Tags.NULL_TAG, prefix='P', suffix='bars')
-        self.map_int.add_vbox('Q_AVION', 400, 100, get_value=lambda: Tags.NULL_TAG, prefix='Q', suffix='Nm3/h',
+        self.map_int.add_vbox('OUV_VL1', 475, 275, get_value=lambda: Tags.API_POS_VL1, prefix='', suffix='%')
+        self.map_int.add_vbox('OUV_VL2', 175, 275, get_value=lambda: Tags.API_POS_VL2, prefix='', suffix='%')
+        self.map_int.add_vbox('P_AVION', 400, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_AO1', 650, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
+        self.map_int.add_vbox('P_AO2', 650, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='bars')
+        self.map_int.add_vbox('Q_AVION', 400, 100, get_value=lambda: Tags.API_Q_MINE, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
         # custom widget
         # Pilotage poste
         self.frmConf = tk.Frame(self.map_int.can)
-        tk.Label(self.frmConf, text='Pilot. poste').pack(fill=tk.X)
+        tk.Label(self.frmConf, text='Etat poste').pack(fill=tk.X, padx=25)
         self.cnfDist = tk.Label(self.frmConf, text='Distant', background=WHITE)
         self.cnfDist.pack(fill=tk.X)
         self.cnfLoc = tk.Label(self.frmConf, text='Local', background=WHITE)
         self.cnfLoc.pack(fill=tk.X)
+        self.cnfAU = tk.Label(self.frmConf, text='Arrêt d\'urgence', background=WHITE)
+        self.cnfAU.pack(fill=tk.X)
         tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
         self.map_int.can.create_window(720, 50, window=self.frmConf)
         # build all
@@ -184,13 +263,15 @@ class TabSyno(HMITab):
         # update value box
         self.map_int.update_vbox()
         # update simple valves
-        #self.map_int.flow_valve.tag_anim('VL1', Tags.VL_FDC_OUV, Tags.VL_FDC_FER)
-        self.map_int.flow_valve.pos_tag_anim('VL1', Tags.POS_VL)
-        # update motor valves
-        # self.map_int.motor_valve.tag_anim('V1130', Tags.V1130_FDC_OUV, Tags.V1130_FDC_FER)
+        self.map_int.simple_valve.tag_anim('B0', Tags.API_POSTE_MARCHE, Tags.API_POSTE_ARRET)
+        self.map_int.simple_valve.tag_anim('B1', Tags.API_L1_MARCHE, Tags.API_L1_ARRET)
+        self.map_int.simple_valve.tag_anim('B2', Tags.API_L2_MARCHE, Tags.API_L2_ARRET)
+        self.map_int.simple_valve.tag_anim('SII3', Tags.API_MODE_I3, Tags.API_MODE_I4)
+        self.map_int.simple_valve.tag_anim('SII4', Tags.API_MODE_I4, Tags.API_MODE_I3)
         # update config.
-        #self.cnfDist.configure(background=color_tag_state(Tags.PIL_TELE))
-        #self.cnfLoc.configure(background=color_tag_state(Tags.PIL_LOCAL))
+        self.cnfDist.configure(background=color_tag_state(Tags.API_TELE))
+        self.cnfLoc.configure(background=color_tag_state(Tags.API_LOCAL))
+        self.cnfAU.configure(background=color_tag_alarm(Tags.API_MEL_AU))
 
 
 class TabRegL1(HMITab):
@@ -433,6 +514,112 @@ class TabRegL1(HMITab):
             self.ent_man.config(bg='red')
 
 
+class TabRegL2(HMITab):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
+        HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
+        self.lbl1 = tk.Label(self, font='bold',  justify=tk.CENTER,
+                             text='Régulateur 2: pilotage via facade T640 en attente migration du mois de septembre.')
+        self.lbl1.pack(fill=tk.BOTH, expand=tk.TRUE)
+
+
+class TabInfo(HMITab):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
+        HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
+        # Energie
+        self.frmEnergie = tk.LabelFrame(self, text='Energie', padx=10, pady=10)
+        self.frmEnergie.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.energie_list = HMIBoolList(self.frmEnergie, lbl_args={'width': 15})
+        self.energie_list.add('Absence EDF', Tags.API_DEF_EDF, alarm=True)
+        self.energie_list.add('Défaut chargeur', Tags.API_DEF_CHG_24V, alarm=True)
+        self.energie_list.add('Défaut disj. labo', Tags.API_ABS_U_AV_DJ, alarm=True)
+        self.energie_list.build()
+        # ATD/Feu
+        self.frmCentrale = tk.LabelFrame(self, text='Centrale ATD/Feu', padx=10, pady=10)
+        self.frmCentrale.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.centrale_list = HMIBoolList(self.frmCentrale, lbl_args={'width': 20})
+        self.centrale_list.add('BP Arrêt urgence DI/DG', Tags.API_AU_DIDG, alarm=True)
+        self.centrale_list.add('Défaut centrale', Tags.API_DEF_CENT, alarm=True)
+        self.centrale_list.add('Etalonnage centrale', Tags.API_ETL_CENT, alarm=True)
+        self.centrale_list.add('ATD stade 1', Tags.API_DEF_ATD1, alarm=True)
+        self.centrale_list.add('ATD stade 2', Tags.API_DEF_ATD2, alarm=True)
+        self.centrale_list.add('Manque O2 stade 1', Tags.API_DEF_O2_1, alarm=True)
+        self.centrale_list.add('Manque O2 stade 2', Tags.API_DEF_O2_2, alarm=True)
+        self.centrale_list.add('Feu stade 1', Tags.API_DEF_FEU_1, alarm=True)
+        self.centrale_list.add('Feu stade 2', Tags.API_DEF_FEU_2, alarm=True)
+        self.centrale_list.build()
+        # Calibration des analyseurs
+        self.frmCalibAnl = tk.LabelFrame(self, text='Calibration des analyseurs', padx=10, pady=10)
+        self.frmCalibAnl.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.cal_anl_list = HMIBoolList(self.frmCalibAnl, lbl_args={'width': 20})
+        self.cal_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_CAL, alarm=False)
+        self.cal_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_CAL, alarm=False)
+        self.cal_anl_list.add('Securité L2', Tags.API_ANL_SEC_L2_CAL, alarm=False)
+        self.cal_anl_list.add('Régulation L2', Tags.API_ANL_REG_L2_CAL, alarm=False)
+        self.cal_anl_list.add('C4', Tags.API_ANL_C4_CAL, alarm=False)
+        self.cal_anl_list.add('Gournay', Tags.API_ANL_GNY_CAL, alarm=False)
+        self.cal_anl_list.build()
+        # Défaut des analyseurs
+        self.frmDefAnl = tk.LabelFrame(self, text='Défaut des analyseurs', padx=10, pady=10)
+        self.frmDefAnl.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.def_anl_list = HMIBoolList(self.frmDefAnl, lbl_args={'width': 20})
+        self.def_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_DEF, alarm=True)
+        self.def_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_DEF, alarm=True)
+        self.def_anl_list.add('Securité L2', Tags.API_ANL_SEC_L2_DEF, alarm=True)
+        self.def_anl_list.add('Régulation L2', Tags.API_ANL_REG_L2_DEF, alarm=True)
+        self.def_anl_list.add('C4', Tags.API_ANL_C4_DEF, alarm=True)
+        self.def_anl_list.add('Gournay', Tags.API_ANL_GNY_DEF, alarm=True)
+        self.def_anl_list.build()
+        # Alarmes
+        self.frmAlr = tk.LabelFrame(self, text='Alarmes', padx=10, pady=10)
+        self.frmAlr.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.alr_list = HMIBoolList(self.frmAlr, lbl_args={'width': 20})
+        self.alr_list.add('Wobbe L1 -', Tags.API_WBE_L1_M)
+        self.alr_list.add('PCS L1 -', Tags.API_PCS_L1_M)
+        self.alr_list.add('Wobbe L2 -', Tags.API_WBE_L2_M)
+        self.alr_list.add('PCS L2 -', Tags.API_PCS_L2_M)
+        self.alr_list.build()
+        # Défauts
+        self.frmDef = tk.LabelFrame(self, text='Défaut', padx=10, pady=10)
+        self.frmDef.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.def_list = HMIBoolList(self.frmDef, lbl_args={'width': 20})
+        self.def_list.add('Wobbe L1 --', Tags.API_WBE_L1_MM, alarm=True)
+        self.def_list.add('PCS L1 --', Tags.API_PCS_L1_MM, alarm=True)
+        self.def_list.add('Wobbe L2 --', Tags.API_WBE_L2_MM, alarm=True)
+        self.def_list.add('PCS L2 --', Tags.API_PCS_L2_MM, alarm=True)
+        self.def_list.add('Q Mine ++', Tags.API_Q_MINE_PP, alarm=True)
+        self.def_list.build()
+        # Inhibitions
+        self.frmInh = tk.LabelFrame(self, text='Inhibitions', padx=10, pady=10)
+        self.frmInh.grid(row=1, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.inh_list = HMIBoolList(self.frmInh, lbl_args={'width': 20})
+        self.inh_list.add('Inh. L1', Tags.API_SEC_L1_INH, alarm=True)
+        self.inh_list.add('Inh. L2', Tags.API_SEC_L2_INH, alarm=True)
+        self.inh_list.add('Inh. Q Mine', Tags.API_Q_MINE_INH, alarm=True)
+        self.inh_list.build()
+        # Mesures
+        self.frmMes = tk.LabelFrame(self, text='Mesures', padx=10, pady=10)
+        self.frmMes.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_list = HMIAnalogList(self.frmMes, lbl_args={'width': 10})
+        self.mes_list.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
+        self.mes_list.add('Wobbe reg. L1', Tags.API_WBE_REG_L1, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.add('Wobbe sec. L1', Tags.API_WBE_SEC_L1, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.add('PCS L1', Tags.API_PCS_L1, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.add('Wobbe reg. L2', Tags.API_WBE_REG_L2, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.add('Wobbe sec. L2', Tags.API_WBE_SEC_L2, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.add('PCS L2', Tags.API_PCS_L2, unit='wh/Nm3', fmt='%.f')
+        self.mes_list.build()
+
+    def tab_update(self):
+        self.energie_list.update()
+        self.centrale_list.update()
+        self.cal_anl_list.update()
+        self.def_anl_list.update()
+        self.mes_list.update()
+        self.alr_list.update()
+        self.def_list.update()
+        self.inh_list.update()
+
+
 class HMIToolbar(tk.Frame):
     def __init__(self, tk_app, update_ms=500, *args, **kwargs):
         tk.Frame.__init__(self, tk_app, *args, **kwargs)
@@ -479,15 +666,21 @@ class HMIApp(tk.Tk):
         self.note = ttk.Notebook(self)
         self.tab_syno = TabSyno(self.note)
         self.tab_reg_l1 = TabRegL1(self.note)
+        self.tab_reg_l2 = TabRegL2(self.note)
+        self.tab_reg_l2 = TabRegL2(self.note)
+        self.tab_info = TabInfo(self.note)
         self.note.add(self.tab_syno, text='Synoptique (F1)')
         self.note.add(self.tab_reg_l1, text='Régulation Ligne 1 (F2)')
+        self.note.add(self.tab_reg_l2, text='Régulation Ligne 2 (F3)')
+        self.note.add(self.tab_info, text='Informations (F4)')
         self.note.pack(fill=tk.BOTH, expand=True)
         # defaut selected tab
         self.note.select(self.tab_syno)
         # bind function keys to tabs
         self.bind('<F1>', lambda evt: self.note.select(self.tab_syno))
         self.bind('<F2>', lambda evt: self.note.select(self.tab_reg_l1))
-        # self.bind('<F3>', lambda evt: self.note.select(self.tab_info))
+        self.bind('<F3>', lambda evt: self.note.select(self.tab_reg_l2))
+        self.bind('<F4>', lambda evt: self.note.select(self.tab_info))
         # build toolbar
         self.toolbar = HMIToolbar(self, update_ms=500)
 
