@@ -51,7 +51,7 @@ class Tags(object):
     API_ANL_GNY_DEF = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20816})
     API_ANL_GNY_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20817})
     API_ANL_C4_CAL = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20818})
-    API_ANNU_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20820})
+    API_Q_ANNU_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20820})
     API_RATIO_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20821})
     API_SEC_L1_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20822})
     API_SEC_L2_INH = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20823})
@@ -109,6 +109,11 @@ class Tags(object):
     API_WBE_REG_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20918})
     API_WBE_SEC_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20920})
     API_PCS_L2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20922})
+    API_Q_ANNU = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20926})
+    API_WBE_C4 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20928})
+    API_PCS_C4 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20930})
+    API_WBE_GNY = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20932})
+    API_PCS_GNY = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20934})
     # T-Box Reg L1
     # read bits
     REG1_MARCHE = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20500})
@@ -521,35 +526,54 @@ class TabRegL2(HMITab):
                              text='Régulateur 2: pilotage via facade T640 en attente migration du mois de septembre.')
         self.lbl1.pack(fill=tk.BOTH, expand=tk.TRUE)
 
-
-class TabInfo(HMITab):
+class TabValues(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        # Energie
-        self.frmEnergie = tk.LabelFrame(self, text='Energie', padx=10, pady=10)
-        self.frmEnergie.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.energie_list = HMIBoolList(self.frmEnergie, lbl_args={'width': 15})
-        self.energie_list.add('Absence EDF', Tags.API_DEF_EDF, alarm=True)
-        self.energie_list.add('Défaut chargeur', Tags.API_DEF_CHG_24V, alarm=True)
-        self.energie_list.add('Défaut disj. labo', Tags.API_ABS_U_AV_DJ, alarm=True)
-        self.energie_list.build()
-        # ATD/Feu
-        self.frmCentrale = tk.LabelFrame(self, text='Centrale ATD/Feu', padx=10, pady=10)
-        self.frmCentrale.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
-        self.centrale_list = HMIBoolList(self.frmCentrale, lbl_args={'width': 20})
-        self.centrale_list.add('BP Arrêt urgence DI/DG', Tags.API_AU_DIDG, alarm=True)
-        self.centrale_list.add('Défaut centrale', Tags.API_DEF_CENT, alarm=True)
-        self.centrale_list.add('Etalonnage centrale', Tags.API_ETL_CENT, alarm=True)
-        self.centrale_list.add('ATD stade 1', Tags.API_DEF_ATD1, alarm=True)
-        self.centrale_list.add('ATD stade 2', Tags.API_DEF_ATD2, alarm=True)
-        self.centrale_list.add('Manque O2 stade 1', Tags.API_DEF_O2_1, alarm=True)
-        self.centrale_list.add('Manque O2 stade 2', Tags.API_DEF_O2_2, alarm=True)
-        self.centrale_list.add('Feu stade 1', Tags.API_DEF_FEU_1, alarm=True)
-        self.centrale_list.add('Feu stade 2', Tags.API_DEF_FEU_2, alarm=True)
-        self.centrale_list.build()
+        # Mesures 1
+        self.frmMes1 = tk.LabelFrame(self, text='Mesures Wobbe (wh/nm3)', padx=10, pady=10)
+        self.frmMes1.grid(row=2, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_list_1 = HMIAnalogList(self.frmMes1, lbl_args={'width': 10})
+        self.mes_list_1.add('C4', Tags.API_WBE_C4, fmt='%.f')
+        self.mes_list_1.add('GNY', Tags.API_WBE_GNY, fmt='%.f')
+        self.mes_list_1.add('Reg. L1', Tags.API_WBE_REG_L1, fmt='%.f')
+        self.mes_list_1.add('Sec. L1', Tags.API_WBE_SEC_L1, fmt='%.f')
+        self.mes_list_1.add('Reg. L2', Tags.API_WBE_REG_L2, fmt='%.f')
+        self.mes_list_1.add('Sec. L2', Tags.API_WBE_SEC_L2, fmt='%.f')
+        self.mes_list_1.build()
+        # Mesures 2
+        self.frmMes2 = tk.LabelFrame(self, text='Mesures PCS (wh/nm3)', padx=10, pady=10)
+        self.frmMes2.grid(row=2, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_list_2 = HMIAnalogList(self.frmMes2, lbl_args={'width': 10})
+        self.mes_list_2.add('PCS C4', Tags.API_PCS_C4, fmt='%.f')
+        self.mes_list_2.add('PCS GNY', Tags.API_PCS_GNY, fmt='%.f')
+        self.mes_list_2.add('PCS L1', Tags.API_PCS_L1, fmt='%.f')
+        self.mes_list_2.add('PCS L2', Tags.API_PCS_L2, fmt='%.f')
+        self.mes_list_2.build()
+        # Mesures 3
+        self.frmMes3 = tk.LabelFrame(self, text='Mesures divers', padx=10, pady=10)
+        self.frmMes3.grid(row=2, column=2, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_list_3 = HMIAnalogList(self.frmMes3, lbl_args={'width': 10})
+        self.mes_list_3.add('P Mine', Tags.API_P_MINE, unit='bars', fmt='%.2f')
+        self.mes_list_3.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
+        self.mes_list_3.add('P AO1', Tags.API_P_AO1, unit='bars', fmt='%.2f')
+        self.mes_list_3.add('P AO2', Tags.API_P_AO2, unit='bars', fmt='%.2f')
+        self.mes_list_3.add('Q annubar I3', Tags.API_Q_ANNU, unit='Nm3/h', fmt='%.f')
+        self.mes_list_3.add('Pos. VL L1', Tags.API_POS_VL1, unit='%', fmt='%.f')
+        self.mes_list_3.add('Pos. VL L2', Tags.API_POS_VL2, unit='%', fmt='%.f')
+        self.mes_list_3.build()
+
+    def tab_update(self):
+        self.mes_list_1.update()
+        self.mes_list_2.update()
+        self.mes_list_3.update()
+
+
+class TabAlarms(HMITab):
+    def __init__(self, notebook, update_ms=500, *args, **kwargs):
+        HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # Calibration des analyseurs
         self.frmCalibAnl = tk.LabelFrame(self, text='Calibration des analyseurs', padx=10, pady=10)
-        self.frmCalibAnl.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmCalibAnl.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.cal_anl_list = HMIBoolList(self.frmCalibAnl, lbl_args={'width': 20})
         self.cal_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_CAL, alarm=False)
         self.cal_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_CAL, alarm=False)
@@ -560,7 +584,7 @@ class TabInfo(HMITab):
         self.cal_anl_list.build()
         # Défaut des analyseurs
         self.frmDefAnl = tk.LabelFrame(self, text='Défaut des analyseurs', padx=10, pady=10)
-        self.frmDefAnl.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmDefAnl.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.def_anl_list = HMIBoolList(self.frmDefAnl, lbl_args={'width': 20})
         self.def_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_DEF, alarm=True)
         self.def_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_DEF, alarm=True)
@@ -569,52 +593,76 @@ class TabInfo(HMITab):
         self.def_anl_list.add('C4', Tags.API_ANL_C4_DEF, alarm=True)
         self.def_anl_list.add('Gournay', Tags.API_ANL_GNY_DEF, alarm=True)
         self.def_anl_list.build()
-        # Alarmes
-        self.frmAlr = tk.LabelFrame(self, text='Alarmes', padx=10, pady=10)
+        # Inhibitions
+        self.frmInh = tk.LabelFrame(self, text='Inhibitions', padx=10, pady=10)
+        self.frmInh.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.inh_list = HMIBoolList(self.frmInh, lbl_args={'width': 20})
+        self.inh_list.add('Ligne 1 (PCS/Wobbe)', Tags.API_SEC_L1_INH, alarm=True)
+        self.inh_list.add('Ligne 2 (PCS/Wobbe)', Tags.API_SEC_L2_INH, alarm=True)
+        self.inh_list.add('Q Mine', Tags.API_Q_MINE_INH, alarm=True)
+        self.inh_list.add('Q AO', Tags.API_Q_AO_INH, alarm=True)
+        self.inh_list.add('Q AE', Tags.API_Q_AE_INH, alarm=True)
+        self.inh_list.add('Q Annubar I3', Tags.API_Q_ANNU_INH, alarm=True)
+        self.inh_list.add('API ratio', Tags.API_RATIO_INH, alarm=True)
+        self.inh_list.build()
+        # ATD/Feu
+        self.frmCentrale = tk.LabelFrame(self, text='Centrale ATD/Feu', padx=10, pady=10)
+        self.frmCentrale.grid(row=1, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.centrale_list = HMIBoolList(self.frmCentrale, lbl_args={'width': 20})
+        self.centrale_list.add('Défaut centrale', Tags.API_DEF_CENT, alarm=True)
+        self.centrale_list.add('Etalonnage centrale', Tags.API_ETL_CENT, alarm=True)
+        self.centrale_list.add('ATD stade 1', Tags.API_DEF_ATD1, alarm=True)
+        self.centrale_list.add('ATD stade 2', Tags.API_DEF_ATD2, alarm=True)
+        self.centrale_list.add('Manque O2 stade 1', Tags.API_DEF_O2_1, alarm=True)
+        self.centrale_list.add('Manque O2 stade 2', Tags.API_DEF_O2_2, alarm=True)
+        self.centrale_list.add('Feu stade 1', Tags.API_DEF_FEU_1, alarm=True)
+        self.centrale_list.add('Feu stade 2', Tags.API_DEF_FEU_2, alarm=True)
+        self.centrale_list.build()
+        # Alarmes mélangeur
+        self.frmAlr = tk.LabelFrame(self, text='Alarmes mélangeur', padx=10, pady=10)
         self.frmAlr.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.alr_list = HMIBoolList(self.frmAlr, lbl_args={'width': 20})
         self.alr_list.add('Wobbe L1 -', Tags.API_WBE_L1_M)
         self.alr_list.add('PCS L1 -', Tags.API_PCS_L1_M)
         self.alr_list.add('Wobbe L2 -', Tags.API_WBE_L2_M)
         self.alr_list.add('PCS L2 -', Tags.API_PCS_L2_M)
+        self.alr_list.add('Wobbe virt. -', Tags.API_WBE_VTL_M)
+        self.alr_list.add('PCS virt. -', Tags.API_PCS_VTL_M)
+        self.alr_list.add('Q AO -', Tags.API_Q_AO_M)
+        self.alr_list.add('Q AE -', Tags.API_Q_AE_M)
         self.alr_list.build()
-        # Défauts
-        self.frmDef = tk.LabelFrame(self, text='Défaut', padx=10, pady=10)
+        # Défauts mélangeur
+        self.frmDef = tk.LabelFrame(self, text='Défaut mélangeur', padx=10, pady=10)
         self.frmDef.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.def_list = HMIBoolList(self.frmDef, lbl_args={'width': 20})
         self.def_list.add('Wobbe L1 --', Tags.API_WBE_L1_MM, alarm=True)
         self.def_list.add('PCS L1 --', Tags.API_PCS_L1_MM, alarm=True)
         self.def_list.add('Wobbe L2 --', Tags.API_WBE_L2_MM, alarm=True)
         self.def_list.add('PCS L2 --', Tags.API_PCS_L2_MM, alarm=True)
+        self.def_list.add('Wobbe virt. --', Tags.API_WBE_VTL_MM, alarm=True)
+        self.def_list.add('PCS virt. --', Tags.API_PCS_VTL_MM, alarm=True)
+        self.def_list.add('Q AO --', Tags.API_Q_AO_MM, alarm=True)
+        self.def_list.add('Q AE --', Tags.API_Q_AE_MM, alarm=True)
+        self.def_list.add('Q Annubar --', Tags.API_Q_ANNU_MM, alarm=True)
         self.def_list.add('Q Mine ++', Tags.API_Q_MINE_PP, alarm=True)
         self.def_list.build()
-        # Inhibitions
-        self.frmInh = tk.LabelFrame(self, text='Inhibitions', padx=10, pady=10)
-        self.frmInh.grid(row=1, column=2, padx=5, pady=5, sticky=tk.NSEW)
-        self.inh_list = HMIBoolList(self.frmInh, lbl_args={'width': 20})
-        self.inh_list.add('Inh. L1', Tags.API_SEC_L1_INH, alarm=True)
-        self.inh_list.add('Inh. L2', Tags.API_SEC_L2_INH, alarm=True)
-        self.inh_list.add('Inh. Q Mine', Tags.API_Q_MINE_INH, alarm=True)
-        self.inh_list.build()
-        # Mesures
-        self.frmMes = tk.LabelFrame(self, text='Mesures', padx=10, pady=10)
-        self.frmMes.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky=tk.NSEW)
-        self.mes_list = HMIAnalogList(self.frmMes, lbl_args={'width': 10})
-        self.mes_list.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
-        self.mes_list.add('Wobbe reg. L1', Tags.API_WBE_REG_L1, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.add('Wobbe sec. L1', Tags.API_WBE_SEC_L1, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.add('PCS L1', Tags.API_PCS_L1, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.add('Wobbe reg. L2', Tags.API_WBE_REG_L2, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.add('Wobbe sec. L2', Tags.API_WBE_SEC_L2, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.add('PCS L2', Tags.API_PCS_L2, unit='wh/Nm3', fmt='%.f')
-        self.mes_list.build()
+        # Défauts
+        self.frmEnergie = tk.LabelFrame(self, text='Défauts', padx=10, pady=10)
+        self.frmEnergie.grid(row=1, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.energie_list = HMIBoolList(self.frmEnergie, lbl_args={'width': 20})
+        self.energie_list.add('Absence EDF', Tags.API_DEF_EDF, alarm=True)
+        self.energie_list.add('Défaut chargeur', Tags.API_DEF_CHG_24V, alarm=True)
+        self.energie_list.add('Défaut disj. labo', Tags.API_ABS_U_AV_DJ, alarm=True)
+        self.energie_list.add('Défaut Relais à seuils', Tags.API_REL_DEF, alarm=True)
+        self.energie_list.add('BP Arrêt urgence mél.', Tags.API_MEL_AU, alarm=True)
+        self.energie_list.add('BP Arrêt urgence DI/DG', Tags.API_AU_DIDG, alarm=True)
+        self.energie_list.build()
 
     def tab_update(self):
         self.energie_list.update()
         self.centrale_list.update()
         self.cal_anl_list.update()
         self.def_anl_list.update()
-        self.mes_list.update()
         self.alr_list.update()
         self.def_list.update()
         self.inh_list.update()
@@ -668,11 +716,13 @@ class HMIApp(tk.Tk):
         self.tab_reg_l1 = TabRegL1(self.note)
         self.tab_reg_l2 = TabRegL2(self.note)
         self.tab_reg_l2 = TabRegL2(self.note)
-        self.tab_info = TabInfo(self.note)
+        self.tab_values = TabValues(self.note)
+        self.tab_alarms = TabAlarms(self.note)
         self.note.add(self.tab_syno, text='Synoptique (F1)')
         self.note.add(self.tab_reg_l1, text='Régulation Ligne 1 (F2)')
         self.note.add(self.tab_reg_l2, text='Régulation Ligne 2 (F3)')
-        self.note.add(self.tab_info, text='Informations (F4)')
+        self.note.add(self.tab_values, text='Mesures (F4)')
+        self.note.add(self.tab_alarms, text='Etats/Alarmes (F5)')
         self.note.pack(fill=tk.BOTH, expand=True)
         # defaut selected tab
         self.note.select(self.tab_syno)
@@ -680,47 +730,14 @@ class HMIApp(tk.Tk):
         self.bind('<F1>', lambda evt: self.note.select(self.tab_syno))
         self.bind('<F2>', lambda evt: self.note.select(self.tab_reg_l1))
         self.bind('<F3>', lambda evt: self.note.select(self.tab_reg_l2))
-        self.bind('<F4>', lambda evt: self.note.select(self.tab_info))
+        self.bind('<F4>', lambda evt: self.note.select(self.tab_values))
+        self.bind('<F5>', lambda evt: self.note.select(self.tab_alarms))
         # build toolbar
         self.toolbar = HMIToolbar(self, update_ms=500)
 
     def do_every(self, do_cmd, every_ms=1000):
         do_cmd()
         self.after(every_ms, lambda: self.do_every(do_cmd, every_ms=every_ms))
-
-    def confirm_region(self):
-        ConfirmDialog(self, title='Confirmation', text='Passage en configuration régionale ?',
-                      valid_command=lambda: Tags.CMD_CONF_REGION.set(True))
-
-    def confirm_neutre(self):
-        ConfirmDialog(self, title='Confirmation', text='Passage en configuration neutre ?',
-                      valid_command=lambda: Tags.CMD_CONF_NEUTRE.set(True))
-
-    def confirm_v1741(self):
-        ValveESDDialog(self, title='V1741', text='Action sur vanne de sécurité V1741 ?',
-                       stop_command=lambda: Tags.CMD_V1741_CLOSE.set(True),
-                       pst_command=lambda: Tags.CMD_V1741_PST.set(True))
-
-    def confirm_v1130(self):
-        ValveOpenCloseDialog(self, title='V1130', text='Mouvement V1130 ?',
-                             open_command=lambda: Tags.CMD_V1130_OPEN.set(True),
-                             close_command=lambda: Tags.CMD_V1130_CLOSE.set(True))
-
-    def confirm_v1135(self):
-        ValveOpenCloseDialog(self, title='V1135', text='Mouvement V1135 ?',
-                             open_command=lambda: Tags.CMD_V1135_OPEN.set(True),
-                             close_command=lambda: Tags.CMD_V1135_CLOSE.set(True))
-
-    def confirm_v1136(self):
-        ValveOpenCloseDialog(self, title='V1136', text='Mouvement V1136 ?',
-                             open_command=lambda: Tags.CMD_V1136_OPEN.set(True),
-                             close_command=lambda: Tags.CMD_V1136_CLOSE.set(True))
-
-    @staticmethod
-    def ack_default():
-        Devices.tbx_api.write_bit(522, True)
-        time.sleep(.1)
-        Devices.tbx_api.write_bit(522, False)
 
 
 if __name__ == '__main__':
