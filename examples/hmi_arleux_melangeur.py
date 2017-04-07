@@ -3,7 +3,7 @@
 
 from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
-from pyHMI.Dialog import ConfirmDialog, ValveOpenCloseDialog, ValveESDDialog
+from pyHMI.Dialog import ConfirmDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
 import time
@@ -240,8 +240,10 @@ class TabSyno(HMITab):
         self.map_int.add_pipe('t17', from_name='SII3', to_name='B_ASP')
         self.map_int.add_pipe('t18', from_name='SII4', to_name='AO')
         # add value box
-        self.map_int.add_vbox('OUV_VL1', 475, 275, get_value=lambda: Tags.API_POS_VL1, prefix='', suffix='%')
-        self.map_int.add_vbox('OUV_VL2', 175, 275, get_value=lambda: Tags.API_POS_VL2, prefix='', suffix='%')
+        self.map_int.add_vbox('REG_VL1', 470, 260, size=5, get_value=lambda: Tags.REG1_OUT_REG, prefix='S', suffix='%')
+        self.map_int.add_vbox('POS_VL1', 640, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='P', suffix='%')
+        self.map_int.add_vbox('REG_VL2', 170, 260, size=5, get_value=lambda: Tags.NULL_TAG, prefix='S', suffix='%')
+        self.map_int.add_vbox('POS_VL2', 340, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='P', suffix='%')
         self.map_int.add_vbox('P_AVION', 400, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_AO1', 650, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
         self.map_int.add_vbox('P_AO2', 650, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='bars')
@@ -313,7 +315,6 @@ class TabRegL1(HMITab):
         self.cons_r.add('Consigne PCS CSR', Tags.REG1_C_PCS_CSR, unit='wh/nm3', fmt='%0.f')
         self.cons_r.add('Consigne débit active', Tags.REG1_C_DEBIT_ACT, unit='nm3/h', fmt='%0.f')
         self.cons_r.add('Consigne débit CSR', Tags.REG1_C_DEBIT_CSR, unit='nm3/h', fmt='%0.f')
-        self.cons_r.add('DEBUG mot de vie Reg. 1', Tags.REG1_MDV, unit='', fmt='%0.f')
         self.cons_r.build()
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
@@ -417,14 +418,17 @@ class TabRegL1(HMITab):
     def cons_w_str_refresh(self, *args):
         # update manu entry
         if Tags.REG1_LOCAL.val:
-            self.but_cons_w.configure(state='normal')
             try:
+                if not (11160.0 <= float(self.cons_w_str.get()) <= 13360.0):
+                    raise ValueError
                 if abs(Tags.REG1_C_WOBBE_ACT.val - float(self.cons_w_str.get())) < 1.0:
                     self.ent_cons_w.config(bg='white')
                 else:
                     self.ent_cons_w.config(bg='yellow2')
+                self.but_cons_w.configure(state='normal')
             except ValueError:
                 self.ent_cons_w.config(bg='red')
+                self.but_cons_w.configure(state='disabled')
         else:
             self.ent_cons_w.config(bg='white')
             self.but_cons_w.configure(state='disabled')
@@ -443,14 +447,17 @@ class TabRegL1(HMITab):
     def cons_p_str_refresh(self, *args):
         # update manu entry
         if Tags.REG1_LOCAL.val:
-            self.but_cons_p.configure(state='normal')
             try:
+                if not (9100.0 <= float(self.cons_p_str.get()) <= 11100.0):
+                    raise ValueError
                 if abs(Tags.REG1_C_PCS_ACT.val - float(self.cons_p_str.get())) < 1.0:
                     self.ent_cons_p.config(bg='white')
                 else:
                     self.ent_cons_p.config(bg='yellow2')
+                self.but_cons_p.configure(state='normal')
             except ValueError:
                 self.ent_cons_p.config(bg='red')
+                self.but_cons_p.configure(state='disabled')
         else:
             self.ent_cons_p.config(bg='white')
             self.but_cons_p.configure(state='disabled')
@@ -469,14 +476,17 @@ class TabRegL1(HMITab):
     def cons_d_str_refresh(self, *args):
         # update manu entry
         if Tags.REG1_LOCAL.val:
-            self.but_cons_d.configure(state='normal')
             try:
+                if not (0.0 <= float(self.cons_d_str.get()) <= 25000.0):
+                    raise ValueError
                 if abs(Tags.REG1_C_DEBIT_ACT.val - float(self.cons_d_str.get())) < 1.0:
                     self.ent_cons_d.config(bg='white')
                 else:
                     self.ent_cons_d.config(bg='yellow2')
+                self.but_cons_d.configure(state='normal')
             except ValueError:
                 self.ent_cons_d.config(bg='red')
+                self.but_cons_d.configure(state='disabled')
         else:
             self.ent_cons_d.config(bg='white')
             self.but_cons_d.configure(state='disabled')
@@ -526,6 +536,7 @@ class TabRegL2(HMITab):
                              text='Régulateur 2: pilotage via facade T640 en attente migration du mois de septembre.')
         self.lbl1.pack(fill=tk.BOTH, expand=tk.TRUE)
 
+
 class TabValues(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
@@ -558,8 +569,8 @@ class TabValues(HMITab):
         self.mes_list_3.add('P AO1', Tags.API_P_AO1, unit='bars', fmt='%.2f')
         self.mes_list_3.add('P AO2', Tags.API_P_AO2, unit='bars', fmt='%.2f')
         self.mes_list_3.add('Q annubar I3', Tags.API_Q_ANNU, unit='Nm3/h', fmt='%.f')
-        self.mes_list_3.add('Pos. VL L1', Tags.API_POS_VL1, unit='%', fmt='%.f')
-        self.mes_list_3.add('Pos. VL L2', Tags.API_POS_VL2, unit='%', fmt='%.f')
+        self.mes_list_3.add('Pos. VL L1', Tags.API_POS_VL1, unit='%', fmt='%.2f')
+        self.mes_list_3.add('Pos. VL L2', Tags.API_POS_VL2, unit='%', fmt='%.2f')
         self.mes_list_3.build()
 
     def tab_update(self):
@@ -626,8 +637,8 @@ class TabAlarms(HMITab):
         self.alr_list.add('PCS L1 -', Tags.API_PCS_L1_M)
         self.alr_list.add('Wobbe L2 -', Tags.API_WBE_L2_M)
         self.alr_list.add('PCS L2 -', Tags.API_PCS_L2_M)
-        self.alr_list.add('Wobbe virt. -', Tags.API_WBE_VTL_M)
-        self.alr_list.add('PCS virt. -', Tags.API_PCS_VTL_M)
+        self.alr_list.add('Wobbe virtuel -', Tags.API_WBE_VTL_M)
+        self.alr_list.add('PCS virtuel -', Tags.API_PCS_VTL_M)
         self.alr_list.add('Q AO -', Tags.API_Q_AO_M)
         self.alr_list.add('Q AE -', Tags.API_Q_AE_M)
         self.alr_list.build()
@@ -639,8 +650,8 @@ class TabAlarms(HMITab):
         self.def_list.add('PCS L1 --', Tags.API_PCS_L1_MM, alarm=True)
         self.def_list.add('Wobbe L2 --', Tags.API_WBE_L2_MM, alarm=True)
         self.def_list.add('PCS L2 --', Tags.API_PCS_L2_MM, alarm=True)
-        self.def_list.add('Wobbe virt. --', Tags.API_WBE_VTL_MM, alarm=True)
-        self.def_list.add('PCS virt. --', Tags.API_PCS_VTL_MM, alarm=True)
+        self.def_list.add('Wobbe virtuel --', Tags.API_WBE_VTL_MM, alarm=True)
+        self.def_list.add('PCS virtuel --', Tags.API_PCS_VTL_MM, alarm=True)
         self.def_list.add('Q AO --', Tags.API_Q_AO_MM, alarm=True)
         self.def_list.add('Q AE --', Tags.API_Q_AE_MM, alarm=True)
         self.def_list.add('Q Annubar --', Tags.API_Q_ANNU_MM, alarm=True)
@@ -649,13 +660,15 @@ class TabAlarms(HMITab):
         # Défauts
         self.frmEnergie = tk.LabelFrame(self, text='Défauts', padx=10, pady=10)
         self.frmEnergie.grid(row=1, column=2, padx=5, pady=5, sticky=tk.NSEW)
-        self.energie_list = HMIBoolList(self.frmEnergie, lbl_args={'width': 20})
+        self.energie_list = HMIBoolList(self.frmEnergie, lbl_args={'width': 25})
         self.energie_list.add('Absence EDF', Tags.API_DEF_EDF, alarm=True)
         self.energie_list.add('Défaut chargeur', Tags.API_DEF_CHG_24V, alarm=True)
         self.energie_list.add('Défaut disj. labo', Tags.API_ABS_U_AV_DJ, alarm=True)
         self.energie_list.add('Défaut Relais à seuils', Tags.API_REL_DEF, alarm=True)
         self.energie_list.add('BP Arrêt urgence mél.', Tags.API_MEL_AU, alarm=True)
         self.energie_list.add('BP Arrêt urgence DI/DG', Tags.API_AU_DIDG, alarm=True)
+        self.energie_list.add('Défaut mesure/consigne L1', Tags.API_DEF_MES_CON_L1, alarm=True)
+        self.energie_list.add('Défaut mesure/consigne L2', Tags.API_DEF_MES_CON_L2, alarm=True)
         self.energie_list.build()
 
     def tab_update(self):
