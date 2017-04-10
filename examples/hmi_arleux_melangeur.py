@@ -26,6 +26,9 @@ class Devices(object):
     tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0)
     tbx_reg2.add_bits_table(20500, 16)
     tbx_reg2.add_floats_table(20700, size=32)
+    # API ratio
+    tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0)
+    tbx_ratio.add_floats_table(23000, size=3)
 
 
 class Tags(object):
@@ -161,6 +164,11 @@ class Tags(object):
     REG1_W_CONS_P = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20782})
     REG1_W_CONS_D = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20784})
     REG1_W_OUV_VL = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20786})
+    # API ratio
+    RATIO_PCS_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23000})
+    RATIO_WBE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23002})
+    RATIO_Q_AE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23004})
+
     # local (no external source)
     HMI_WORD = Tag(0)
 
@@ -279,20 +287,20 @@ class TabSyno(HMITab):
         # VL1
         if Tags.API_POS_VL1.err:
             self.map_int.flow_valve.full_set_color('VL1', PINK)
-        elif 0.0 <= Tags.API_POS_VL1.val <= 15.0:
+        elif Tags.API_POS_VL1.val < 15.0:
             self.map_int.flow_valve.full_set_color('VL1', RED)
-        elif 15.0 < Tags.API_POS_VL1.val < 85.0:
+        elif Tags.API_POS_VL1.val < 85.0:
             self.map_int.flow_valve.full_set_color('VL1', WHITE)
-        elif 85.0 <= Tags.API_POS_VL1.val <= 100.0:
+        else:
             self.map_int.flow_valve.full_set_color('VL1', GREEN)
         # VL2
         if Tags.API_POS_VL2.err:
             self.map_int.flow_valve.full_set_color('VL2', PINK)
-        elif 0.0 <= Tags.API_POS_VL2.val <= 15.0:
+        elif Tags.API_POS_VL2.val < 15.0:
             self.map_int.flow_valve.full_set_color('VL2', RED)
-        elif 15.0 < Tags.API_POS_VL2.val < 85.0:
+        elif Tags.API_POS_VL2.val < 85.0:
             self.map_int.flow_valve.full_set_color('VL2', WHITE)
-        elif 85.0 <= Tags.API_POS_VL2.val <= 100.0:
+        else:
             self.map_int.flow_valve.full_set_color('VL2', GREEN)
         # update config.
         self.cnfDist.configure(background=color_tag_state(Tags.API_TELE))
@@ -408,9 +416,9 @@ class TabRegL1(HMITab):
         self.frmManuReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
         self.frmManuReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
         self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_AUTO.set(True),
+        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=self.send_auto_mode,
                         btn_args={'bg': GREEN})
-        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=lambda: Tags.REG1_MODE_MANU.set(True),
+        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=self.send_man_mode,
                         btn_args={'bg': RED})
         self.mode_l.build()
         # install callback
@@ -524,14 +532,17 @@ class TabRegL1(HMITab):
     def manu_str_refresh(self, *args):
         # update manu entry
         if Tags.REG1_AUTO_MANU.val:
-            self.but_man.configure(state='normal')
             try:
+                if not (0.0 <= float(self.manu_str.get()) <= 100.0):
+                    raise ValueError
                 if abs(Tags.REG1_OUT_REG.val - float(self.manu_str.get())) < 1.0:
                     self.ent_man.config(bg='white')
                 else:
                     self.ent_man.config(bg='yellow2')
+                self.but_man.configure(state='normal')
             except ValueError:
                 self.ent_man.config(bg='red')
+                self.but_man.configure(state='disabled')
         else:
             self.ent_man.config(bg='white')
             self.but_man.configure(state='disabled')
@@ -547,12 +558,22 @@ class TabRegL1(HMITab):
         except ValueError:
             self.ent_man.config(bg='red')
 
+    def send_auto_mode(self):
+        ConfirmDialog(self, title='Confirmation mode',
+                      text='Passage en mode automatique du régulateur ?',
+                      valid_command=lambda: Tags.REG1_MODE_AUTO.set(True))
+
+    def send_man_mode(self):
+        ConfirmDialog(self, title='Confirmation mode',
+                      text='Passage en mode manuel du régulateur ?',
+                      valid_command=lambda: Tags.REG1_MODE_MANU.set(True))
+
 
 class TabRegL2(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         self.lbl1 = tk.Label(self, font='bold',  justify=tk.CENTER,
-                             text='Régulateur 2: pilotage via facade T640 en attente migration du mois de septembre.')
+                             text='Régulateur 2: pilotage via facade T640 en attente migration de la ligne 2.')
         self.lbl1.pack(fill=tk.BOTH, expand=tk.TRUE)
 
 
@@ -561,7 +582,7 @@ class TabValues(HMITab):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # Mesures 1
         self.frmMes1 = tk.LabelFrame(self, text='Mesures Wobbe (wh/nm3)', padx=10, pady=10)
-        self.frmMes1.grid(row=2, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmMes1.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_1 = HMIAnalogList(self.frmMes1, lbl_args={'width': 10})
         self.mes_list_1.add('C4', Tags.API_WBE_C4, fmt='%.f')
         self.mes_list_1.add('GNY', Tags.API_WBE_GNY, fmt='%.f')
@@ -572,7 +593,7 @@ class TabValues(HMITab):
         self.mes_list_1.build()
         # Mesures 2
         self.frmMes2 = tk.LabelFrame(self, text='Mesures PCS (wh/nm3)', padx=10, pady=10)
-        self.frmMes2.grid(row=2, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmMes2.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_2 = HMIAnalogList(self.frmMes2, lbl_args={'width': 10})
         self.mes_list_2.add('PCS C4', Tags.API_PCS_C4, fmt='%.f')
         self.mes_list_2.add('PCS GNY', Tags.API_PCS_GNY, fmt='%.f')
@@ -581,7 +602,7 @@ class TabValues(HMITab):
         self.mes_list_2.build()
         # Mesures 3
         self.frmMes3 = tk.LabelFrame(self, text='Mesures divers', padx=10, pady=10)
-        self.frmMes3.grid(row=2, column=2, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmMes3.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_3 = HMIAnalogList(self.frmMes3, lbl_args={'width': 10})
         self.mes_list_3.add('P Mine', Tags.API_P_MINE, unit='bars', fmt='%.2f')
         self.mes_list_3.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
@@ -591,11 +612,20 @@ class TabValues(HMITab):
         self.mes_list_3.add('Pos. VL L1', Tags.API_POS_VL1, unit='%', fmt='%.2f')
         self.mes_list_3.add('Pos. VL L2', Tags.API_POS_VL2, unit='%', fmt='%.2f')
         self.mes_list_3.build()
+        # Mesures ratio
+        self.frmRatio = tk.LabelFrame(self, text='Mesures API Ratio', padx=10, pady=10)
+        self.frmRatio.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_list_4 = HMIAnalogList(self.frmRatio, lbl_args={'width': 10})
+        self.mes_list_4.add('PCS virtuel', Tags.RATIO_PCS_VTL, unit='wh/nm3', fmt='%.f')
+        self.mes_list_4.add('Wobbe virtuel', Tags.RATIO_WBE_VTL, unit='wh/nm3', fmt='%.f')
+        self.mes_list_4.add('Débit AE 1+2', Tags.RATIO_Q_AE_VTL, unit='nm3/h', fmt='%.f')
+        self.mes_list_4.build()
 
     def tab_update(self):
         self.mes_list_1.update()
         self.mes_list_2.update()
         self.mes_list_3.update()
+        self.mes_list_4.update()
 
 
 class TabAlarms(HMITab):
@@ -706,9 +736,12 @@ class HMIToolbar(tk.Frame):
         self.tk_app = tk_app
         self.update_ms = update_ms
         # build toolbar
-        self.butTbox = tk.Button(self, text='T-Box API', relief=tk.SUNKEN,
-                                 state='disabled', disabledforeground='black')
-        self.butTbox.pack(side=tk.LEFT)
+        self.butAPI = tk.Button(self, text='T-Box API', relief=tk.SUNKEN,
+                                state='disabled', disabledforeground='black')
+        self.butAPI.pack(side=tk.LEFT)
+        self.butRatio = tk.Button(self, text='T-Box Ratio', relief=tk.SUNKEN,
+                                  state='disabled', disabledforeground='black')
+        self.butRatio.pack(side=tk.LEFT)
         self.butReg1 = tk.Button(self, text='T-Box REG L1', relief=tk.SUNKEN,
                                  state='disabled', disabledforeground='black')
         self.butReg1.pack(side=tk.LEFT)
@@ -727,7 +760,8 @@ class HMIToolbar(tk.Frame):
         self.master.after(self.update_ms, self._tab_update)
 
     def tab_update(self):
-        self.butTbox.configure(background=GREEN if Devices.tbx_api.connected else PINK)
+        self.butAPI.configure(background=GREEN if Devices.tbx_api.connected else PINK)
+        self.butRatio.configure(background=GREEN if Devices.tbx_ratio.connected else PINK)
         self.butReg1.configure(background=GREEN if Devices.tbx_reg1.connected else PINK)
         self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
