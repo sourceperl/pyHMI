@@ -275,6 +275,25 @@ class TabSyno(HMITab):
         self.map_int.simple_valve.tag_anim('B2', Tags.API_L2_MARCHE, Tags.API_L2_ARRET)
         self.map_int.simple_valve.tag_anim('SII3', Tags.API_MODE_I3, Tags.API_MODE_I4)
         self.map_int.simple_valve.tag_anim('SII4', Tags.API_MODE_I4, Tags.API_MODE_I3)
+        # update flow valves
+        # VL1
+        if Tags.API_POS_VL1.err:
+            self.map_int.flow_valve.full_set_color('VL1', PINK)
+        elif 0.0 <= Tags.API_POS_VL1.val <= 15.0:
+            self.map_int.flow_valve.full_set_color('VL1', RED)
+        elif 15.0 < Tags.API_POS_VL1.val < 85.0:
+            self.map_int.flow_valve.full_set_color('VL1', WHITE)
+        elif 85.0 <= Tags.API_POS_VL1.val <= 100.0:
+            self.map_int.flow_valve.full_set_color('VL1', GREEN)
+        # VL2
+        if Tags.API_POS_VL2.err:
+            self.map_int.flow_valve.full_set_color('VL2', PINK)
+        elif 0.0 <= Tags.API_POS_VL2.val <= 15.0:
+            self.map_int.flow_valve.full_set_color('VL2', RED)
+        elif 15.0 < Tags.API_POS_VL2.val < 85.0:
+            self.map_int.flow_valve.full_set_color('VL2', WHITE)
+        elif 85.0 <= Tags.API_POS_VL2.val <= 100.0:
+            self.map_int.flow_valve.full_set_color('VL2', GREEN)
         # update config.
         self.cnfDist.configure(background=color_tag_state(Tags.API_TELE))
         self.cnfLoc.configure(background=color_tag_state(Tags.API_LOCAL))

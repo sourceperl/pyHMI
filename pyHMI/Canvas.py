@@ -144,25 +144,26 @@ class FlowValve(object):
                 self.canvas.create_text(x + 35 * zm, y, text=str(label), font=def_font, fill=WHITE)
 
     def anim(self, name, fdc_open, fdc_close):
-        color = color_valve(fdc_open, fdc_close)
-        self.canvas.itemconfigure(name, fill=color, outline=color)
+        self.set_color(name, color_valve(fdc_open, fdc_close))
 
     def tag_anim(self, name, tag_fdc_open, tag_fdc_close):
-        color = color_tags_valve(tag_fdc_open, tag_fdc_close)
+        self.set_color(name, color_tags_valve(tag_fdc_open, tag_fdc_close))
+
+    def set_color(self, name, color):
         self.canvas.itemconfigure(name, fill=color, outline=color)
 
     def motor_anim(self, name, motor_open, motor_close):
-        color = color_valve(motor_open, motor_close)
-        self.canvas.itemconfigure(str(name) + '_HEAD', fill=color, outline=color)
+        self.motor_set_color(name, color_valve(motor_open, motor_close))
 
     def motor_tag_anim(self, name, tag_motor_open, tag_motor_close):
-        color = color_tags_valve(tag_motor_open, tag_motor_close)
-        self.canvas.itemconfigure(name + '_HEAD', fill=color, outline=color)
+        self.motor_set_color(name, color_tags_valve(tag_motor_open, tag_motor_close))
 
-    def pos_tag_anim(self, name, tag_v_pos):
+    def motor_set_color(self, name, color):
+        self.canvas.itemconfigure(str(name) + '_HEAD', fill=color, outline=color)
+
+    def motor_pos_tag_anim(self, name, tag_v_pos):
         if tag_v_pos.err:
-            color = VALVE_COLOR[VALVE_ERR]
-            self.canvas.itemconfigure(name + '_HEAD', fill=color, outline=color)
+            self.motor_set_color(name, VALVE_COLOR[VALVE_ERR])
         else:
             v_pos = sorted([0.0, float(tag_v_pos.val), 100.0])[1]
             if 0.0 <= v_pos <= 15.0:
@@ -171,6 +172,10 @@ class FlowValve(object):
                 self.motor_anim(name, False, False)
             elif 85.0 <= v_pos <= 100.0:
                 self.motor_anim(name, True, False)
+
+    def full_set_color(self, name, color):
+        self.set_color(name, color)
+        self.motor_set_color(name, color)
 
 
 class HMICanvas(object):

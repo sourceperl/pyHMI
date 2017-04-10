@@ -307,7 +307,7 @@ class TabInterco(HMITab):
         self.map_int.simple_valve.tag_anim('V1137', Tags.V1137_FDC_OUV, Tags.V1137_FDC_FER)
         self.map_int.simple_valve.tag_anim('V1138', Tags.V1138_FDC_OUV, Tags.V1138_FDC_FER)
         self.map_int.flow_valve.tag_anim('VL1', Tags.VL_FDC_OUV, Tags.VL_FDC_FER)
-        self.map_int.flow_valve.pos_tag_anim('VL1', Tags.POS_VL)
+        self.map_int.flow_valve.motor_pos_tag_anim('VL1', Tags.POS_VL)
         # update motor valves
         self.map_int.motor_valve.tag_anim('V1130', Tags.V1130_FDC_OUV, Tags.V1130_FDC_FER)
         self.map_int.motor_valve.motor_tag_anim('V1130', Tags.V1130_EV_OUV, Tags.V1130_EV_FER,
