@@ -5,16 +5,19 @@
 # stuff in tags.update(): check valve command and set FDC after delay
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
+from pyHMI.SimGas import GasPipe, FlowValve
 import math
 import time
 import random as rd
-import sys
-sys.path.append('../pyHMI/')
-from SimGas import GasPipe, FlowValve
 
 
 class Devices(object):
     # init datasource
+    # PLC TBox
+    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0)
+    # init modbus tables
+    #tbx_api.add_bits_table(20800, 96)
+    #tbx_api.add_floats_table(20900, 32)
     # Reg. L1
     tbx_reg = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
     # init modbus tables
@@ -27,6 +30,14 @@ class Tags(object):
     # virtual
     P_MINE = Tag(0.0)
     P_AVAL_MEL = Tag(0.0)
+    # from API
+    # write
+    API_POS_VL1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2058})
+    API_POS_VL2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2060})
+    API_Q_MINE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2062})
+    API_P_MINE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2304})
+    API_P_AO1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2306})
+    API_P_AO2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2308})
     # from tbox Reg. L1
     # read
     REG_CMD_VL = Tag(0.0, src=Devices.tbx_reg, ref={'type': 'float', 'addr': 1280})
@@ -73,6 +84,12 @@ class SimJob(object):
         SimJob.pipe_mine.in_flow = avion_flow
         SimJob.pipe_mine.out_flow = Tags.REG_M_DEBIT.val
         SimJob.pipe_aval.in_flow = Tags.REG_M_DEBIT.val
+        # update EANA API
+        Tags.API_POS_VL1.val = cls.flow_valve.pos * 1.03
+        Tags.API_Q_MINE.val = SimJob.pipe_aval.in_flow
+        Tags.API_P_MINE.val = Tags.P_MINE.val
+        Tags.API_P_AO1.val = Tags.P_AVAL_MEL.val
+        Tags.API_P_AO2.val = Tags.P_AVAL_MEL.val
         # DEBUG
         print('p_amont=%.2f' % Tags.P_MINE.val)
         print('p_aval=%.2f' % Tags.P_AVAL_MEL.val)
