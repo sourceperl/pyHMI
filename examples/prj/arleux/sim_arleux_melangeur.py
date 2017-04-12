@@ -16,13 +16,13 @@ class Devices(object):
     # PLC TBox
     tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0)
     # init modbus tables
-    #tbx_api.add_bits_table(20800, 96)
+    tbx_api.add_bits_table(20800, 96)
     #tbx_api.add_floats_table(20900, 32)
     # Reg. L1
-    tbx_reg = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
+    tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
     # init modbus tables
-    tbx_reg.add_floats_table(768, size=8)
-    tbx_reg.add_floats_table(1280, size=4)
+    tbx_reg1.add_floats_table(768, size=8)
+    tbx_reg1.add_floats_table(1280, size=4)
 
 
 class Tags(object):
@@ -31,6 +31,10 @@ class Tags(object):
     P_MINE = Tag(0.0)
     P_AVAL_MEL = Tag(0.0)
     # from API
+    # read
+    API_POSTE_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20803})
+    API_L1_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20804})
+    API_L2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20805})
     # write
     API_POS_VL1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2058})
     API_POS_VL2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2060})
@@ -40,22 +44,22 @@ class Tags(object):
     API_P_AO2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'w_float', 'addr': 2308})
     # from tbox Reg. L1
     # read
-    REG_CMD_VL = Tag(0.0, src=Devices.tbx_reg, ref={'type': 'float', 'addr': 1280})
+    REG_OUT_VL1 = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'float', 'addr': 1280})
     # write
-    REG_M_WOBBE = Tag(0.0, src=Devices.tbx_reg, ref={'type': 'w_float', 'addr': 768})
-    REG_M_PCS = Tag(0.0, src=Devices.tbx_reg, ref={'type': 'w_float', 'addr': 770})
-    REG_M_DEBIT = Tag(0.0, src=Devices.tbx_reg, ref={'type': 'w_float', 'addr': 772})
+    REG_M_WOBBE = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 768})
+    REG_M_PCS = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 770})
+    REG_M_DEBIT = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 772})
 
     @classmethod
     def update_tags(cls):
         pass
-        # print('%.2f' % Tags.REG_CMD_VL.val)
 
 
 class SimJob(object):
     pipe_mine = GasPipe(init_volume=212 * 50, water_volume=212)
     pipe_aval = GasPipe(init_volume=20000 * 50, water_volume=20000)
-    flow_valve = FlowValve(q_max=25000.0, up_w_stock=212)
+    vl1 = FlowValve(q_max=25000.0, up_w_stock=212)
+    vl2 = FlowValve(q_max=25000.0, up_w_stock=212)
 
     @classmethod
     def sim(cls):
@@ -63,20 +67,25 @@ class SimJob(object):
         q_ao = 100000 + rd.randint(-100, 100)
         wbe_ae = 12900 + rd.randint(-5, 5)
         pcs_ae = 10350 + rd.randint(-5, 5)
-        wbe_mine = 6000 + rd.randint(-5, 5)
-        pcs_mine = 4900 + rd.randint(-5, 5)
-        # fix P aval
+        wbe_mine = 6000
+        pcs_mine = 4900
+        # fix P amont/aval
         Tags.P_MINE.val = SimJob.pipe_mine.avg_p
         Tags.P_AVAL_MEL.val = SimJob.pipe_aval.avg_p
-        # fix avion flow
+        # fix avion flow (limit at 67.7b PMS)
         avion_flow = 10000 * 16 * math.log(67.7 - Tags.P_MINE.val) / 67.7
-        # define flow valve infos
-        cls.flow_valve.up_flow = avion_flow
-        cls.flow_valve.up_pres = Tags.P_MINE.val
-        cls.flow_valve.down_pres = Tags.P_AVAL_MEL.val
-        cls.flow_valve.pos = Tags.REG_CMD_VL.val
+        # VLs
+        cls.vl1.up_flow = avion_flow
+        cls.vl1.up_pres = Tags.P_MINE.val
+        cls.vl1.down_pres = Tags.P_AVAL_MEL.val
+        cls.vl1.pos = Tags.REG_OUT_VL1.val
+        cls.vl2.up_flow = avion_flow
+        cls.vl2.up_pres = Tags.P_MINE.val
+        cls.vl2.down_pres = Tags.P_AVAL_MEL.val
+        cls.vl2.pos = 0.0
         # update tags
-        Tags.REG_M_DEBIT.val = cls.flow_valve.get_flow()
+        Tags.REG_M_DEBIT.val = ((cls.vl1.get_flow() * Tags.API_L1_MARCHE.val) +
+                                (cls.vl2.get_flow() * Tags.API_L2_MARCHE.val)) * Tags.API_POSTE_MARCHE.val
         ratio_mine = Tags.REG_M_DEBIT.val / q_ao
         Tags.REG_M_WOBBE.val = ratio_mine * wbe_mine + (1 - ratio_mine) * wbe_ae
         Tags.REG_M_PCS.val = ratio_mine * pcs_mine + (1 - ratio_mine) * pcs_ae
@@ -85,18 +94,11 @@ class SimJob(object):
         SimJob.pipe_mine.out_flow = Tags.REG_M_DEBIT.val
         SimJob.pipe_aval.in_flow = Tags.REG_M_DEBIT.val
         # update EANA API
-        Tags.API_POS_VL1.val = cls.flow_valve.pos * 1.03
+        Tags.API_POS_VL1.val = cls.vl1.pos * 1.03
         Tags.API_Q_MINE.val = SimJob.pipe_aval.in_flow
         Tags.API_P_MINE.val = Tags.P_MINE.val
         Tags.API_P_AO1.val = Tags.P_AVAL_MEL.val
         Tags.API_P_AO2.val = Tags.P_AVAL_MEL.val
-        # DEBUG
-        print('p_amont=%.2f' % Tags.P_MINE.val)
-        print('p_aval=%.2f' % Tags.P_AVAL_MEL.val)
-        print('vl_delta_p=%.2f' % cls.flow_valve.delta_p)
-        print('vl_pos=%.2f' % cls.flow_valve.pos)
-        print('vl_flow=%.2f' % SimJob.pipe_aval.in_flow)
-        print('')
 
 
 class Job(object):
