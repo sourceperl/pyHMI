@@ -4,11 +4,11 @@
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
 from pyRRD_Redis import RRD_redis, StepAddFunc
-from redis import StrictRedis
+import redis
 import time
 
 
-# devices
+# device(s)
 tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
 # Reg. modbus tables
 tbx_reg1.add_floats_table(20700, size=32)
@@ -27,7 +27,7 @@ tags = {'L1_C_WOBBE_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 2
         'L1_OUT_PID_PCS': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20722}),
         'L1_OUT_PID_DEBIT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20724})}
 # populate an RRDs dict
-redis_cli = StrictRedis()
+redis_cli = redis.StrictRedis()
 rrds = {}
 for key in tags:
     rrds[key] = RRD_redis('rrd:' + key, client=redis_cli, size=8640, step=10.0, add_func=StepAddFunc.last)
@@ -37,5 +37,8 @@ time.sleep(1.0)
 while True:
     now = time.time()
     for key in tags:
-        rrds[key].add(tags[key].val, at_time=now)
+        try:
+            rrds[key].add(tags[key].val, at_time=now)
+        except redis.exceptions.RedisError:
+            break
     time.sleep(10.0)

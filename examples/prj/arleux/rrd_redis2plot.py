@@ -9,7 +9,7 @@ import argparse
 import datetime
 
 
-def rrd2xy(rrd_name, size=720):
+def rrd2xy(rrd_name, size):
     rrd = RRD_redis(rrd_name)
     x = []
     y = []
@@ -21,7 +21,7 @@ def rrd2xy(rrd_name, size=720):
 
 def animate(i):
     # PID out
-    (x, y) = rrd2xy('rrd:' + args.tag_name)
+    (x, y) = rrd2xy('rrd:' + args.tag_name, size=args.number)
     # wipe and redraw
     ax1.clear()
     if args.unit:
@@ -35,8 +35,9 @@ def animate(i):
 parser = argparse.ArgumentParser()
 parser.add_argument('tag_name', type=str, help='tag name like L1_M_WOBBE')
 parser.add_argument('-u', '--unit', type=str, help='unit like \'wh/nm3\'')
+parser.add_argument('-n', '--number', type=int, help='number of RRD samples from now', default=360)
 args = parser.parse_args()
-
+# configure plot
 fig, (ax1) = plt.subplots(nrows=1, ncols=1)
 fig.canvas.set_window_title(args.tag_name)
 ani = animation.FuncAnimation(fig, animate, interval=1000)
