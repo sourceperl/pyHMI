@@ -27,10 +27,9 @@ tags = {'L1_C_WOBBE_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 2
         'L1_OUT_PID_PCS': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20722}),
         'L1_OUT_PID_DEBIT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20724})}
 # populate an RRDs dict
-redis_cli = redis.StrictRedis()
-rrds = {}
+d_rrd = {}
 for key in tags:
-    rrds[key] = RRD_redis('rrd:' + key, client=redis_cli, size=8640, step=10.0, add_func=StepAddFunc.last)
+    d_rrd[key] = RRD_redis(key, size=8640, step=10.0, add_func=StepAddFunc.last)
 # wait 1s for modbus thread start
 time.sleep(1.0)
 # main loop
@@ -38,7 +37,7 @@ while True:
     now = time.time()
     for key in tags:
         try:
-            rrds[key].add(tags[key].val, at_time=now)
+            d_rrd[key].add(tags[key].val, at_time=now)
         except redis.exceptions.RedisError:
             break
     time.sleep(10.0)
