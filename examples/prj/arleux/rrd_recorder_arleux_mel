@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from pyHMI.DS_ModbusTCP import ModbusTCPDevice
+from pyHMI.Tag import Tag
+from pyRRD_Redis import RRD_redis, StepAddFunc
+import redis
+import time
+
+# device(s)
+# Reg L1
+tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=2.0)
+# Reg. modbus tables
+tbx_reg1.add_floats_table(20700, size=32)
+# PLC TBox
+tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=2.0)
+# init modbus tables
+tbx_api.add_floats_table(20900, size=32)
+
+# tags dict
+# Reg. 1
+tags = {'L1_C_WOBBE_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20700}),
+        'L1_C_WOBBE_CSR': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20702}),
+        'L1_C_PCS_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20704}),
+        'L1_C_PCS_CSR': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20706}),
+        'L1_C_DEBIT_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20708}),
+        'L1_C_DEBIT_CSR': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20710}),
+        'L1_M_WOBBE': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20712}),
+        'L1_M_PCS': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20714}),
+        'L1_M_DEBIT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20716}),
+        'L1_OUT_REG': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20718}),
+        'L1_OUT_PID_WOBBE': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20720}),
+        'L1_OUT_PID_PCS': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20722}),
+        'L1_OUT_PID_DEBIT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20724})}
+# API
+tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20900}),
+             'API_POS_VL2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20902}),
+             'API_Q_MINE': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20904}),
+             'API_P_MINE': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20906}),
+             'API_P_AO1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20908}),
+             'API_P_AO2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20910}),
+             'API_WBE_REG_L1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20912}),
+             'API_WBE_SEC_L1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20914}),
+             'API_PCS_L1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20916}),
+             'API_WBE_REG_L2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20918}),
+             'API_WBE_SEC_L2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20920}),
+             'API_PCS_L2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20922}),
+             'API_Q_ANNU': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20926}),
+             'API_WBE_C4': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20928}),
+             'API_PCS_C4': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20930}),
+             'API_WBE_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20932}),
+             'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20934})})
+
+# populate an RRDs dict
+d_rrd = {}
+for key in tags:
+    d_rrd[key] = RRD_redis(key, size=17280, step=10.0, add_func=StepAddFunc.last)
+# wait 1s for modbus thread start
+time.sleep(1.0)
+# main loop
+while True:
+    now = time.time()
+    for key in tags:
+        try:
+            d_rrd[key].add(tags[key].val, at_time=now)
+        except redis.exceptions.RedisError:
+            break
+    time.sleep(10.0)
