@@ -62,7 +62,8 @@ while True:
     now = time.time()
     for key in tags:
         try:
-            d_rrd[key].add(tags[key].val, at_time=now)
+            if not tags[key].err:
+                d_rrd[key].add(tags[key].val, at_time=now)
         except redis.exceptions.RedisError:
             break
     time.sleep(10.0)
