@@ -379,9 +379,9 @@ class TabRegL1(HMITab):
         self.frmInhPid = tk.LabelFrame(self, text='PID inhibition', padx=10, pady=10)
         self.frmInhPid.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.inh_pid = HMIBoolList(self.frmInhPid, lbl_args={'width': 10}, grid_args={'padx': 10})
-        self.inh_pid.add('Wobbe', Tags.REG1_INH_M_WOBBE)
-        self.inh_pid.add('PCS', Tags.REG1_INH_M_PCS)
-        self.inh_pid.add('débit', Tags.REG1_INH_M_DEBIT)
+        self.inh_pid.add('Wobbe', Tags.REG1_INH_M_WOBBE, alarm=True)
+        self.inh_pid.add('PCS', Tags.REG1_INH_M_PCS, alarm=True)
+        self.inh_pid.add('débit', Tags.REG1_INH_M_DEBIT, alarm=True)
         self.inh_pid.build()
         # Mesures régulateur
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
