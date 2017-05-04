@@ -23,9 +23,9 @@ class Devices(object):
     tbx_reg1.add_bits_table(20500, 16)
     tbx_reg1.add_floats_table(20700, size=32)
     # Reg. L2
-    tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0)
-    tbx_reg2.add_bits_table(20500, 16)
-    tbx_reg2.add_floats_table(20700, size=32)
+    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0)
+    # tbx_reg2.add_bits_table(20500, 16)
+    # tbx_reg2.add_floats_table(20700, size=32)
     # API ratio
     tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0)
     tbx_ratio.add_floats_table(23000, size=3)
@@ -763,7 +763,7 @@ class HMIToolbar(tk.Frame):
         self.butAPI.configure(background=GREEN if Devices.tbx_api.connected else PINK)
         self.butRatio.configure(background=GREEN if Devices.tbx_ratio.connected else PINK)
         self.butReg1.configure(background=GREEN if Devices.tbx_reg1.connected else PINK)
-        self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
+        # self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
 
