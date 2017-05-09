@@ -214,7 +214,7 @@ class TabSyno(HMITab):
         # add simple valve
         self.map_int.add_s_valve('V12', 400, 350, label='V12', zoom=0.6, align='h')
         # add motor valve
-        self.map_int.add_s_valve('B0', 250, 50, label='B0', zoom=0.8, align='h')
+        self.map_int.add_s_valve('B0', 350, 50, label='B0', zoom=0.8, align='h')
         self.map_int.add_s_valve('B1', 550, 200, label='B1', zoom=0.8, align='v')
         self.map_int.add_s_valve('B2', 250, 200, label='B2', zoom=0.8, align='v')
         self.map_int.add_s_valve('SII4', 550, 425, label='SII4', zoom=0.8, align='v')
@@ -229,9 +229,9 @@ class TabSyno(HMITab):
         self.map_int.add_point('p4', 250, 350)
         self.map_int.add_point('p5', 550, 350)
         # add pipes
-        self.map_int.add_pipe('t1', from_name='AVION_DN200', to_name='B0')
-        self.map_int.add_pipe('t2', from_name='B0', to_name='P_AVION')
-        self.map_int.add_pipe('t3', from_name='P_AVION', to_name='Q_AVION')
+        self.map_int.add_pipe('t1', from_name='AVION_DN200', to_name='P_AVION')
+        self.map_int.add_pipe('t2', from_name='P_AVION', to_name='B0')
+        self.map_int.add_pipe('t3', from_name='Q_AVION', to_name='B0')
         self.map_int.add_pipe('t4', from_name='Q_AVION', to_name='p1')
         self.map_int.add_pipe('t5', from_name='p1', to_name='p2')
         self.map_int.add_pipe('t6', from_name='p1', to_name='p3')
@@ -252,10 +252,10 @@ class TabSyno(HMITab):
         self.map_int.add_vbox('POS_VL1', 640, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='P', suffix='%')
         self.map_int.add_vbox('REG_VL2', 170, 260, size=5, get_value=lambda: Tags.NULL_TAG, prefix='S', suffix='%')
         self.map_int.add_vbox('POS_VL2', 340, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='P', suffix='%')
-        self.map_int.add_vbox('P_AVION', 400, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_AVION', 250, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_AO1', 650, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
         self.map_int.add_vbox('P_AO2', 650, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='bars')
-        self.map_int.add_vbox('Q_AVION', 400, 100, get_value=lambda: Tags.API_Q_MINE, prefix='Q', suffix='Nm3/h',
+        self.map_int.add_vbox('Q_AVION', 400, 110, get_value=lambda: Tags.API_Q_MINE, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
         # custom widget
         # Pilotage poste
