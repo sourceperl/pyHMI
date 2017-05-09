@@ -16,6 +16,10 @@ tbx_reg1.add_floats_table(20700, size=32)
 tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=2.0)
 # init modbus tables
 tbx_api.add_floats_table(20900, size=32)
+# API ratio
+tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0)
+tbx_ratio.add_floats_table(20524, size=3)
+# tbx_ratio.add_floats_table(23000, size=3)
 
 # tags dict
 # Reg. 1
@@ -50,6 +54,14 @@ tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 
              'API_PCS_C4': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20930}),
              'API_WBE_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20932}),
              'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20934})})
+# API Ratio
+# TODO change @ after 16/05/2017 for new ratio PLC
+tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20524}),
+             'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20526}),
+             'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20528})})
+# tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23000}),
+#              'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23002}),
+#              'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23004})})
 
 # populate an RRDs dict
 d_rrd = {}
