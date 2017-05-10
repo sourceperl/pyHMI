@@ -41,7 +41,7 @@ tags = {'L1_C_WOBBE_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 2
 # TODO change @ after 16/05/2017 for new PLC
 tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20485, 'span': 0.1}),
              'API_POS_VL2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20486, 'span': 0.1}),
-             'API_Q_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20487, 'span': 0.1}),
+             'API_Q_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20487, 'span': 1}),
              'API_P_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20488, 'span': 0.1}),
              'API_P_AO1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20489, 'span': 0.1}),
              'API_P_AO2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20490, 'span': 0.1}),
