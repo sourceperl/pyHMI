@@ -39,23 +39,23 @@ tags = {'L1_C_WOBBE_ACT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 2
         'L1_OUT_PID_DEBIT': Tag(0.0, src=tbx_reg1, ref={'type': 'float', 'addr': 20724})}
 # API
 # TODO change @ after 16/05/2017 for new PLC
-tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20485}),
-             'API_POS_VL2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20486}),
-             'API_Q_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20487}),
-             'API_P_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20488}),
-             'API_P_AO1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20489}),
-             'API_P_AO2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20490}),
-             'API_WBE_REG_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20491}),
-             'API_WBE_SEC_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20492}),
-             'API_PCS_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20493}),
-             'API_WBE_REG_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20494}),
-             'API_WBE_SEC_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20495}),
-             'API_PCS_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20496}),
-             'API_Q_ANNU': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20498}),
-             'API_WBE_C4': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20499}),
-             'API_PCS_C4': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20500}),
-             'API_WBE_GNY': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20501}),
-             'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20502})})
+tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20485, 'span': 0.1}),
+             'API_POS_VL2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20486, 'span': 0.1}),
+             'API_Q_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20487, 'span': 0.1}),
+             'API_P_MINE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20488, 'span': 0.1}),
+             'API_P_AO1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20489, 'span': 0.1}),
+             'API_P_AO2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20490, 'span': 0.1}),
+             'API_WBE_REG_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20491, 'span': 10}),
+             'API_WBE_SEC_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20492, 'span': 10}),
+             'API_PCS_L1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20493, 'span': 10}),
+             'API_WBE_REG_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20494, 'span': 10}),
+             'API_WBE_SEC_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20495, 'span': 10}),
+             'API_PCS_L2': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20496, 'span': 10}),
+             'API_Q_ANNU': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20498, 'span': 1000}),
+             'API_WBE_C4': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20499, 'span': 10}),
+             'API_PCS_C4': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20500, 'span': 10}),
+             'API_WBE_GNY': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20501, 'span': 10}),
+             'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20502, 'span': 10})})
 
 # tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20900}),
 #              'API_POS_VL2': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20902}),
@@ -76,9 +76,9 @@ tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 2
 #              'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20934})})
 # API Ratio
 # TODO change @ after 16/05/2017 for new ratio PLC
-tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20524}),
-             'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20526}),
-             'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20528})})
+tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20524, 'span': 1000}),
+             'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20526, 'span': 1000}),
+             'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 20528, 'span': 1000})})
 # tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23000}),
 #              'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23002}),
 #              'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23004})})
