@@ -2,7 +2,7 @@
 
 import threading
 from pyModbusTCP.client import ModbusClient
-from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee
+from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
 import time
 
 
@@ -80,10 +80,14 @@ class ModbusTCPDevice(object):
         elif ref['type'] == 'word':
             with self._lock:
                 word = int(self._words[ref['addr']]['word'])
+                if ref.get('signed', False):
+                    word = get_2comp(word, val_size=16)
                 return word * ref.get('span', 1) + ref.get('offset', 0)
         elif ref['type'] == 'long':
             with self._lock:
                 long = int(self._longs[ref['addr']]['long'])
+                if ref.get('signed', False):
+                    long = get_2comp(long, val_size=32)
                 return long * ref.get('span', 1) + ref.get('offset', 0)
         elif ref['type'] == 'float':
             with self._lock:
@@ -108,10 +112,13 @@ class ModbusTCPDevice(object):
         if ref['type'] == 'w_bit':
             return self.write_bit(ref['addr'], value)
         elif ref['type'] == 'w_word':
-            return self.write_word(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value)
+            value = value * ref.get('span', 1) + ref.get('offset', 0)
+            if ref.get('signed', False) and value < 0:
+                value += 0x10000
+            return self.write_word(ref['addr'], value)
         elif ref['type'] == 'w_float':
-            return self.write_float(ref['addr'] * ref.get('span', 1) + ref.get('offset', 0), value,
-                                    swap_word=ref.get('swap_word', False))
+            value = value * ref.get('span', 1) + ref.get('offset', 0)
+            return self.write_float(ref['addr'], value, swap_word=ref.get('swap_word', False))
 
     def polling_thread(self):
         # polling cycle
