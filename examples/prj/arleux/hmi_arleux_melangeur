@@ -5,7 +5,7 @@ from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ConfirmDialog
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
-from pyHMI.Tag import Tag
+from pyHMI.Tag import Tag, tag_equal
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -14,20 +14,23 @@ from tkinter import ttk
 class Devices(object):
     # init datasource
     # PLC TBox
-    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0)
+    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0, debug=True)
     # init modbus tables
     tbx_api.add_bits_table(20800, 96)
     tbx_api.add_floats_table(20900, 32)
+    # TODO remove this after 09/2017 (replace by new REG2 tags)
+    tbx_api.add_bits_table(20590, 16)
+    tbx_api.add_words_table(20588, 24)
     # Reg. L1
-    tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0)
+    tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=True)
     tbx_reg1.add_bits_table(20500, 16)
     tbx_reg1.add_floats_table(20700, size=32)
     # Reg. L2
-    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0)
+    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=True)
     # tbx_reg2.add_bits_table(20500, 16)
     # tbx_reg2.add_floats_table(20700, size=32)
     # API ratio
-    tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0)
+    tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=True)
     tbx_ratio.add_floats_table(23000, size=3)
 
 
@@ -134,7 +137,7 @@ class Tags(object):
     REG1_INH_M_DEBIT = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20512})
     REG1_AUTO_D = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20513})
     REG1_AUTO_L = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20514})
-    REG1_AUTO_MANU = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20515})
+    REG1_MANU = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20515})
     # read floats
     REG1_C_WOBBE_ACT = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'float', 'addr': 20700})
     REG1_C_WOBBE_CSR = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'float', 'addr': 20702})
@@ -151,8 +154,8 @@ class Tags(object):
     REG1_OUT_PID_DEBIT = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'float', 'addr': 20724})
     REG1_MDV = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'float', 'addr': 20762})
     # virtuals
-    REG1_LOCAL = Tag(False, get_cmd=lambda: not Tags.REG1_AUTO_D.val)
-    REG1_ARRET = Tag(False, get_cmd=lambda: not Tags.REG1_MARCHE.val)
+    REG1_LOCAL = Tag(False, get_cmd=lambda: Tags.REG1_AUTO_L.val or Tags.REG1_MANU.val)
+    REG1_ARRET = Tag(False, get_cmd=lambda: tag_equal(Tags.REG1_MARCHE, False))
     REG1_DLT_C_WOBBE = Tag(0.0, get_cmd=lambda: Tags.REG1_C_WOBBE_ACT.e_val - Tags.REG1_M_WOBBE.e_val)
     REG1_DLT_C_PCS = Tag(0.0, get_cmd=lambda: Tags.REG1_C_PCS_ACT.e_val - Tags.REG1_M_PCS.e_val)
     REG1_DLT_C_DEBIT = Tag(0.0, get_cmd=lambda: Tags.REG1_C_DEBIT_ACT.e_val - Tags.REG1_M_DEBIT.e_val)
@@ -164,6 +167,45 @@ class Tags(object):
     REG1_W_CONS_P = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20782})
     REG1_W_CONS_D = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20784})
     REG1_W_OUV_VL = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20786})
+    # T-Box Reg L2
+    # read bits
+    REG2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20590})
+    REG2_ERR_C_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20591})
+    REG2_ERR_C_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20592})
+    REG2_ERR_C_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20593})
+    REG2_DEF_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20594})
+    REG2_DEF_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20595})
+    REG2_DEF_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20596})
+    REG2_PID_WOBBE_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20597})
+    REG2_PID_PCS_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20598})
+    REG2_PID_DEBIT_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20599})
+    REG2_INH_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20600})
+    REG2_INH_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20601})
+    REG2_INH_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20602})
+    REG2_AUTO_D = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20603})
+    REG2_AUTO_L = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20604})
+    REG2_MANU = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20605})
+    # read integers
+    REG2_C_WOBBE_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20588, 'signed': True})
+    REG2_C_WOBBE_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20589, 'signed': True})
+    REG2_C_PCS_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20590, 'signed': True})
+    REG2_C_PCS_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20591, 'signed': True})
+    REG2_C_DEBIT_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20592, 'signed': True})
+    REG2_C_DEBIT_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20593, 'signed': True})
+    REG2_M_WOBBE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20594, 'signed': True})
+    REG2_M_PCS = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20595, 'signed': True})
+    REG2_M_DEBIT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20596, 'signed': True})
+    REG2_OUT_REG = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20600, 'signed': True, 'span': 0.1})
+    REG2_OUT_PID_WOBBE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20597, 'signed': True, 'span': 0.1})
+    REG2_OUT_PID_PCS = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20598, 'signed': True, 'span': 0.1})
+    REG2_OUT_PID_DEBIT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20599, 'signed': True, 'span': 0.1})
+    REG2_MDV = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20611, 'signed': True})
+    # virtuals
+    REG2_LOCAL = Tag(False, get_cmd=lambda: Tags.REG2_AUTO_L.val or Tags.REG2_MANU.val)
+    REG2_ARRET = Tag(False, get_cmd=lambda: tag_equal(Tags.REG2_MARCHE, False))
+    REG2_DLT_C_WOBBE = Tag(0.0, get_cmd=lambda: Tags.REG2_C_WOBBE_ACT.e_val - Tags.REG2_M_WOBBE.e_val)
+    REG2_DLT_C_PCS = Tag(0.0, get_cmd=lambda: Tags.REG2_C_PCS_ACT.e_val - Tags.REG2_M_PCS.e_val)
+    REG2_DLT_C_DEBIT = Tag(0.0, get_cmd=lambda: Tags.REG2_C_DEBIT_ACT.e_val - Tags.REG2_M_DEBIT.e_val)
     # API ratio
     RATIO_PCS_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23000})
     RATIO_WBE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23002})
@@ -250,7 +292,7 @@ class TabSyno(HMITab):
         # add value box
         self.map_int.add_vbox('REG_VL1', 470, 260, size=5, get_value=lambda: Tags.REG1_OUT_REG, prefix='S', suffix='%')
         self.map_int.add_vbox('POS_VL1', 640, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='P', suffix='%')
-        self.map_int.add_vbox('REG_VL2', 170, 260, size=5, get_value=lambda: Tags.NULL_TAG, prefix='S', suffix='%')
+        self.map_int.add_vbox('REG_VL2', 170, 260, size=5, get_value=lambda: Tags.REG2_OUT_REG, prefix='S', suffix='%')
         self.map_int.add_vbox('POS_VL2', 340, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='P', suffix='%')
         self.map_int.add_vbox('P_AVION', 250, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_AO1', 650, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
@@ -324,7 +366,7 @@ class TabRegL1(HMITab):
         self.etat_l.add('Arrêt', Tags.REG1_ARRET)
         self.etat_l.add('Auto Distant', Tags.REG1_AUTO_D)
         self.etat_l.add('Auto Local', Tags.REG1_AUTO_L)
-        self.etat_l.add('Manuel', Tags.REG1_AUTO_MANU)
+        self.etat_l.add('Manuel', Tags.REG1_MANU)
         self.etat_l.add('Déf. mesure Wobbe', Tags.REG1_DEF_M_WOBBE, alarm=True)
         self.etat_l.add('Déf. mesure PCS', Tags.REG1_DEF_M_PCS, alarm=True)
         self.etat_l.add('Déf. mesure débit', Tags.REG1_DEF_M_DEBIT, alarm=True)
@@ -413,9 +455,9 @@ class TabRegL1(HMITab):
         self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
         self.but_man.grid(row=0, column=3, padx=5, pady=5)
         # Choix des modes du régulateur
-        self.frmManuReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
-        self.frmManuReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
-        self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.frmModeReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
+        self.frmModeReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.mode_l = HMIButtonList(self.frmModeReg, btn_args={'width': 15}, grid_args={'pady': 5})
         self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=self.send_auto_mode,
                         btn_args={'bg': GREEN})
         self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=self.send_man_mode,
@@ -531,7 +573,7 @@ class TabRegL1(HMITab):
 
     def manu_str_refresh(self, *args):
         # update manu entry
-        if Tags.REG1_AUTO_MANU.val:
+        if Tags.REG1_MANU.val:
             try:
                 if not (0.0 <= float(self.manu_str.get()) <= 100.0):
                     raise ValueError
@@ -552,7 +594,7 @@ class TabRegL1(HMITab):
         try:
             send_cons = float(self.manu_str.get())
             ConfirmDialog(self, title='Confirmation consigne',
-                          text='Envoi ouveture VL à %.2f %% ?' % send_cons,
+                          text='Envoi ouveture VL1 à %.2f %% ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_OUV_VL.set(send_cons))
             self.ent_man.config(bg='white')
         except ValueError:
@@ -560,21 +602,283 @@ class TabRegL1(HMITab):
 
     def send_auto_mode(self):
         ConfirmDialog(self, title='Confirmation mode',
-                      text='Passage en mode automatique du régulateur ?',
+                      text='Passage en mode automatique du régulateur 1 ?',
                       valid_command=lambda: Tags.REG1_MODE_AUTO.set(True))
 
     def send_man_mode(self):
         ConfirmDialog(self, title='Confirmation mode',
-                      text='Passage en mode manuel du régulateur ?',
+                      text='Passage en mode manuel du régulateur 1 ?',
                       valid_command=lambda: Tags.REG1_MODE_MANU.set(True))
 
 
 class TabRegL2(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
-        self.lbl1 = tk.Label(self, font='bold',  justify=tk.CENTER,
-                             text='Régulateur 2: pilotage via facade T640 en attente migration de la ligne 2.')
-        self.lbl1.pack(fill=tk.BOTH, expand=tk.TRUE)
+        # Some vars
+        self.manu_str = tk.StringVar(value='0.0')
+        self.cons_w_str = tk.StringVar(value='0')
+        self.cons_p_str = tk.StringVar(value='0')
+        self.cons_d_str = tk.StringVar(value='0')
+        # Etats régulateur
+        self.frmEtatReg = tk.LabelFrame(self, text='Etats régulateur', padx=10, pady=10)
+        self.frmEtatReg.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.etat_l = HMIBoolList(self.frmEtatReg, lbl_args={'width': 20}, grid_args={'padx': 20})
+        self.etat_l.add('Marche', Tags.REG2_MARCHE)
+        self.etat_l.add('Arrêt', Tags.REG2_ARRET)
+        self.etat_l.add('Auto Distant', Tags.REG2_AUTO_D)
+        self.etat_l.add('Auto Local', Tags.REG2_AUTO_L)
+        self.etat_l.add('Manuel', Tags.REG2_MANU)
+        self.etat_l.add('Déf. mesure Wobbe', Tags.REG2_DEF_M_WOBBE, alarm=True)
+        self.etat_l.add('Déf. mesure PCS', Tags.REG2_DEF_M_PCS, alarm=True)
+        self.etat_l.add('Déf. mesure débit', Tags.REG2_DEF_M_DEBIT, alarm=True)
+        self.etat_l.add('Err. consigne Wobbe', Tags.REG2_ERR_C_WOBBE, alarm=True)
+        self.etat_l.add('Err. consigne PCS', Tags.REG2_ERR_C_PCS, alarm=True)
+        self.etat_l.add('Err. consigne débit', Tags.REG2_ERR_C_DEBIT, alarm=True)
+        self.etat_l.build()
+        # Consignes régulateur
+        self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
+        self.frmConsReg.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.cons_r = HMIAnalogList(self.frmConsReg, lbl_args={'width': 10})
+        self.cons_r.add('Consigne Wobbe active', Tags.REG2_C_WOBBE_ACT, unit='wh/nm3', fmt='%0.f')
+        self.cons_r.add('Consigne Wobbe CSR', Tags.REG2_C_WOBBE_CSR, unit='wh/nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS active', Tags.REG2_C_PCS_ACT, unit='wh/nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS CSR', Tags.REG2_C_PCS_CSR, unit='wh/nm3', fmt='%0.f')
+        self.cons_r.add('Consigne débit active', Tags.REG2_C_DEBIT_ACT, unit='nm3/h', fmt='%0.f')
+        self.cons_r.add('Consigne débit CSR', Tags.REG2_C_DEBIT_CSR, unit='nm3/h', fmt='%0.f')
+        self.cons_r.build()
+        # Mode automatique local
+        self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
+        self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.AutoReglbl = tk.Label(self.frmAutoReg, font='bold', justify=tk.CENTER,
+                                   text='pilotage via facade du régulateur')
+        self.AutoReglbl.pack(fill=tk.BOTH, expand=tk.TRUE)
+        # wobbe
+        # tk.Label(self.frmAutoReg, text='Consigne Wobbe').grid(row=0, column=0, padx=5, pady=5)
+        # self.ent_cons_w = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_w_str)
+        # self.ent_cons_w.grid(row=0, column=1, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=0, column=2, padx=5, pady=5)
+        # self.but_cons_w = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_w_value)
+        # self.but_cons_w.grid(row=0, column=3, padx=5, pady=5)
+        # # pcs
+        # tk.Label(self.frmAutoReg, text='Consigne PCS').grid(row=1, column=0, padx=5, pady=5)
+        # self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
+        # self.ent_cons_p.grid(row=1, column=1, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=1, column=2, padx=5, pady=5)
+        # self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
+        # self.but_cons_p.grid(row=1, column=3, padx=5, pady=5)
+        # # débit
+        # tk.Label(self.frmAutoReg, text='Consigne débit').grid(row=2, column=0, padx=5, pady=5)
+        # self.ent_cons_d = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_d_str)
+        # self.ent_cons_d.grid(row=2, column=1, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='nm3/h').grid(row=2, column=2, padx=5, pady=5)
+        # self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
+        # self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
+        # PID menant
+        self.frmEtatPid = tk.LabelFrame(self, text='PID menant', padx=10, pady=10)
+        self.frmEtatPid.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.etat_pid = HMIBoolList(self.frmEtatPid, lbl_args={'width': 10}, grid_args={'padx': 10})
+        self.etat_pid.add('Wobbe', Tags.REG2_PID_WOBBE_A)
+        self.etat_pid.add('PCS', Tags.REG2_PID_PCS_A)
+        self.etat_pid.add('débit', Tags.REG2_PID_DEBIT_A)
+        self.etat_pid.build()
+        # PID inhibition
+        self.frmInhPid = tk.LabelFrame(self, text='PID inhibition', padx=10, pady=10)
+        self.frmInhPid.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
+        self.inh_pid = HMIBoolList(self.frmInhPid, lbl_args={'width': 10}, grid_args={'padx': 10})
+        self.inh_pid.add('Wobbe', Tags.REG2_INH_M_WOBBE, alarm=True)
+        self.inh_pid.add('PCS', Tags.REG2_INH_M_PCS, alarm=True)
+        self.inh_pid.add('débit', Tags.REG2_INH_M_DEBIT, alarm=True)
+        self.inh_pid.build()
+        # Mesures régulateur
+        self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
+        self.frmMesReg.grid(row=1, column=2, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_r = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
+        self.mes_r.add('Mesure Wobbe', Tags.REG2_M_WOBBE, unit='wh/nm3', fmt='%0.f')
+        self.mes_r.add('Mesure PCS', Tags.REG2_M_PCS, unit='wh/nm3', fmt='%0.f')
+        self.mes_r.add('Mesure débit', Tags.REG2_M_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.mes_r.add('PID Wobbe', Tags.REG2_OUT_PID_WOBBE, unit='%', fmt='%0.2f')
+        self.mes_r.add('PID PCS', Tags.REG2_OUT_PID_PCS, unit='%', fmt='%0.2f')
+        self.mes_r.add('PID débit', Tags.REG2_OUT_PID_DEBIT, unit='%', fmt='%0.2f')
+        self.mes_r.add('Sortie régulateur', Tags.REG2_OUT_REG, unit='%', fmt='%0.2f')
+        self.mes_r.build()
+        # Divers
+        self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
+        self.frmErr.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.err_l = HMIAnalogList(self.frmErr, lbl_args={'width': 10})
+        self.err_l.add('Ecart Wobbe', Tags.REG2_DLT_C_WOBBE, unit='wh/nm3', fmt='%0.f')
+        self.err_l.add('Ecart PCS', Tags.REG2_DLT_C_PCS, unit='wh/nm3', fmt='%0.f')
+        self.err_l.add('Ecart débit', Tags.REG2_DLT_C_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.err_l.build()
+        # Commande de la sortie du régulateur
+        self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
+        self.frmManuReg.grid(row=1, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.Manlbl = tk.Label(self.frmManuReg, font='bold', justify=tk.CENTER,
+                               text='pilotage via facade du régulateur')
+        self.Manlbl.pack(fill=tk.BOTH, expand=tk.TRUE)
+        # tk.Label(self.frmManuReg, text='Sortie').grid(row=0, column=0, padx=5, pady=5)
+        # self.ent_man = tk.Entry(self.frmManuReg, width='6', justify=tk.RIGHT, textvariable=self.manu_str)
+        # self.ent_man.grid(row=0, column=1, padx=5, pady=5)
+        # tk.Label(self.frmManuReg, text='%').grid(row=0, column=2, padx=5, pady=5)
+        # self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
+        # self.but_man.grid(row=0, column=3, padx=5, pady=5)
+        # Choix des modes du régulateur
+        self.frmModeReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
+        self.frmModeReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.Manlbl = tk.Label(self.frmModeReg, font='bold', justify=tk.CENTER,
+                               text='pilotage via facade du régulateur')
+        self.Manlbl.pack(fill=tk.BOTH, expand=tk.TRUE)
+        # self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        # self.mode_l.add('mode automatique', tag_valid=Tags.REG2_LOCAL, cmd=self.send_auto_mode,
+        #                 btn_args={'bg': GREEN})
+        # self.mode_l.add('mode manuel', tag_valid=Tags.REG2_LOCAL, cmd=self.send_man_mode,
+        #                 btn_args={'bg': RED})
+        # self.mode_l.build()
+        # install callback
+        # self.manu_str.trace('w', self.manu_str_refresh)
+        # self.cons_w_str.trace('w', self.cons_w_str_refresh)
+        # self.cons_p_str.trace('w', self.cons_p_str_refresh)
+        # self.cons_d_str.trace('w', self.cons_d_str_refresh)
+
+    def tab_update(self):
+        # refresh widget
+        self.etat_l.update()
+        self.cons_r.update()
+        self.etat_pid.update()
+        self.inh_pid.update()
+        self.err_l.update()
+        self.mes_r.update()
+        # self.mode_l.update()
+        # update manu entry
+        # self.manu_str_refresh()
+        # self.cons_w_str_refresh()
+        # self.cons_p_str_refresh()
+        # self.cons_d_str_refresh()
+
+    # def cons_w_str_refresh(self, *args):
+    #     # update manu entry
+    #     if Tags.REG2_LOCAL.val:
+    #         try:
+    #             if not (11160.0 <= float(self.cons_w_str.get()) <= 13360.0):
+    #                 raise ValueError
+    #             if abs(Tags.REG2_C_WOBBE_ACT.val - float(self.cons_w_str.get())) < 1.0:
+    #                 self.ent_cons_w.config(bg='white')
+    #             else:
+    #                 self.ent_cons_w.config(bg='yellow2')
+    #             self.but_cons_w.configure(state='normal')
+    #         except ValueError:
+    #             self.ent_cons_w.config(bg='red')
+    #             self.but_cons_w.configure(state='disabled')
+    #     else:
+    #         self.ent_cons_w.config(bg='white')
+    #         self.but_cons_w.configure(state='disabled')
+    #         self.cons_w_str.set('%.f' % Tags.REG2_C_WOBBE_ACT.val)
+    #
+    # def send_cons_w_value(self):
+    #     try:
+    #         send_cons = float(self.cons_w_str.get())
+    #         ConfirmDialog(self, title='Confirmation consigne',
+    #                       text='Envoi consigne Wobbe %.f wh/nm3 ?' % send_cons,
+    #                       valid_command=lambda: Tags.REG2_W_CONS_W.set(send_cons))
+    #         self.ent_cons_w.config(bg='white')
+    #     except ValueError:
+    #         self.ent_cons_w.config(bg='red')
+    #
+    # def cons_p_str_refresh(self, *args):
+    #     # update manu entry
+    #     if Tags.REG2_LOCAL.val:
+    #         try:
+    #             if not (9100.0 <= float(self.cons_p_str.get()) <= 11100.0):
+    #                 raise ValueError
+    #             if abs(Tags.REG2_C_PCS_ACT.val - float(self.cons_p_str.get())) < 1.0:
+    #                 self.ent_cons_p.config(bg='white')
+    #             else:
+    #                 self.ent_cons_p.config(bg='yellow2')
+    #             self.but_cons_p.configure(state='normal')
+    #         except ValueError:
+    #             self.ent_cons_p.config(bg='red')
+    #             self.but_cons_p.configure(state='disabled')
+    #     else:
+    #         self.ent_cons_p.config(bg='white')
+    #         self.but_cons_p.configure(state='disabled')
+    #         self.cons_p_str.set('%.f' % Tags.REG2_C_PCS_ACT.val)
+    #
+    # def send_cons_p_value(self):
+    #     try:
+    #         send_cons = float(self.cons_p_str.get())
+    #         ConfirmDialog(self, title='Confirmation consigne',
+    #                       text='Envoi consigne PCS %.f wh/nm3 ?' % send_cons,
+    #                       valid_command=lambda: Tags.REG2_W_CONS_P.set(send_cons))
+    #         self.ent_cons_p.config(bg='white')
+    #     except ValueError:
+    #         self.ent_cons_p.config(bg='red')
+    #
+    # def cons_d_str_refresh(self, *args):
+    #     # update manu entry
+    #     if Tags.REG2_LOCAL.val:
+    #         try:
+    #             if not (0.0 <= float(self.cons_d_str.get()) <= 25000.0):
+    #                 raise ValueError
+    #             if abs(Tags.REG2_C_DEBIT_ACT.val - float(self.cons_d_str.get())) < 1.0:
+    #                 self.ent_cons_d.config(bg='white')
+    #             else:
+    #                 self.ent_cons_d.config(bg='yellow2')
+    #             self.but_cons_d.configure(state='normal')
+    #         except ValueError:
+    #             self.ent_cons_d.config(bg='red')
+    #             self.but_cons_d.configure(state='disabled')
+    #     else:
+    #         self.ent_cons_d.config(bg='white')
+    #         self.but_cons_d.configure(state='disabled')
+    #         self.cons_d_str.set('%.f' % Tags.REG2_C_DEBIT_ACT.val)
+    #
+    # def send_cons_d_value(self):
+    #     try:
+    #         send_cons = float(self.cons_d_str.get())
+    #         ConfirmDialog(self, title='Confirmation consigne',
+    #                       text='Envoi consigne débit %.f nm3/h ?' % send_cons,
+    #                       valid_command=lambda: Tags.REG2_W_CONS_D.set(send_cons))
+    #         self.ent_cons_d.config(bg='white')
+    #     except ValueError:
+    #         self.ent_cons_d.config(bg='red')
+    #
+    # def manu_str_refresh(self, *args):
+    #     # update manu entry
+    #     if Tags.REG2_AUTO_MANU.val:
+    #         try:
+    #             if not (0.0 <= float(self.manu_str.get()) <= 100.0):
+    #                 raise ValueError
+    #             if abs(Tags.REG2_OUT_REG.val - float(self.manu_str.get())) < 1.0:
+    #                 self.ent_man.config(bg='white')
+    #             else:
+    #                 self.ent_man.config(bg='yellow2')
+    #             self.but_man.configure(state='normal')
+    #         except ValueError:
+    #             self.ent_man.config(bg='red')
+    #             self.but_man.configure(state='disabled')
+    #     else:
+    #         self.ent_man.config(bg='white')
+    #         self.but_man.configure(state='disabled')
+    #         self.manu_str.set('%.2f' % Tags.REG2_OUT_REG.val)
+    #
+    # def send_man_value(self):
+    #     try:
+    #         send_cons = float(self.manu_str.get())
+    #         ConfirmDialog(self, title='Confirmation consigne',
+    #                       text='Envoi ouveture VL2 à %.2f %% ?' % send_cons,
+    #                       valid_command=lambda: Tags.REG2_W_OUV_VL.set(send_cons))
+    #         self.ent_man.config(bg='white')
+    #     except ValueError:
+    #         self.ent_man.config(bg='red')
+    #
+    # def send_auto_mode(self):
+    #     ConfirmDialog(self, title='Confirmation mode',
+    #                   text='Passage en mode automatique du régulateur 2 ?',
+    #                   valid_command=lambda: Tags.REG2_MODE_AUTO.set(True))
+    #
+    # def send_man_mode(self):
+    #     ConfirmDialog(self, title='Confirmation mode',
+    #                   text='Passage en mode manuel du régulateur 2 ?',
+    #                   valid_command=lambda: Tags.REG2_MODE_MANU.set(True))
 
 
 class TabValues(HMITab):
