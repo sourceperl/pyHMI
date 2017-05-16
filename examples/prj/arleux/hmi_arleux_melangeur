@@ -14,23 +14,23 @@ from tkinter import ttk
 class Devices(object):
     # init datasource
     # PLC TBox
-    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0, debug=True)
+    tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=1.0, debug=False)
     # init modbus tables
     tbx_api.add_bits_table(20800, 96)
     tbx_api.add_floats_table(20900, 32)
     # TODO remove this after 09/2017 (replace by new REG2 tags)
-    tbx_api.add_bits_table(20590, 16)
+    tbx_api.add_bits_table(21500, 16)
     tbx_api.add_words_table(20588, 24)
     # Reg. L1
-    tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=True)
+    tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
     tbx_reg1.add_bits_table(20500, 16)
     tbx_reg1.add_floats_table(20700, size=32)
     # Reg. L2
-    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=True)
+    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
     # tbx_reg2.add_bits_table(20500, 16)
     # tbx_reg2.add_floats_table(20700, size=32)
     # API ratio
-    tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=True)
+    tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=False)
     tbx_ratio.add_floats_table(23000, size=3)
 
 
@@ -169,22 +169,22 @@ class Tags(object):
     REG1_W_OUV_VL = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20786})
     # T-Box Reg L2
     # read bits
-    REG2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20590})
-    REG2_ERR_C_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20591})
-    REG2_ERR_C_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20592})
-    REG2_ERR_C_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20593})
-    REG2_DEF_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20594})
-    REG2_DEF_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20595})
-    REG2_DEF_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20596})
-    REG2_PID_WOBBE_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20597})
-    REG2_PID_PCS_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20598})
-    REG2_PID_DEBIT_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20599})
-    REG2_INH_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20600})
-    REG2_INH_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20601})
-    REG2_INH_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20602})
-    REG2_AUTO_D = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20603})
-    REG2_AUTO_L = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20604})
-    REG2_MANU = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20605})
+    REG2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21500})
+    REG2_ERR_C_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21501})
+    REG2_ERR_C_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21502})
+    REG2_ERR_C_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21503})
+    REG2_DEF_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21504})
+    REG2_DEF_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21505})
+    REG2_DEF_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21506})
+    REG2_PID_WOBBE_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21507})
+    REG2_PID_PCS_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21508})
+    REG2_PID_DEBIT_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21509})
+    REG2_INH_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21510})
+    REG2_INH_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21511})
+    REG2_INH_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21512})
+    REG2_AUTO_D = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21513})
+    REG2_AUTO_L = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21514})
+    REG2_MANU = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21515})
     # read integers
     REG2_C_WOBBE_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20588, 'signed': True})
     REG2_C_WOBBE_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20589, 'signed': True})
