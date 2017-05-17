@@ -16,6 +16,8 @@ tbx_reg1.add_floats_table(20700, size=32)
 tbx_api = ModbusTCPDevice('163.111.184.144', port=502, unit_id=2, timeout=2.0, refresh=2.0)
 # init modbus tables
 tbx_api.add_floats_table(20900, size=32)
+# TODO remove this after 09/2017 : read REG2 values from API
+tbx_api.add_words_table(20588, size=24)
 # API ratio
 tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0)
 tbx_ratio.add_floats_table(23000, size=3)
@@ -52,7 +54,11 @@ tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 
              'API_WBE_C4': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20928}),
              'API_PCS_C4': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20930}),
              'API_WBE_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20932}),
-             'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20934})})
+             'API_PCS_GNY': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 20934}),
+             'L2_OUT_PID_WOBBE': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20597, 'signed': True, 'span': 0.1}),
+             'L2_OUT_PID_PCS': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20598, 'signed': True, 'span': 0.1}),
+             'L2_OUT_PID_DEBIT': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20599, 'signed': True, 'span': 0.1}),
+             'L2_OUT_REG': Tag(0.0, src=tbx_api, ref={'type': 'word', 'addr': 20600, 'signed': True, 'span': 0.1})})
 # API Ratio
 tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23000}),
              'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23002}),
