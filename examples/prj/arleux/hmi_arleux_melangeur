@@ -378,12 +378,12 @@ class TabRegL1(HMITab):
         self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
         self.frmConsReg.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
         self.cons_r = HMIAnalogList(self.frmConsReg, lbl_args={'width': 10})
-        self.cons_r.add('Consigne Wobbe active', Tags.REG1_C_WOBBE_ACT, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne Wobbe CSR', Tags.REG1_C_WOBBE_CSR, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne PCS active', Tags.REG1_C_PCS_ACT, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne PCS CSR', Tags.REG1_C_PCS_CSR, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne débit active', Tags.REG1_C_DEBIT_ACT, unit='nm3/h', fmt='%0.f')
-        self.cons_r.add('Consigne débit CSR', Tags.REG1_C_DEBIT_CSR, unit='nm3/h', fmt='%0.f')
+        self.cons_r.add('Consigne Wobbe active', Tags.REG1_C_WOBBE_ACT, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne Wobbe CSR', Tags.REG1_C_WOBBE_CSR, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS active', Tags.REG1_C_PCS_ACT, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS CSR', Tags.REG1_C_PCS_CSR, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne débit active', Tags.REG1_C_DEBIT_ACT, unit='Nm3/h', fmt='%0.f')
+        self.cons_r.add('Consigne débit CSR', Tags.REG1_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
@@ -392,21 +392,21 @@ class TabRegL1(HMITab):
         tk.Label(self.frmAutoReg, text='Consigne Wobbe').grid(row=0, column=0, padx=5, pady=5)
         self.ent_cons_w = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_w_str)
         self.ent_cons_w.grid(row=0, column=1, padx=5, pady=5)
-        tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=0, column=2, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=0, column=2, padx=5, pady=5)
         self.but_cons_w = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_w_value)
         self.but_cons_w.grid(row=0, column=3, padx=5, pady=5)
         # pcs
         tk.Label(self.frmAutoReg, text='Consigne PCS').grid(row=1, column=0, padx=5, pady=5)
         self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
         self.ent_cons_p.grid(row=1, column=1, padx=5, pady=5)
-        tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=1, column=2, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=1, column=2, padx=5, pady=5)
         self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
         self.but_cons_p.grid(row=1, column=3, padx=5, pady=5)
         # débit
         tk.Label(self.frmAutoReg, text='Consigne débit').grid(row=2, column=0, padx=5, pady=5)
         self.ent_cons_d = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_d_str)
         self.ent_cons_d.grid(row=2, column=1, padx=5, pady=5)
-        tk.Label(self.frmAutoReg, text='nm3/h').grid(row=2, column=2, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Nm3/h').grid(row=2, column=2, padx=5, pady=5)
         self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
         self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
         # PID menant
@@ -429,9 +429,9 @@ class TabRegL1(HMITab):
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
         self.frmMesReg.grid(row=1, column=2, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_r = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
-        self.mes_r.add('Mesure Wobbe', Tags.REG1_M_WOBBE, unit='wh/nm3', fmt='%0.f')
-        self.mes_r.add('Mesure PCS', Tags.REG1_M_PCS, unit='wh/nm3', fmt='%0.f')
-        self.mes_r.add('Mesure débit', Tags.REG1_M_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.mes_r.add('Mesure Wobbe', Tags.REG1_M_WOBBE, unit='Wh/Nm3', fmt='%0.f')
+        self.mes_r.add('Mesure PCS', Tags.REG1_M_PCS, unit='Wh/Nm3', fmt='%0.f')
+        self.mes_r.add('Mesure débit', Tags.REG1_M_DEBIT, unit='Nm3/h', fmt='%0.f')
         self.mes_r.add('PID Wobbe', Tags.REG1_OUT_PID_WOBBE, unit='%', fmt='%0.2f')
         self.mes_r.add('PID PCS', Tags.REG1_OUT_PID_PCS, unit='%', fmt='%0.2f')
         self.mes_r.add('PID débit', Tags.REG1_OUT_PID_DEBIT, unit='%', fmt='%0.2f')
@@ -441,9 +441,9 @@ class TabRegL1(HMITab):
         self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
         self.frmErr.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.err_l = HMIAnalogList(self.frmErr, lbl_args={'width': 10})
-        self.err_l.add('Ecart Wobbe', Tags.REG1_DLT_C_WOBBE, unit='wh/nm3', fmt='%0.f')
-        self.err_l.add('Ecart PCS', Tags.REG1_DLT_C_PCS, unit='wh/nm3', fmt='%0.f')
-        self.err_l.add('Ecart débit', Tags.REG1_DLT_C_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.err_l.add('Ecart Wobbe', Tags.REG1_DLT_C_WOBBE, unit='Wh/Nm3', fmt='%0.f')
+        self.err_l.add('Ecart PCS', Tags.REG1_DLT_C_PCS, unit='Wh/Nm3', fmt='%0.f')
+        self.err_l.add('Ecart débit', Tags.REG1_DLT_C_DEBIT, unit='Nm3/h', fmt='%0.f')
         self.err_l.build()
         # Commande de la sortie du régulateur
         self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
@@ -507,7 +507,7 @@ class TabRegL1(HMITab):
         try:
             send_cons = float(self.cons_w_str.get())
             ConfirmDialog(self, title='Confirmation consigne',
-                          text='Envoi consigne Wobbe %.f wh/nm3 ?' % send_cons,
+                          text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_W.set(send_cons))
             self.ent_cons_w.config(bg='white')
         except ValueError:
@@ -536,7 +536,7 @@ class TabRegL1(HMITab):
         try:
             send_cons = float(self.cons_p_str.get())
             ConfirmDialog(self, title='Confirmation consigne',
-                          text='Envoi consigne PCS %.f wh/nm3 ?' % send_cons,
+                          text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_P.set(send_cons))
             self.ent_cons_p.config(bg='white')
         except ValueError:
@@ -565,7 +565,7 @@ class TabRegL1(HMITab):
         try:
             send_cons = float(self.cons_d_str.get())
             ConfirmDialog(self, title='Confirmation consigne',
-                          text='Envoi consigne débit %.f nm3/h ?' % send_cons,
+                          text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_D.set(send_cons))
             self.ent_cons_d.config(bg='white')
         except ValueError:
@@ -639,12 +639,12 @@ class TabRegL2(HMITab):
         self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
         self.frmConsReg.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
         self.cons_r = HMIAnalogList(self.frmConsReg, lbl_args={'width': 10})
-        self.cons_r.add('Consigne Wobbe active', Tags.REG2_C_WOBBE_ACT, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne Wobbe CSR', Tags.REG2_C_WOBBE_CSR, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne PCS active', Tags.REG2_C_PCS_ACT, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne PCS CSR', Tags.REG2_C_PCS_CSR, unit='wh/nm3', fmt='%0.f')
-        self.cons_r.add('Consigne débit active', Tags.REG2_C_DEBIT_ACT, unit='nm3/h', fmt='%0.f')
-        self.cons_r.add('Consigne débit CSR', Tags.REG2_C_DEBIT_CSR, unit='nm3/h', fmt='%0.f')
+        self.cons_r.add('Consigne Wobbe active', Tags.REG2_C_WOBBE_ACT, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne Wobbe CSR', Tags.REG2_C_WOBBE_CSR, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS active', Tags.REG2_C_PCS_ACT, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne PCS CSR', Tags.REG2_C_PCS_CSR, unit='Wh/Nm3', fmt='%0.f')
+        self.cons_r.add('Consigne débit active', Tags.REG2_C_DEBIT_ACT, unit='Nm3/h', fmt='%0.f')
+        self.cons_r.add('Consigne débit CSR', Tags.REG2_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
@@ -656,21 +656,21 @@ class TabRegL2(HMITab):
         # tk.Label(self.frmAutoReg, text='Consigne Wobbe').grid(row=0, column=0, padx=5, pady=5)
         # self.ent_cons_w = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_w_str)
         # self.ent_cons_w.grid(row=0, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=0, column=2, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=0, column=2, padx=5, pady=5)
         # self.but_cons_w = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_w_value)
         # self.but_cons_w.grid(row=0, column=3, padx=5, pady=5)
         # # pcs
         # tk.Label(self.frmAutoReg, text='Consigne PCS').grid(row=1, column=0, padx=5, pady=5)
         # self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
         # self.ent_cons_p.grid(row=1, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='wh/nm3').grid(row=1, column=2, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=1, column=2, padx=5, pady=5)
         # self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
         # self.but_cons_p.grid(row=1, column=3, padx=5, pady=5)
         # # débit
         # tk.Label(self.frmAutoReg, text='Consigne débit').grid(row=2, column=0, padx=5, pady=5)
         # self.ent_cons_d = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_d_str)
         # self.ent_cons_d.grid(row=2, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='nm3/h').grid(row=2, column=2, padx=5, pady=5)
+        # tk.Label(self.frmAutoReg, text='Nm3/h').grid(row=2, column=2, padx=5, pady=5)
         # self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
         # self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
         # PID menant
@@ -693,9 +693,9 @@ class TabRegL2(HMITab):
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
         self.frmMesReg.grid(row=1, column=2, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_r = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
-        self.mes_r.add('Mesure Wobbe', Tags.REG2_M_WOBBE, unit='wh/nm3', fmt='%0.f')
-        self.mes_r.add('Mesure PCS', Tags.REG2_M_PCS, unit='wh/nm3', fmt='%0.f')
-        self.mes_r.add('Mesure débit', Tags.REG2_M_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.mes_r.add('Mesure Wobbe', Tags.REG2_M_WOBBE, unit='Wh/Nm3', fmt='%0.f')
+        self.mes_r.add('Mesure PCS', Tags.REG2_M_PCS, unit='Wh/Nm3', fmt='%0.f')
+        self.mes_r.add('Mesure débit', Tags.REG2_M_DEBIT, unit='Nm3/h', fmt='%0.f')
         self.mes_r.add('PID Wobbe', Tags.REG2_OUT_PID_WOBBE, unit='%', fmt='%0.2f')
         self.mes_r.add('PID PCS', Tags.REG2_OUT_PID_PCS, unit='%', fmt='%0.2f')
         self.mes_r.add('PID débit', Tags.REG2_OUT_PID_DEBIT, unit='%', fmt='%0.2f')
@@ -705,9 +705,9 @@ class TabRegL2(HMITab):
         self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
         self.frmErr.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.err_l = HMIAnalogList(self.frmErr, lbl_args={'width': 10})
-        self.err_l.add('Ecart Wobbe', Tags.REG2_DLT_C_WOBBE, unit='wh/nm3', fmt='%0.f')
-        self.err_l.add('Ecart PCS', Tags.REG2_DLT_C_PCS, unit='wh/nm3', fmt='%0.f')
-        self.err_l.add('Ecart débit', Tags.REG2_DLT_C_DEBIT, unit='nm3/h', fmt='%0.f')
+        self.err_l.add('Ecart Wobbe', Tags.REG2_DLT_C_WOBBE, unit='Wh/Nm3', fmt='%0.f')
+        self.err_l.add('Ecart PCS', Tags.REG2_DLT_C_PCS, unit='Wh/Nm3', fmt='%0.f')
+        self.err_l.add('Ecart débit', Tags.REG2_DLT_C_DEBIT, unit='Nm3/h', fmt='%0.f')
         self.err_l.build()
         # Commande de la sortie du régulateur
         self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
@@ -777,7 +777,7 @@ class TabRegL2(HMITab):
     #     try:
     #         send_cons = float(self.cons_w_str.get())
     #         ConfirmDialog(self, title='Confirmation consigne',
-    #                       text='Envoi consigne Wobbe %.f wh/nm3 ?' % send_cons,
+    #                       text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_W.set(send_cons))
     #         self.ent_cons_w.config(bg='white')
     #     except ValueError:
@@ -806,7 +806,7 @@ class TabRegL2(HMITab):
     #     try:
     #         send_cons = float(self.cons_p_str.get())
     #         ConfirmDialog(self, title='Confirmation consigne',
-    #                       text='Envoi consigne PCS %.f wh/nm3 ?' % send_cons,
+    #                       text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_P.set(send_cons))
     #         self.ent_cons_p.config(bg='white')
     #     except ValueError:
@@ -835,7 +835,7 @@ class TabRegL2(HMITab):
     #     try:
     #         send_cons = float(self.cons_d_str.get())
     #         ConfirmDialog(self, title='Confirmation consigne',
-    #                       text='Envoi consigne débit %.f nm3/h ?' % send_cons,
+    #                       text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_D.set(send_cons))
     #         self.ent_cons_d.config(bg='white')
     #     except ValueError:
@@ -885,7 +885,7 @@ class TabValues(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
         # Mesures 1
-        self.frmMes1 = tk.LabelFrame(self, text='Mesures Wobbe (wh/nm3)', padx=10, pady=10)
+        self.frmMes1 = tk.LabelFrame(self, text='Mesures Wobbe (Wh/Nm3)', padx=10, pady=10)
         self.frmMes1.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_1 = HMIAnalogList(self.frmMes1, lbl_args={'width': 10})
         self.mes_list_1.add('C4', Tags.API_WBE_C4, fmt='%.f')
@@ -896,7 +896,7 @@ class TabValues(HMITab):
         self.mes_list_1.add('Sec. L2', Tags.API_WBE_SEC_L2, fmt='%.f')
         self.mes_list_1.build()
         # Mesures 2
-        self.frmMes2 = tk.LabelFrame(self, text='Mesures PCS (wh/nm3)', padx=10, pady=10)
+        self.frmMes2 = tk.LabelFrame(self, text='Mesures PCS (Wh/Nm3)', padx=10, pady=10)
         self.frmMes2.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_2 = HMIAnalogList(self.frmMes2, lbl_args={'width': 10})
         self.mes_list_2.add('PCS C4', Tags.API_PCS_C4, fmt='%.f')
@@ -920,9 +920,9 @@ class TabValues(HMITab):
         self.frmRatio = tk.LabelFrame(self, text='Mesures API Ratio', padx=10, pady=10)
         self.frmRatio.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_4 = HMIAnalogList(self.frmRatio, lbl_args={'width': 10})
-        self.mes_list_4.add('PCS virtuel', Tags.RATIO_PCS_VTL, unit='wh/nm3', fmt='%.f')
-        self.mes_list_4.add('Wobbe virtuel', Tags.RATIO_WBE_VTL, unit='wh/nm3', fmt='%.f')
-        self.mes_list_4.add('Débit AE 1+2', Tags.RATIO_Q_AE_VTL, unit='nm3/h', fmt='%.f')
+        self.mes_list_4.add('PCS virtuel', Tags.RATIO_PCS_VTL, unit='Wh/Nm3', fmt='%.f')
+        self.mes_list_4.add('Wobbe virtuel', Tags.RATIO_WBE_VTL, unit='Wh/Nm3', fmt='%.f')
+        self.mes_list_4.add('Débit AE 1+2', Tags.RATIO_Q_AE_VTL, unit='Nm3/h', fmt='%.f')
         self.mes_list_4.build()
 
     def tab_update(self):
