@@ -506,7 +506,7 @@ class TabRegL1(HMITab):
     def send_cons_w_value(self):
         try:
             send_cons = float(self.cons_w_str.get())
-            ConfirmDialog(self, title='Confirmation consigne',
+            ConfirmDialog(self, title='Confirmation',
                           text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_W.set(send_cons))
             self.ent_cons_w.config(bg='white')
@@ -535,7 +535,7 @@ class TabRegL1(HMITab):
     def send_cons_p_value(self):
         try:
             send_cons = float(self.cons_p_str.get())
-            ConfirmDialog(self, title='Confirmation consigne',
+            ConfirmDialog(self, title='Confirmation',
                           text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_P.set(send_cons))
             self.ent_cons_p.config(bg='white')
@@ -564,7 +564,7 @@ class TabRegL1(HMITab):
     def send_cons_d_value(self):
         try:
             send_cons = float(self.cons_d_str.get())
-            ConfirmDialog(self, title='Confirmation consigne',
+            ConfirmDialog(self, title='Confirmation',
                           text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_CONS_D.set(send_cons))
             self.ent_cons_d.config(bg='white')
@@ -593,20 +593,20 @@ class TabRegL1(HMITab):
     def send_man_value(self):
         try:
             send_cons = float(self.manu_str.get())
-            ConfirmDialog(self, title='Confirmation consigne',
-                          text='Envoi ouveture VL1 à %.2f %% ?' % send_cons,
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi ouverture VL1 à %.2f %% ?' % send_cons,
                           valid_command=lambda: Tags.REG1_W_OUV_VL.set(send_cons))
             self.ent_man.config(bg='white')
         except ValueError:
             self.ent_man.config(bg='red')
 
     def send_auto_mode(self):
-        ConfirmDialog(self, title='Confirmation mode',
+        ConfirmDialog(self, title='Confirmation',
                       text='Passage en mode automatique du régulateur 1 ?',
                       valid_command=lambda: Tags.REG1_MODE_AUTO.set(True))
 
     def send_man_mode(self):
-        ConfirmDialog(self, title='Confirmation mode',
+        ConfirmDialog(self, title='Confirmation',
                       text='Passage en mode manuel du régulateur 1 ?',
                       valid_command=lambda: Tags.REG1_MODE_MANU.set(True))
 
@@ -776,7 +776,7 @@ class TabRegL2(HMITab):
     # def send_cons_w_value(self):
     #     try:
     #         send_cons = float(self.cons_w_str.get())
-    #         ConfirmDialog(self, title='Confirmation consigne',
+    #         ConfirmDialog(self, title='Confirmation',
     #                       text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_W.set(send_cons))
     #         self.ent_cons_w.config(bg='white')
@@ -805,7 +805,7 @@ class TabRegL2(HMITab):
     # def send_cons_p_value(self):
     #     try:
     #         send_cons = float(self.cons_p_str.get())
-    #         ConfirmDialog(self, title='Confirmation consigne',
+    #         ConfirmDialog(self, title='Confirmation',
     #                       text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_P.set(send_cons))
     #         self.ent_cons_p.config(bg='white')
@@ -834,7 +834,7 @@ class TabRegL2(HMITab):
     # def send_cons_d_value(self):
     #     try:
     #         send_cons = float(self.cons_d_str.get())
-    #         ConfirmDialog(self, title='Confirmation consigne',
+    #         ConfirmDialog(self, title='Confirmation',
     #                       text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_CONS_D.set(send_cons))
     #         self.ent_cons_d.config(bg='white')
@@ -863,20 +863,20 @@ class TabRegL2(HMITab):
     # def send_man_value(self):
     #     try:
     #         send_cons = float(self.manu_str.get())
-    #         ConfirmDialog(self, title='Confirmation consigne',
-    #                       text='Envoi ouveture VL2 à %.2f %% ?' % send_cons,
+    #         ConfirmDialog(self, title='Confirmation',
+    #                       text='Envoi ouverture VL2 à %.2f %% ?' % send_cons,
     #                       valid_command=lambda: Tags.REG2_W_OUV_VL.set(send_cons))
     #         self.ent_man.config(bg='white')
     #     except ValueError:
     #         self.ent_man.config(bg='red')
     #
     # def send_auto_mode(self):
-    #     ConfirmDialog(self, title='Confirmation mode',
+    #     ConfirmDialog(self, title='Confirmation',
     #                   text='Passage en mode automatique du régulateur 2 ?',
     #                   valid_command=lambda: Tags.REG2_MODE_AUTO.set(True))
     #
     # def send_man_mode(self):
-    #     ConfirmDialog(self, title='Confirmation mode',
+    #     ConfirmDialog(self, title='Confirmation',
     #                   text='Passage en mode manuel du régulateur 2 ?',
     #                   valid_command=lambda: Tags.REG2_MODE_MANU.set(True))
 
@@ -888,21 +888,21 @@ class TabValues(HMITab):
         self.frmMes1 = tk.LabelFrame(self, text='Mesures Wobbe (Wh/Nm3)', padx=10, pady=10)
         self.frmMes1.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_1 = HMIAnalogList(self.frmMes1, lbl_args={'width': 10})
-        self.mes_list_1.add('C4', Tags.API_WBE_C4, fmt='%.f')
-        self.mes_list_1.add('GNY', Tags.API_WBE_GNY, fmt='%.f')
-        self.mes_list_1.add('Reg. L1', Tags.API_WBE_REG_L1, fmt='%.f')
-        self.mes_list_1.add('Sec. L1', Tags.API_WBE_SEC_L1, fmt='%.f')
-        self.mes_list_1.add('Reg. L2', Tags.API_WBE_REG_L2, fmt='%.f')
-        self.mes_list_1.add('Sec. L2', Tags.API_WBE_SEC_L2, fmt='%.f')
+        self.mes_list_1.add('Artois Ouest (C4)', Tags.API_WBE_C4, fmt='%.f')
+        self.mes_list_1.add('Gournay (C5)', Tags.API_WBE_GNY, fmt='%.f')
+        self.mes_list_1.add('Régulation L1', Tags.API_WBE_REG_L1, fmt='%.f')
+        self.mes_list_1.add('Sécurité L1', Tags.API_WBE_SEC_L1, fmt='%.f')
+        self.mes_list_1.add('Régulation L2', Tags.API_WBE_REG_L2, fmt='%.f')
+        self.mes_list_1.add('Sécurité L2', Tags.API_WBE_SEC_L2, fmt='%.f')
         self.mes_list_1.build()
         # Mesures 2
         self.frmMes2 = tk.LabelFrame(self, text='Mesures PCS (Wh/Nm3)', padx=10, pady=10)
         self.frmMes2.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.mes_list_2 = HMIAnalogList(self.frmMes2, lbl_args={'width': 10})
-        self.mes_list_2.add('PCS C4', Tags.API_PCS_C4, fmt='%.f')
-        self.mes_list_2.add('PCS GNY', Tags.API_PCS_GNY, fmt='%.f')
-        self.mes_list_2.add('PCS L1', Tags.API_PCS_L1, fmt='%.f')
-        self.mes_list_2.add('PCS L2', Tags.API_PCS_L2, fmt='%.f')
+        self.mes_list_2.add('Artois Ouest (C4)', Tags.API_PCS_C4, fmt='%.f')
+        self.mes_list_2.add('Gournay (C5)', Tags.API_PCS_GNY, fmt='%.f')
+        self.mes_list_2.add('Ligne 1', Tags.API_PCS_L1, fmt='%.f')
+        self.mes_list_2.add('Ligne 2', Tags.API_PCS_L2, fmt='%.f')
         self.mes_list_2.build()
         # Mesures 3
         self.frmMes3 = tk.LabelFrame(self, text='Mesures divers', padx=10, pady=10)
@@ -910,11 +910,11 @@ class TabValues(HMITab):
         self.mes_list_3 = HMIAnalogList(self.frmMes3, lbl_args={'width': 10})
         self.mes_list_3.add('P Mine', Tags.API_P_MINE, unit='bars', fmt='%.2f')
         self.mes_list_3.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
-        self.mes_list_3.add('P AO1', Tags.API_P_AO1, unit='bars', fmt='%.2f')
-        self.mes_list_3.add('P AO2', Tags.API_P_AO2, unit='bars', fmt='%.2f')
+        self.mes_list_3.add('P Artois Ouest 1', Tags.API_P_AO1, unit='bars', fmt='%.2f')
+        self.mes_list_3.add('P Artois Ouest 2', Tags.API_P_AO2, unit='bars', fmt='%.2f')
         self.mes_list_3.add('Q annubar I3', Tags.API_Q_ANNU, unit='Nm3/h', fmt='%.f')
-        self.mes_list_3.add('Pos. VL L1', Tags.API_POS_VL1, unit='%', fmt='%.2f')
-        self.mes_list_3.add('Pos. VL L2', Tags.API_POS_VL2, unit='%', fmt='%.2f')
+        self.mes_list_3.add('Position VL L1', Tags.API_POS_VL1, unit='%', fmt='%.2f')
+        self.mes_list_3.add('Position VL L2', Tags.API_POS_VL2, unit='%', fmt='%.2f')
         self.mes_list_3.build()
         # Mesures ratio
         self.frmRatio = tk.LabelFrame(self, text='Mesures API Ratio', padx=10, pady=10)
@@ -939,22 +939,22 @@ class TabAlarms(HMITab):
         self.frmCalibAnl = tk.LabelFrame(self, text='Calibration des analyseurs', padx=10, pady=10)
         self.frmCalibAnl.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.cal_anl_list = HMIBoolList(self.frmCalibAnl, lbl_args={'width': 20})
-        self.cal_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_CAL, alarm=False)
+        self.cal_anl_list.add('Sécurité L1', Tags.API_ANL_SEC_L1_CAL, alarm=False)
         self.cal_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_CAL, alarm=False)
-        self.cal_anl_list.add('Securité L2', Tags.API_ANL_SEC_L2_CAL, alarm=False)
+        self.cal_anl_list.add('Sécurité L2', Tags.API_ANL_SEC_L2_CAL, alarm=False)
         self.cal_anl_list.add('Régulation L2', Tags.API_ANL_REG_L2_CAL, alarm=False)
-        self.cal_anl_list.add('C4', Tags.API_ANL_C4_CAL, alarm=False)
+        self.cal_anl_list.add('Artois Ouest (C4)', Tags.API_ANL_C4_CAL, alarm=False)
         self.cal_anl_list.add('Gournay', Tags.API_ANL_GNY_CAL, alarm=False)
         self.cal_anl_list.build()
         # Défaut des analyseurs
         self.frmDefAnl = tk.LabelFrame(self, text='Défaut des analyseurs', padx=10, pady=10)
         self.frmDefAnl.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.def_anl_list = HMIBoolList(self.frmDefAnl, lbl_args={'width': 20})
-        self.def_anl_list.add('Securité L1', Tags.API_ANL_SEC_L1_DEF, alarm=True)
+        self.def_anl_list.add('Sécurité L1', Tags.API_ANL_SEC_L1_DEF, alarm=True)
         self.def_anl_list.add('Régulation L1', Tags.API_ANL_REG_L1_DEF, alarm=True)
-        self.def_anl_list.add('Securité L2', Tags.API_ANL_SEC_L2_DEF, alarm=True)
+        self.def_anl_list.add('Sécurité L2', Tags.API_ANL_SEC_L2_DEF, alarm=True)
         self.def_anl_list.add('Régulation L2', Tags.API_ANL_REG_L2_DEF, alarm=True)
-        self.def_anl_list.add('C4', Tags.API_ANL_C4_DEF, alarm=True)
+        self.def_anl_list.add('Artois Ouest (C4)', Tags.API_ANL_C4_DEF, alarm=True)
         self.def_anl_list.add('Gournay', Tags.API_ANL_GNY_DEF, alarm=True)
         self.def_anl_list.build()
         # Inhibitions
@@ -1075,7 +1075,7 @@ class HMIApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         # configure main window
-        self.wm_title('Arleux mélangeur')
+        self.wm_title('IHM Arleux mélangeur')
         # self.attributes('-fullscreen', True)
         # self.geometry('800x600')
         # periodic tags update
