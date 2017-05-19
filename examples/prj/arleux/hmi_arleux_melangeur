@@ -436,6 +436,7 @@ class TabRegL1(HMITab):
         self.mes_r.add('PID PCS', Tags.REG1_OUT_PID_PCS, unit='% ouv.', fmt='%0.2f')
         self.mes_r.add('PID débit', Tags.REG1_OUT_PID_DEBIT, unit='% ouv.', fmt='%0.2f')
         self.mes_r.add('Sortie régulateur', Tags.REG1_OUT_REG, unit='% ouv.', fmt='%0.2f')
+        self.mes_r.add('Retour position VL', Tags.API_POS_VL1, unit='% ouv.', fmt='%0.2f')
         self.mes_r.build()
         # Divers
         self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
@@ -458,10 +459,8 @@ class TabRegL1(HMITab):
         self.frmModeReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
         self.frmModeReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
         self.mode_l = HMIButtonList(self.frmModeReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=self.send_auto_mode,
-                        btn_args={'bg': GREEN})
-        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=self.send_man_mode,
-                        btn_args={'bg': RED})
+        self.mode_l.add('mode automatique', tag_valid=Tags.REG1_LOCAL, cmd=self.send_auto_mode)
+        self.mode_l.add('mode manuel', tag_valid=Tags.REG1_LOCAL, cmd=self.send_man_mode)
         self.mode_l.build()
         # install callback
         self.manu_str.trace('w', self.manu_str_refresh)
@@ -700,6 +699,7 @@ class TabRegL2(HMITab):
         self.mes_r.add('PID PCS', Tags.REG2_OUT_PID_PCS, unit='% ouv.', fmt='%0.2f')
         self.mes_r.add('PID débit', Tags.REG2_OUT_PID_DEBIT, unit='% ouv.', fmt='%0.2f')
         self.mes_r.add('Sortie régulateur', Tags.REG2_OUT_REG, unit='% ouv.', fmt='%0.2f')
+        self.mes_r.add('Retour position VL', Tags.API_POS_VL2, unit='% ouv.', fmt='%0.2f')
         self.mes_r.build()
         # Divers
         self.frmErr = tk.LabelFrame(self, text='Ecart consigne/mesure', padx=10, pady=10)
@@ -728,10 +728,8 @@ class TabRegL2(HMITab):
                                text='pilotage via facade du régulateur')
         self.Manlbl.pack(fill=tk.BOTH, expand=tk.TRUE)
         # self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        # self.mode_l.add('mode automatique', tag_valid=Tags.REG2_LOCAL, cmd=self.send_auto_mode,
-        #                 btn_args={'bg': GREEN})
-        # self.mode_l.add('mode manuel', tag_valid=Tags.REG2_LOCAL, cmd=self.send_man_mode,
-        #                 btn_args={'bg': RED})
+        # self.mode_l.add('mode automatique', tag_valid=Tags.REG2_LOCAL, cmd=self.send_auto_mode)
+        # self.mode_l.add('mode manuel', tag_valid=Tags.REG2_LOCAL, cmd=self.send_man_mode)
         # self.mode_l.build()
         # install callback
         # self.manu_str.trace('w', self.manu_str_refresh)
