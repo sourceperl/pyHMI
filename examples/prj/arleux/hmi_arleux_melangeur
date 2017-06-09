@@ -464,7 +464,7 @@ class TabRegL1(HMITab):
         self.mode_l.build()
         # Bandeau ligne
         self.ban_id = tk.Label(self, text='Ligne 1', fg='black', font=('Arial', 22))
-        self.ban_id.place(relx=0.5, rely=0.9)
+        self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
         # install callback
         self.manu_str.trace('w', self.manu_str_refresh)
         self.cons_w_str.trace('w', self.cons_w_str_refresh)
@@ -736,7 +736,7 @@ class TabRegL2(HMITab):
         # self.mode_l.build()
         # Bandeau ligne
         self.ban_id = tk.Label(self, text='Ligne 2', fg='black', font=('Arial', 22))
-        self.ban_id.place(relx=0.5, rely=0.9)
+        self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
         # install callback
         # self.manu_str.trace('w', self.manu_str_refresh)
         # self.cons_w_str.trace('w', self.cons_w_str_refresh)
