@@ -385,6 +385,9 @@ class TabRegL1(HMITab):
         self.cons_r.add('Consigne débit active', Tags.REG1_C_DEBIT_ACT, unit='Nm3/h', fmt='%0.f')
         self.cons_r.add('Consigne débit CSR', Tags.REG1_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
+        # warning label
+        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 10, 'bold'))
+        self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
         self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
@@ -472,6 +475,16 @@ class TabRegL1(HMITab):
         self.cons_d_str.trace('w', self.cons_d_str_refresh)
 
     def tab_update(self):
+        # warning label
+        cons_wobbe_align = abs(Tags.REG1_C_WOBBE_ACT.val - Tags.REG1_C_WOBBE_CSR.val) <= 5.0
+        cons_pcs_align = abs(Tags.REG1_C_PCS_ACT.val - Tags.REG1_C_PCS_CSR.val) <= 5.0
+        cons_debit_align = abs(Tags.REG1_C_DEBIT_ACT.val - Tags.REG1_C_DEBIT_CSR.val) <= 5.0
+        if not (cons_wobbe_align and cons_pcs_align and cons_debit_align):
+            self.lblWarn['text'] = 'Attention: consignes CSR et active non alignées'
+            self.lblWarn['bg'] = 'yellow1'
+        else:
+            self.lblWarn['text'] = ''
+            self.lblWarn['bg'] = self.cget('bg')
         # refresh widget
         self.etat_l.update()
         self.cons_r.update()
@@ -648,6 +661,9 @@ class TabRegL2(HMITab):
         self.cons_r.add('Consigne débit active', Tags.REG2_C_DEBIT_ACT, unit='Nm3/h', fmt='%0.f')
         self.cons_r.add('Consigne débit CSR', Tags.REG2_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
+        # warning label
+        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 10, 'bold'))
+        self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
         self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
@@ -744,6 +760,16 @@ class TabRegL2(HMITab):
         # self.cons_d_str.trace('w', self.cons_d_str_refresh)
 
     def tab_update(self):
+        # warning label
+        cons_wobbe_align = abs(Tags.REG2_C_WOBBE_ACT.val - Tags.REG2_C_WOBBE_CSR.val) <= 5.0
+        cons_pcs_align = abs(Tags.REG2_C_PCS_ACT.val - Tags.REG2_C_PCS_CSR.val) <= 5.0
+        cons_debit_align = abs(Tags.REG2_C_DEBIT_ACT.val - Tags.REG2_C_DEBIT_CSR.val) <= 5.0
+        if not (cons_wobbe_align and cons_pcs_align and cons_debit_align):
+            self.lblWarn['text'] = 'Attention: consignes CSR et active non alignées'
+            self.lblWarn['bg'] = 'yellow1'
+        else:
+            self.lblWarn['text'] = ''
+            self.lblWarn['bg'] = self.cget('bg')
         # refresh widget
         self.etat_l.update()
         self.cons_r.update()
