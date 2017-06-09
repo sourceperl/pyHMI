@@ -386,7 +386,7 @@ class TabRegL1(HMITab):
         self.cons_r.add('Consigne débit CSR', Tags.REG1_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
         # warning label
-        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 10, 'bold'))
+        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 9, 'bold'))
         self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
@@ -662,7 +662,7 @@ class TabRegL2(HMITab):
         self.cons_r.add('Consigne débit CSR', Tags.REG2_C_DEBIT_CSR, unit='Nm3/h', fmt='%0.f')
         self.cons_r.build()
         # warning label
-        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 10, 'bold'))
+        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 9, 'bold'))
         self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
