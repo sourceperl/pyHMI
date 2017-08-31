@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ConfirmDialog
@@ -101,6 +102,10 @@ class Tags(object):
     API_AU_DIDG = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20870})
     API_DEF_CENT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20871})
     API_ETL_CENT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20872})
+    API_HV15_I3_O = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20873})
+    API_HV15_I3_F = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20874})
+    API_HV16_I4_O = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20875})
+    API_HV16_I4_F = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 20876})
     # read floats
     API_POS_VL1 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20900})
     API_POS_VL2 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20902})
@@ -251,9 +256,9 @@ class TabSyno(HMITab):
         # add button
         self.map_int.add_button('AVION_DN200', 100, 50, text='DN200 Avion', state='disabled',
                                 disabledforeground=BLACK, borderwidth=0)
-        self.map_int.add_button('AO', 550, 500, text='AO', state='disabled',
+        self.map_int.add_button('AO', 550, 500, text='AO (I4)', state='disabled',
                                 disabledforeground=BLACK, borderwidth=0)
-        self.map_int.add_button('B_ASP', 250, 500, text='Aspiration', state='disabled',
+        self.map_int.add_button('B_ASP', 250, 500, text='Aspiration (I3)', state='disabled',
                                 disabledforeground=BLACK, borderwidth=0)
         # add simple valve
         self.map_int.add_s_valve('V12', 400, 350, label='V12', zoom=0.6, align='h')
@@ -261,8 +266,8 @@ class TabSyno(HMITab):
         self.map_int.add_s_valve('B0', 350, 50, label='B0', zoom=0.8, align='h')
         self.map_int.add_s_valve('B1', 550, 200, label='B1', zoom=0.8, align='v')
         self.map_int.add_s_valve('B2', 250, 200, label='B2', zoom=0.8, align='v')
-        self.map_int.add_s_valve('SII4', 550, 425, label='SII4', zoom=0.8, align='v')
-        self.map_int.add_s_valve('SII3', 250, 425, label='SII3', zoom=0.8, align='v')
+        self.map_int.add_s_valve('HV16', 550, 425, label='HV16', zoom=0.8, align='v')
+        self.map_int.add_s_valve('HV15', 250, 425, label='HV15', zoom=0.8, align='v')
         # add flow valve
         self.map_int.add_f_valve('VL1', 550, 275, label='VL1', zoom=0.8, align='v')
         self.map_int.add_f_valve('VL2', 250, 275, label='VL2', zoom=0.8, align='v')
@@ -287,18 +292,18 @@ class TabSyno(HMITab):
         self.map_int.add_pipe('t12', from_name='VL2', to_name='p4')
         self.map_int.add_pipe('t13', from_name='p4', to_name='V12')
         self.map_int.add_pipe('t14', from_name='p5', to_name='V12')
-        self.map_int.add_pipe('t15', from_name='p4', to_name='SII3')
-        self.map_int.add_pipe('t16', from_name='p5', to_name='SII4')
-        self.map_int.add_pipe('t17', from_name='SII3', to_name='B_ASP')
-        self.map_int.add_pipe('t18', from_name='SII4', to_name='AO')
+        self.map_int.add_pipe('t15', from_name='p4', to_name='HV15')
+        self.map_int.add_pipe('t16', from_name='p5', to_name='HV16')
+        self.map_int.add_pipe('t17', from_name='HV15', to_name='B_ASP')
+        self.map_int.add_pipe('t18', from_name='HV16', to_name='AO')
         # add value box
         self.map_int.add_vbox('REG_VL1', 650, 260, size=5, get_value=lambda: Tags.REG1_OUT_REG, prefix='Reg.', suffix='%')
         self.map_int.add_vbox('POS_VL1', 650, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='Pos.', suffix='%')
         self.map_int.add_vbox('REG_VL2', 350, 260, size=5, get_value=lambda: Tags.REG2_OUT_REG, prefix='Reg.', suffix='%')
         self.map_int.add_vbox('POS_VL2', 350, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='Pos.', suffix='%')
         self.map_int.add_vbox('P_AVION', 250, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='bars')
-        self.map_int.add_vbox('P_AO1', 650, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
-        self.map_int.add_vbox('P_AO2', 650, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='bars')
+        self.map_int.add_vbox('P_AO1', 660, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='bars')
+        self.map_int.add_vbox('P_AO2', 660, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='bars')
         self.map_int.add_vbox('Q_AVION', 400, 110, get_value=lambda: Tags.API_Q_MINE, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
         # custom widget
@@ -331,8 +336,8 @@ class TabSyno(HMITab):
         self.map_int.simple_valve.tag_anim('B0', Tags.API_POSTE_MARCHE, Tags.API_POSTE_ARRET)
         self.map_int.simple_valve.tag_anim('B1', Tags.API_L1_MARCHE, Tags.API_L1_ARRET)
         self.map_int.simple_valve.tag_anim('B2', Tags.API_L2_MARCHE, Tags.API_L2_ARRET)
-        self.map_int.simple_valve.tag_anim('SII3', Tags.API_MODE_I3, Tags.API_MODE_I4)
-        self.map_int.simple_valve.tag_anim('SII4', Tags.API_MODE_I4, Tags.API_MODE_I3)
+        self.map_int.simple_valve.tag_anim('HV15', Tags.API_HV15_I3_O, Tags.API_HV15_I3_F)
+        self.map_int.simple_valve.tag_anim('HV16', Tags.API_HV16_I4_O, Tags.API_HV16_I4_F)
         # update flow valves
         # VL1
         if Tags.API_POS_VL1.err:
