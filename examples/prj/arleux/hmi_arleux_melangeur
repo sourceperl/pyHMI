@@ -18,17 +18,14 @@ class Devices(object):
     # init modbus tables
     tbx_api.add_bits_table(20800, 96)
     tbx_api.add_floats_table(20900, 32)
-    # TODO remove this after 09/2017 (replace by new REG2 tags)
-    tbx_api.add_bits_table(21500, 16)
-    tbx_api.add_words_table(20588, 24)
     # Reg. L1
     tbx_reg1 = ModbusTCPDevice('163.111.184.147', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
     tbx_reg1.add_bits_table(20500, 16)
     tbx_reg1.add_floats_table(20700, size=32)
     # Reg. L2
-    # tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
-    # tbx_reg2.add_bits_table(20500, 16)
-    # tbx_reg2.add_floats_table(20700, size=32)
+    tbx_reg2 = ModbusTCPDevice('163.111.184.148', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
+    tbx_reg2.add_bits_table(20500, 16)
+    tbx_reg2.add_floats_table(20700, size=32)
     # API ratio
     tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=False)
     tbx_ratio.add_floats_table(23000, size=3)
@@ -164,48 +161,55 @@ class Tags(object):
     REG1_W_OUV_VL = Tag(0.0, src=Devices.tbx_reg1, ref={'type': 'w_float', 'addr': 20786})
     # T-Box Reg L2
     # read bits
-    REG2_MARCHE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21500})
-    REG2_ERR_C_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21501})
-    REG2_ERR_C_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21502})
-    REG2_ERR_C_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21503})
-    REG2_DEF_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21504})
-    REG2_DEF_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21505})
-    REG2_DEF_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21506})
-    REG2_PID_WOBBE_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21507})
-    REG2_PID_PCS_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21508})
-    REG2_PID_DEBIT_A = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21509})
-    REG2_INH_M_WOBBE = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21510})
-    REG2_INH_M_PCS = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21511})
-    REG2_INH_M_DEBIT = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21512})
-    REG2_AUTO_D = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21513})
-    REG2_AUTO_L = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21514})
-    REG2_MANU = Tag(False, src=Devices.tbx_api, ref={'type': 'bit', 'addr': 21515})
-    # read integers
-    REG2_C_WOBBE_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20588, 'signed': True})
-    REG2_C_WOBBE_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20589, 'signed': True})
-    REG2_C_PCS_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20590, 'signed': True})
-    REG2_C_PCS_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20591, 'signed': True})
-    REG2_C_DEBIT_ACT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20592, 'signed': True})
-    REG2_C_DEBIT_CSR = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20593, 'signed': True})
-    REG2_M_WOBBE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20594, 'signed': True})
-    REG2_M_PCS = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20595, 'signed': True})
-    REG2_M_DEBIT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20596, 'signed': True})
-    REG2_OUT_REG = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20600, 'signed': True, 'span': 0.1})
-    REG2_OUT_PID_WOBBE = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20597, 'signed': True, 'span': 0.1})
-    REG2_OUT_PID_PCS = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20598, 'signed': True, 'span': 0.1})
-    REG2_OUT_PID_DEBIT = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20599, 'signed': True, 'span': 0.1})
-    REG2_MDV = Tag(0.0, src=Devices.tbx_api, ref={'type': 'word', 'addr': 20611, 'signed': True})
+    REG2_MARCHE = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20500})
+    REG2_ERR_C_WOBBE = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20501})
+    REG2_ERR_C_PCS = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20502})
+    REG2_ERR_C_DEBIT = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20503})
+    REG2_DEF_M_WOBBE = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20504})
+    REG2_DEF_M_PCS = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20505})
+    REG2_DEF_M_DEBIT = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20506})
+    REG2_PID_WOBBE_A = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20507})
+    REG2_PID_PCS_A = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20508})
+    REG2_PID_DEBIT_A = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20509})
+    REG2_INH_M_WOBBE = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20510})
+    REG2_INH_M_PCS = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20511})
+    REG2_INH_M_DEBIT = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20512})
+    REG2_AUTO_D = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20513})
+    REG2_AUTO_L = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20514})
+    REG2_MANU = Tag(False, src=Devices.tbx_reg2, ref={'type': 'bit', 'addr': 20515})
+    # read floats
+    REG2_C_WOBBE_ACT = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20700})
+    REG2_C_WOBBE_CSR = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20702})
+    REG2_C_PCS_ACT = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20704})
+    REG2_C_PCS_CSR = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20706})
+    REG2_C_DEBIT_ACT = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20708})
+    REG2_C_DEBIT_CSR = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20710})
+    REG2_M_WOBBE = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20712})
+    REG2_M_PCS = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20714})
+    REG2_M_DEBIT = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20716})
+    REG2_OUT_REG = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20718})
+    REG2_OUT_PID_WOBBE = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20720})
+    REG2_OUT_PID_PCS = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20722})
+    REG2_OUT_PID_DEBIT = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20724})
+    REG2_MDV = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'float', 'addr': 20762})
     # virtuals
     REG2_LOCAL = Tag(False, get_cmd=lambda: Tags.REG2_AUTO_L.val or Tags.REG2_MANU.val)
     REG2_ARRET = Tag(False, get_cmd=lambda: tag_equal(Tags.REG2_MARCHE, False))
     REG2_DLT_C_WOBBE = Tag(0.0, get_cmd=lambda: Tags.REG2_C_WOBBE_ACT.e_val - Tags.REG2_M_WOBBE.e_val)
     REG2_DLT_C_PCS = Tag(0.0, get_cmd=lambda: Tags.REG2_C_PCS_ACT.e_val - Tags.REG2_M_PCS.e_val)
     REG2_DLT_C_DEBIT = Tag(0.0, get_cmd=lambda: Tags.REG2_C_DEBIT_ACT.e_val - Tags.REG2_M_DEBIT.e_val)
+    # write bits
+    REG2_MODE_AUTO = Tag(False, src=Devices.tbx_reg2, ref={'type': 'w_bit', 'addr': 20560})
+    REG2_MODE_MANU = Tag(False, src=Devices.tbx_reg2, ref={'type': 'w_bit', 'addr': 20561})
+    # write floats
+    REG2_W_CONS_W = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'w_float', 'addr': 20780})
+    REG2_W_CONS_P = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'w_float', 'addr': 20782})
+    REG2_W_CONS_D = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'w_float', 'addr': 20784})
+    REG2_W_OUV_VL = Tag(0.0, src=Devices.tbx_reg2, ref={'type': 'w_float', 'addr': 20786})
     # API ratio
     RATIO_PCS_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23000})
     RATIO_WBE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23002})
     RATIO_Q_AE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23004})
-
     # local (no external source)
     HMI_WORD = Tag(0)
 
@@ -671,30 +675,27 @@ class TabRegL2(HMITab):
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
         self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
-        self.AutoReglbl = tk.Label(self.frmAutoReg, font='bold', justify=tk.CENTER,
-                                   text='pilotage via facade du régulateur')
-        self.AutoReglbl.pack(fill=tk.BOTH, expand=tk.TRUE)
         # wobbe
-        # tk.Label(self.frmAutoReg, text='Consigne Wobbe').grid(row=0, column=0, padx=5, pady=5)
-        # self.ent_cons_w = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_w_str)
-        # self.ent_cons_w.grid(row=0, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=0, column=2, padx=5, pady=5)
-        # self.but_cons_w = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_w_value)
-        # self.but_cons_w.grid(row=0, column=3, padx=5, pady=5)
-        # # pcs
-        # tk.Label(self.frmAutoReg, text='Consigne PCS').grid(row=1, column=0, padx=5, pady=5)
-        # self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
-        # self.ent_cons_p.grid(row=1, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=1, column=2, padx=5, pady=5)
-        # self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
-        # self.but_cons_p.grid(row=1, column=3, padx=5, pady=5)
-        # # débit
-        # tk.Label(self.frmAutoReg, text='Consigne débit').grid(row=2, column=0, padx=5, pady=5)
-        # self.ent_cons_d = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_d_str)
-        # self.ent_cons_d.grid(row=2, column=1, padx=5, pady=5)
-        # tk.Label(self.frmAutoReg, text='Nm3/h').grid(row=2, column=2, padx=5, pady=5)
-        # self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
-        # self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Consigne Wobbe').grid(row=0, column=0, padx=5, pady=5)
+        self.ent_cons_w = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_w_str)
+        self.ent_cons_w.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=0, column=2, padx=5, pady=5)
+        self.but_cons_w = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_w_value)
+        self.but_cons_w.grid(row=0, column=3, padx=5, pady=5)
+        # pcs
+        tk.Label(self.frmAutoReg, text='Consigne PCS').grid(row=1, column=0, padx=5, pady=5)
+        self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
+        self.ent_cons_p.grid(row=1, column=1, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Wh/Nm3').grid(row=1, column=2, padx=5, pady=5)
+        self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
+        self.but_cons_p.grid(row=1, column=3, padx=5, pady=5)
+        # débit
+        tk.Label(self.frmAutoReg, text='Consigne débit').grid(row=2, column=0, padx=5, pady=5)
+        self.ent_cons_d = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_d_str)
+        self.ent_cons_d.grid(row=2, column=1, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='Nm3/h').grid(row=2, column=2, padx=5, pady=5)
+        self.but_cons_d = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_d_value)
+        self.but_cons_d.grid(row=2, column=3, padx=5, pady=5)
         # PID menant
         self.frmEtatPid = tk.LabelFrame(self, text='PID menant', padx=10, pady=10)
         self.frmEtatPid.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
@@ -735,33 +736,27 @@ class TabRegL2(HMITab):
         # Commande de la sortie du régulateur
         self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
         self.frmManuReg.grid(row=1, column=3, padx=5, pady=5, sticky=tk.NSEW)
-        self.Manlbl = tk.Label(self.frmManuReg, font='bold', justify=tk.CENTER,
-                               text='pilotage via facade du régulateur')
-        self.Manlbl.pack(fill=tk.BOTH, expand=tk.TRUE)
-        # tk.Label(self.frmManuReg, text='Sortie').grid(row=0, column=0, padx=5, pady=5)
-        # self.ent_man = tk.Entry(self.frmManuReg, width='6', justify=tk.RIGHT, textvariable=self.manu_str)
-        # self.ent_man.grid(row=0, column=1, padx=5, pady=5)
-        # tk.Label(self.frmManuReg, text='% ouv.').grid(row=0, column=2, padx=5, pady=5)
-        # self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
-        # self.but_man.grid(row=0, column=3, padx=5, pady=5)
+        tk.Label(self.frmManuReg, text='Sortie').grid(row=0, column=0, padx=5, pady=5)
+        self.ent_man = tk.Entry(self.frmManuReg, width='6', justify=tk.RIGHT, textvariable=self.manu_str)
+        self.ent_man.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(self.frmManuReg, text='% ouv.').grid(row=0, column=2, padx=5, pady=5)
+        self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
+        self.but_man.grid(row=0, column=3, padx=5, pady=5)
         # Choix des modes du régulateur
         self.frmModeReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
         self.frmModeReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
-        self.Manlbl = tk.Label(self.frmModeReg, font='bold', justify=tk.CENTER,
-                               text='pilotage via facade du régulateur')
-        self.Manlbl.pack(fill=tk.BOTH, expand=tk.TRUE)
-        # self.mode_l = HMIButtonList(self.frmManuReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        # self.mode_l.add('mode automatique', tag_valid=Tags.REG2_LOCAL, cmd=self.send_auto_mode)
-        # self.mode_l.add('mode manuel', tag_valid=Tags.REG2_LOCAL, cmd=self.send_man_mode)
-        # self.mode_l.build()
+        self.mode_l = HMIButtonList(self.frmModeReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.mode_l.add('mode automatique', tag_valid=Tags.REG2_LOCAL, cmd=self.send_auto_mode)
+        self.mode_l.add('mode manuel', tag_valid=Tags.REG2_LOCAL, cmd=self.send_man_mode)
+        self.mode_l.build()
         # Bandeau ligne
         self.ban_id = tk.Label(self, text='Ligne 2', fg='black', font=('Arial', 22))
         self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
         # install callback
-        # self.manu_str.trace('w', self.manu_str_refresh)
-        # self.cons_w_str.trace('w', self.cons_w_str_refresh)
-        # self.cons_p_str.trace('w', self.cons_p_str_refresh)
-        # self.cons_d_str.trace('w', self.cons_d_str_refresh)
+        self.manu_str.trace('w', self.manu_str_refresh)
+        self.cons_w_str.trace('w', self.cons_w_str_refresh)
+        self.cons_p_str.trace('w', self.cons_p_str_refresh)
+        self.cons_d_str.trace('w', self.cons_d_str_refresh)
 
     def tab_update(self):
         # warning label
@@ -781,138 +776,138 @@ class TabRegL2(HMITab):
         self.inh_pid.update()
         self.err_l.update()
         self.mes_r.update()
-        # self.mode_l.update()
+        self.mode_l.update()
         # update manu entry
-        # self.manu_str_refresh()
-        # self.cons_w_str_refresh()
-        # self.cons_p_str_refresh()
-        # self.cons_d_str_refresh()
+        self.manu_str_refresh()
+        self.cons_w_str_refresh()
+        self.cons_p_str_refresh()
+        self.cons_d_str_refresh()
 
-    # def cons_w_str_refresh(self, *args):
-    #     # update manu entry
-    #     if Tags.REG2_LOCAL.val:
-    #         try:
-    #             if not (11160.0 <= float(self.cons_w_str.get()) <= 13360.0):
-    #                 raise ValueError
-    #             if abs(Tags.REG2_C_WOBBE_ACT.val - float(self.cons_w_str.get())) < 1.0:
-    #                 self.ent_cons_w.config(bg='white')
-    #             else:
-    #                 self.ent_cons_w.config(bg='yellow2')
-    #             self.but_cons_w.configure(state='normal')
-    #         except ValueError:
-    #             self.ent_cons_w.config(bg='red')
-    #             self.but_cons_w.configure(state='disabled')
-    #     else:
-    #         self.ent_cons_w.config(bg='white')
-    #         self.but_cons_w.configure(state='disabled')
-    #         self.cons_w_str.set('%.f' % Tags.REG2_C_WOBBE_ACT.val)
-    #
-    # def send_cons_w_value(self):
-    #     try:
-    #         send_cons = float(self.cons_w_str.get())
-    #         ConfirmDialog(self, title='Confirmation',
-    #                       text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
-    #                       valid_command=lambda: Tags.REG2_W_CONS_W.set(send_cons))
-    #         self.ent_cons_w.config(bg='white')
-    #     except ValueError:
-    #         self.ent_cons_w.config(bg='red')
-    #
-    # def cons_p_str_refresh(self, *args):
-    #     # update manu entry
-    #     if Tags.REG2_LOCAL.val:
-    #         try:
-    #             if not (9100.0 <= float(self.cons_p_str.get()) <= 11100.0):
-    #                 raise ValueError
-    #             if abs(Tags.REG2_C_PCS_ACT.val - float(self.cons_p_str.get())) < 1.0:
-    #                 self.ent_cons_p.config(bg='white')
-    #             else:
-    #                 self.ent_cons_p.config(bg='yellow2')
-    #             self.but_cons_p.configure(state='normal')
-    #         except ValueError:
-    #             self.ent_cons_p.config(bg='red')
-    #             self.but_cons_p.configure(state='disabled')
-    #     else:
-    #         self.ent_cons_p.config(bg='white')
-    #         self.but_cons_p.configure(state='disabled')
-    #         self.cons_p_str.set('%.f' % Tags.REG2_C_PCS_ACT.val)
-    #
-    # def send_cons_p_value(self):
-    #     try:
-    #         send_cons = float(self.cons_p_str.get())
-    #         ConfirmDialog(self, title='Confirmation',
-    #                       text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
-    #                       valid_command=lambda: Tags.REG2_W_CONS_P.set(send_cons))
-    #         self.ent_cons_p.config(bg='white')
-    #     except ValueError:
-    #         self.ent_cons_p.config(bg='red')
-    #
-    # def cons_d_str_refresh(self, *args):
-    #     # update manu entry
-    #     if Tags.REG2_LOCAL.val:
-    #         try:
-    #             if not (0.0 <= float(self.cons_d_str.get()) <= 25000.0):
-    #                 raise ValueError
-    #             if abs(Tags.REG2_C_DEBIT_ACT.val - float(self.cons_d_str.get())) < 1.0:
-    #                 self.ent_cons_d.config(bg='white')
-    #             else:
-    #                 self.ent_cons_d.config(bg='yellow2')
-    #             self.but_cons_d.configure(state='normal')
-    #         except ValueError:
-    #             self.ent_cons_d.config(bg='red')
-    #             self.but_cons_d.configure(state='disabled')
-    #     else:
-    #         self.ent_cons_d.config(bg='white')
-    #         self.but_cons_d.configure(state='disabled')
-    #         self.cons_d_str.set('%.f' % Tags.REG2_C_DEBIT_ACT.val)
-    #
-    # def send_cons_d_value(self):
-    #     try:
-    #         send_cons = float(self.cons_d_str.get())
-    #         ConfirmDialog(self, title='Confirmation',
-    #                       text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
-    #                       valid_command=lambda: Tags.REG2_W_CONS_D.set(send_cons))
-    #         self.ent_cons_d.config(bg='white')
-    #     except ValueError:
-    #         self.ent_cons_d.config(bg='red')
-    #
-    # def manu_str_refresh(self, *args):
-    #     # update manu entry
-    #     if Tags.REG2_AUTO_MANU.val:
-    #         try:
-    #             if not (0.0 <= float(self.manu_str.get()) <= 100.0):
-    #                 raise ValueError
-    #             if abs(Tags.REG2_OUT_REG.val - float(self.manu_str.get())) < 1.0:
-    #                 self.ent_man.config(bg='white')
-    #             else:
-    #                 self.ent_man.config(bg='yellow2')
-    #             self.but_man.configure(state='normal')
-    #         except ValueError:
-    #             self.ent_man.config(bg='red')
-    #             self.but_man.configure(state='disabled')
-    #     else:
-    #         self.ent_man.config(bg='white')
-    #         self.but_man.configure(state='disabled')
-    #         self.manu_str.set('%.2f' % Tags.REG2_OUT_REG.val)
-    #
-    # def send_man_value(self):
-    #     try:
-    #         send_cons = float(self.manu_str.get())
-    #         ConfirmDialog(self, title='Confirmation',
-    #                       text='Envoi ouverture VL2 à %.2f %% ?' % send_cons,
-    #                       valid_command=lambda: Tags.REG2_W_OUV_VL.set(send_cons))
-    #         self.ent_man.config(bg='white')
-    #     except ValueError:
-    #         self.ent_man.config(bg='red')
-    #
-    # def send_auto_mode(self):
-    #     ConfirmDialog(self, title='Confirmation',
-    #                   text='Passage en mode automatique du régulateur 2 ?',
-    #                   valid_command=lambda: Tags.REG2_MODE_AUTO.set(True))
-    #
-    # def send_man_mode(self):
-    #     ConfirmDialog(self, title='Confirmation',
-    #                   text='Passage en mode manuel du régulateur 2 ?',
-    #                   valid_command=lambda: Tags.REG2_MODE_MANU.set(True))
+    def cons_w_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG2_LOCAL.val:
+            try:
+                if not (11160.0 <= float(self.cons_w_str.get()) <= 13360.0):
+                    raise ValueError
+                if abs(Tags.REG2_C_WOBBE_ACT.val - float(self.cons_w_str.get())) < 1.0:
+                    self.ent_cons_w.config(bg='white')
+                else:
+                    self.ent_cons_w.config(bg='yellow2')
+                self.but_cons_w.configure(state='normal')
+            except ValueError:
+                self.ent_cons_w.config(bg='red')
+                self.but_cons_w.configure(state='disabled')
+        else:
+            self.ent_cons_w.config(bg='white')
+            self.but_cons_w.configure(state='disabled')
+            self.cons_w_str.set('%.f' % Tags.REG2_C_WOBBE_ACT.val)
+
+    def send_cons_w_value(self):
+        try:
+            send_cons = float(self.cons_w_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi consigne Wobbe %.f Wh/Nm3 ?' % send_cons,
+                          valid_command=lambda: Tags.REG2_W_CONS_W.set(send_cons))
+            self.ent_cons_w.config(bg='white')
+        except ValueError:
+            self.ent_cons_w.config(bg='red')
+
+    def cons_p_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG2_LOCAL.val:
+            try:
+                if not (9100.0 <= float(self.cons_p_str.get()) <= 11100.0):
+                    raise ValueError
+                if abs(Tags.REG2_C_PCS_ACT.val - float(self.cons_p_str.get())) < 1.0:
+                    self.ent_cons_p.config(bg='white')
+                else:
+                    self.ent_cons_p.config(bg='yellow2')
+                self.but_cons_p.configure(state='normal')
+            except ValueError:
+                self.ent_cons_p.config(bg='red')
+                self.but_cons_p.configure(state='disabled')
+        else:
+            self.ent_cons_p.config(bg='white')
+            self.but_cons_p.configure(state='disabled')
+            self.cons_p_str.set('%.f' % Tags.REG2_C_PCS_ACT.val)
+
+    def send_cons_p_value(self):
+        try:
+            send_cons = float(self.cons_p_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi consigne PCS %.f Wh/Nm3 ?' % send_cons,
+                          valid_command=lambda: Tags.REG2_W_CONS_P.set(send_cons))
+            self.ent_cons_p.config(bg='white')
+        except ValueError:
+            self.ent_cons_p.config(bg='red')
+
+    def cons_d_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG2_LOCAL.val:
+            try:
+                if not (0.0 <= float(self.cons_d_str.get()) <= 25000.0):
+                    raise ValueError
+                if abs(Tags.REG2_C_DEBIT_ACT.val - float(self.cons_d_str.get())) < 1.0:
+                    self.ent_cons_d.config(bg='white')
+                else:
+                    self.ent_cons_d.config(bg='yellow2')
+                self.but_cons_d.configure(state='normal')
+            except ValueError:
+                self.ent_cons_d.config(bg='red')
+                self.but_cons_d.configure(state='disabled')
+        else:
+            self.ent_cons_d.config(bg='white')
+            self.but_cons_d.configure(state='disabled')
+            self.cons_d_str.set('%.f' % Tags.REG2_C_DEBIT_ACT.val)
+
+    def send_cons_d_value(self):
+        try:
+            send_cons = float(self.cons_d_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi consigne débit %.f Nm3/h ?' % send_cons,
+                          valid_command=lambda: Tags.REG2_W_CONS_D.set(send_cons))
+            self.ent_cons_d.config(bg='white')
+        except ValueError:
+            self.ent_cons_d.config(bg='red')
+
+    def manu_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG2_MANU.val:
+            try:
+                if not (0.0 <= float(self.manu_str.get()) <= 100.0):
+                    raise ValueError
+                if abs(Tags.REG2_OUT_REG.val - float(self.manu_str.get())) < 1.0:
+                    self.ent_man.config(bg='white')
+                else:
+                    self.ent_man.config(bg='yellow2')
+                self.but_man.configure(state='normal')
+            except ValueError:
+                self.ent_man.config(bg='red')
+                self.but_man.configure(state='disabled')
+        else:
+            self.ent_man.config(bg='white')
+            self.but_man.configure(state='disabled')
+            self.manu_str.set('%.2f' % Tags.REG2_OUT_REG.val)
+
+    def send_man_value(self):
+        try:
+            send_cons = float(self.manu_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi ouverture VL2 à %.2f %% ?' % send_cons,
+                          valid_command=lambda: Tags.REG2_W_OUV_VL.set(send_cons))
+            self.ent_man.config(bg='white')
+        except ValueError:
+            self.ent_man.config(bg='red')
+
+    def send_auto_mode(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en mode automatique du régulateur 2 ?',
+                      valid_command=lambda: Tags.REG2_MODE_AUTO.set(True))
+
+    def send_man_mode(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en mode manuel du régulateur 2 ?',
+                      valid_command=lambda: Tags.REG2_MODE_MANU.set(True))
 
 
 class TabValues(HMITab):
@@ -1083,7 +1078,7 @@ class HMIToolbar(tk.Frame):
         self.butAPI.configure(background=GREEN if Devices.tbx_api.connected else PINK)
         self.butRatio.configure(background=GREEN if Devices.tbx_ratio.connected else PINK)
         self.butReg1.configure(background=GREEN if Devices.tbx_reg1.connected else PINK)
-        # self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
+        self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
 
