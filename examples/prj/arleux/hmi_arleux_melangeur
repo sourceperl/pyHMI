@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from pyHMI.Canvas import HMICanvas
 from pyHMI.Colors import *
 from pyHMI.Dialog import ConfirmDialog
@@ -120,6 +119,9 @@ class Tags(object):
     API_PCS_C4 = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20930})
     API_WBE_GNY = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20932})
     API_PCS_GNY = Tag(0.0, src=Devices.tbx_api, ref={'type': 'float', 'addr': 20934})
+    # virtuals
+    API_MODE_COH = Tag(False, get_cmd=lambda: Tags.API_MODE_I3.e_val or Tags.API_MODE_I4.e_val)
+    API_MODE_INC = Tag(False, get_cmd=lambda: tag_equal(Tags.API_MODE_COH, False))
     # T-Box Reg L1
     # read bits
     REG1_MARCHE = Tag(False, src=Devices.tbx_reg1, ref={'type': 'bit', 'addr': 20500})
@@ -302,15 +304,21 @@ class TabSyno(HMITab):
         # custom widget
         # Pilotage poste
         self.frmConf = tk.Frame(self.map_int.can)
-        tk.Label(self.frmConf, text='Etat poste').pack(fill=tk.X, padx=25)
+        tk.Label(self.frmConf, text='Etat poste').pack(fill=tk.X, padx=35)
         self.cnfDist = tk.Label(self.frmConf, text='Distant', background=WHITE)
         self.cnfDist.pack(fill=tk.X)
         self.cnfLoc = tk.Label(self.frmConf, text='Local', background=WHITE)
         self.cnfLoc.pack(fill=tk.X)
         self.cnfAU = tk.Label(self.frmConf, text='Arrêt d\'urgence', background=WHITE)
         self.cnfAU.pack(fill=tk.X)
+        self.cnfI3 = tk.Label(self.frmConf, text='Schéma I3', background=WHITE)
+        self.cnfI3.pack(fill=tk.X)
+        self.cnfI4 = tk.Label(self.frmConf, text='Schéma I4', background=WHITE)
+        self.cnfI4.pack(fill=tk.X)
+        self.cnfInc = tk.Label(self.frmConf, text='Schéma incohérent', background=WHITE)
+        self.cnfInc.pack(fill=tk.X)
         tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
-        self.map_int.can.create_window(720, 50, window=self.frmConf)
+        self.map_int.can.create_window(720, 85, window=self.frmConf)
         # build all
         self.map_int.build()
         # set static valve
@@ -348,6 +356,9 @@ class TabSyno(HMITab):
         self.cnfDist.configure(background=color_tag_state(Tags.API_TELE))
         self.cnfLoc.configure(background=color_tag_state(Tags.API_LOCAL))
         self.cnfAU.configure(background=color_tag_alarm(Tags.API_MEL_AU))
+        self.cnfI3.configure(background=color_tag_state(Tags.API_MODE_I3))
+        self.cnfI4.configure(background=color_tag_state(Tags.API_MODE_I4))
+        self.cnfInc.configure(background=color_tag_alarm(Tags.API_MODE_INC))
 
 
 class TabRegL1(HMITab):
