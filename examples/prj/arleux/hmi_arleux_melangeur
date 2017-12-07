@@ -29,6 +29,9 @@ class Devices(object):
     # API ratio
     tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=False)
     tbx_ratio.add_floats_table(23000, size=3)
+    # T-Box API service
+    tbx_service = ModbusTCPDevice('163.111.184.153', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
+    tbx_service.add_floats_table(21000, size=1)
 
 
 class Tags(object):
@@ -210,6 +213,8 @@ class Tags(object):
     RATIO_PCS_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23000})
     RATIO_WBE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23002})
     RATIO_Q_AE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23004})
+    # API service
+    SVC_P_ASP = Tag(0.0, src=Devices.tbx_service, ref={'type': 'float', 'addr': 21000})
     # local (no external source)
     HMI_WORD = Tag(0)
 
@@ -289,11 +294,16 @@ class TabSyno(HMITab):
         self.map_int.add_pipe('t17', from_name='HV15', to_name='B_ASP')
         self.map_int.add_pipe('t18', from_name='HV16', to_name='AO')
         # add value box
-        self.map_int.add_vbox('REG_VL1', 650, 260, size=5, get_value=lambda: Tags.REG1_OUT_REG, prefix='Reg.', suffix='%')
-        self.map_int.add_vbox('POS_VL1', 650, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='Pos.', suffix='%')
-        self.map_int.add_vbox('REG_VL2', 350, 260, size=5, get_value=lambda: Tags.REG2_OUT_REG, prefix='Reg.', suffix='%')
-        self.map_int.add_vbox('POS_VL2', 350, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='Pos.', suffix='%')
+        self.map_int.add_vbox('REG_VL1', 650, 260, size=5, get_value=lambda: Tags.REG1_OUT_REG, prefix='Reg.',
+                              suffix='%')
+        self.map_int.add_vbox('POS_VL1', 650, 290, size=5, get_value=lambda: Tags.API_POS_VL1, prefix='Pos.',
+                              suffix='%')
+        self.map_int.add_vbox('REG_VL2', 350, 260, size=5, get_value=lambda: Tags.REG2_OUT_REG, prefix='Reg.',
+                              suffix='%')
+        self.map_int.add_vbox('POS_VL2', 350, 290, size=5, get_value=lambda: Tags.API_POS_VL2, prefix='Pos.',
+                              suffix='%')
         self.map_int.add_vbox('P_AVION', 250, 50, get_value=lambda: Tags.API_P_MINE, prefix='P', suffix='BarA')
+        self.map_int.add_vbox('P_ASP', 380, 500, get_value=lambda: Tags.SVC_P_ASP, prefix='P ASP', suffix='BarA')
         self.map_int.add_vbox('P_AO1', 660, 500, get_value=lambda: Tags.API_P_AO1, prefix='P AO1', suffix='BarA')
         self.map_int.add_vbox('P_AO2', 660, 530, get_value=lambda: Tags.API_P_AO2, prefix='P AO2', suffix='BarA')
         self.map_int.add_vbox('Q_AVION', 400, 110, get_value=lambda: Tags.API_Q_MINE, prefix='Q', suffix='Nm3/h',
@@ -939,6 +949,7 @@ class TabValues(HMITab):
         self.mes_list_3 = HMIAnalogList(self.frmMes3, lbl_args={'width': 10})
         self.mes_list_3.add('P Mine', Tags.API_P_MINE, unit='BarA', fmt='%.2f')
         self.mes_list_3.add('Q Mine', Tags.API_Q_MINE, unit='Nm3/h', fmt='%.f')
+        self.mes_list_3.add('P Aspiration', Tags.SVC_P_ASP, unit='BarA', fmt='%.2f')
         self.mes_list_3.add('P Artois Ouest 1', Tags.API_P_AO1, unit='BarA', fmt='%.2f')
         self.mes_list_3.add('P Artois Ouest 2', Tags.API_P_AO2, unit='BarA', fmt='%.2f')
         self.mes_list_3.add('Q annubar I3', Tags.API_Q_ANNU, unit='Nm3/h', fmt='%.f')
@@ -1063,6 +1074,9 @@ class HMIToolbar(tk.Frame):
         self.butReg2 = tk.Button(self, text='T-Box REG L2', relief=tk.SUNKEN,
                                  state='disabled', disabledforeground='black')
         self.butReg2.pack(side=tk.LEFT)
+        self.butTbxSvc = tk.Button(self, text='T-Box service', relief=tk.SUNKEN,
+                                   state='disabled', disabledforeground='black')
+        self.butTbxSvc.pack(side=tk.LEFT)
         self.lblDate = tk.Label(self, text='', font=('TkDefaultFont', 12))
         self.lblDate.pack(side=tk.RIGHT)
         self.pack(side=tk.BOTTOM, fill=tk.X)
@@ -1079,6 +1093,7 @@ class HMIToolbar(tk.Frame):
         self.butRatio.configure(background=GREEN if Devices.tbx_ratio.connected else PINK)
         self.butReg1.configure(background=GREEN if Devices.tbx_reg1.connected else PINK)
         self.butReg2.configure(background=GREEN if Devices.tbx_reg2.connected else PINK)
+        self.butTbxSvc.configure(background=GREEN if Devices.tbx_service.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
 
