@@ -6,9 +6,11 @@
 from MyPrivateConstants import Redis2Dweet
 from pyHMI.DS_Redis import RedisDevice
 from pyHMI.Tag import Tag
+import logging
+import traceback
+import socket
 import time
 import json
-import socket
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -48,18 +50,16 @@ class Dweet(object):
 
     def __init__(self, dweet_id):
         self.dweet_id = str(dweet_id)
-        # set timeout to 10 seconds (default is none)
-        socket.setdefaulttimeout(10)
 
     def update(self, fields):
         # do update request
         try:
             request = urllib.request.Request(Dweet.UPDATE_URL + self.dweet_id, headers=Dweet.HEADS,
-                                            data=json.dumps(fields).encode('utf-8'))
-            urllib.request.urlopen(request)
+                                             data=json.dumps(fields).encode('utf-8'))
+            urllib.request.urlopen(request, timeout=10)
             return True
-        except:
-#        except urllib.error.URLError:
+        except Exception as e:
+            logging.error(traceback.format_exc())
             return False
 
 
@@ -121,6 +121,8 @@ class MainApp(object):
 
 
 if __name__ == '__main__':
+    # logging setup
+    logging.basicConfig(format='%(asctime)s %(message)s')
     # main App
     main_app = MainApp()
     main_app.mainloop()

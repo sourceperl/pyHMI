@@ -6,8 +6,10 @@
 from MyPrivateConstants import Redis2Thingspeak
 from pyHMI.DS_Redis import RedisDevice
 from pyHMI.Tag import Tag
-import time
+import logging
+import traceback
 import socket
+import time
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -47,8 +49,6 @@ class Thingspeak(object):
 
     def __init__(self, api_key):
         self.api_key = str(api_key)
-        # set timeout to 10 seconds (default is none)
-        socket.setdefaulttimeout(10)
 
     def update(self, fields):
         # format update params (key, field1, field2...)
@@ -58,10 +58,10 @@ class Thingspeak(object):
         # do update request
         try:
             request = urllib.request.Request(Thingspeak.UPDATE_URL, headers=Thingspeak.HEADS, data=params)
-            urllib.request.urlopen(request)
+            urllib.request.urlopen(request, timeout=10)
             return True
-        except:
-        #except urllib.error.URLError:
+        except Exception as e:
+            logging.error(traceback.format_exc())
             return False
 
 
@@ -119,6 +119,9 @@ class MainApp(object):
 
 
 if __name__ == '__main__':
+    # logging setup
+    logging.basicConfig(format='%(asctime)s %(message)s')
     # main App
     main_app = MainApp()
     main_app.mainloop()
+
