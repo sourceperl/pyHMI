@@ -42,7 +42,7 @@ class RedisKey(object):
     def update(self, value):
         # format data for write
         if self.var_type == 'bool':
-            self.redis_write = bool(value)
+            self.redis_write = b'True' if bool(value) else b'False'
             self.write_flag = True
         elif self.var_type == 'int':
             self.redis_write = int(value)
