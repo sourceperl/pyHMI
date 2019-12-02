@@ -72,7 +72,9 @@ tags.update({'API_POS_VL1': Tag(0.0, src=tbx_api, ref={'type': 'float', 'addr': 
 # API Ratio
 tags.update({'RATIO_PCS_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23000}),
              'RATIO_WBE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23002}),
-             'RATIO_Q_AE_VTL': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23004})})
+             'RATIO_Q_B_N_APP': Tag(0.0, src=tbx_ratio, ref={'type': 'float', 'addr': 23004})})
+# Virtual
+tags.update({'TAUX_MINE': Tag(0, get_cmd=lambda: 100 * tags['API_Q_MINE'].e_val / tags['RATIO_Q_B_N_APP'].e_val)})
 
 # populate an RRDs dict
 d_rrd = {}

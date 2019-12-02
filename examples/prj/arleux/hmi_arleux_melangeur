@@ -28,7 +28,7 @@ class Devices(object):
     tbx_reg2.add_floats_table(20700, size=32)
     # API ratio
     tbx_ratio = ModbusTCPDevice('163.111.184.146', port=502, unit_id=6, timeout=2.0, refresh=1.0, debug=False)
-    tbx_ratio.add_floats_table(23000, size=3)
+    tbx_ratio.add_floats_table(23000, size=8)
     # T-Box API service
     tbx_service = ModbusTCPDevice('163.111.184.153', port=502, unit_id=1, timeout=2.0, refresh=1.0, debug=False)
     tbx_service.add_floats_table(21000, size=1)
@@ -212,9 +212,15 @@ class Tags(object):
     # API ratio
     RATIO_PCS_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23000})
     RATIO_WBE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23002})
-    RATIO_Q_AE_VTL = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23004})
+    RATIO_Q_B_N_APP = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23004})
+    RATIO_NUM_SCH = Tag(0.0, src=Devices.tbx_ratio, ref={'type': 'float', 'addr': 23006})
     # API service
     SVC_P_ASP = Tag(0.0, src=Devices.tbx_service, ref={'type': 'float', 'addr': 21000})
+    # virtual (a tag from tag(s))
+    TAUX_MINE = Tag(0, get_cmd=lambda: 100 * Tags.API_Q_MINE.e_val / Tags.RATIO_Q_B_N_APP.e_val)
+    RATIO_SCH_1 = Tag(0, get_cmd=lambda: tag_equal(Tags.RATIO_NUM_SCH, 1))
+    RATIO_SCH_2 = Tag(0, get_cmd=lambda: tag_equal(Tags.RATIO_NUM_SCH, 2))
+    RATIO_SCH_3 = Tag(0, get_cmd=lambda: tag_equal(Tags.RATIO_NUM_SCH, 3))
     # local (no external source)
     HMI_WORD = Tag(0)
 
@@ -485,7 +491,8 @@ class TabRegL1(HMITab):
         self.mode_l.build()
         # Bandeau ligne
         self.ban_id = tk.Label(self, text='Ligne 1', fg='black', font=('Arial', 22))
-        self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
+        self.ban_id.grid(row=3, columnspan=4, padx=5, pady=5, sticky=tk.NSEW)
+        #self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
         # install callback
         self.manu_str.trace('w', self.manu_str_refresh)
         self.cons_w_str.trace('w', self.cons_w_str_refresh)
@@ -761,7 +768,8 @@ class TabRegL2(HMITab):
         self.mode_l.build()
         # Bandeau ligne
         self.ban_id = tk.Label(self, text='Ligne 2', fg='black', font=('Arial', 22))
-        self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
+        self.ban_id.grid(row=3, columnspan=4, padx=5, pady=5, sticky=tk.NSEW)
+        #self.ban_id.place(relx=0.5, rely=0.94, anchor=tk.CENTER)
         # install callback
         self.manu_str.trace('w', self.manu_str_refresh)
         self.cons_w_str.trace('w', self.cons_w_str_refresh)
@@ -962,14 +970,26 @@ class TabValues(HMITab):
         self.mes_list_4 = HMIAnalogList(self.frmRatio, lbl_args={'width': 10})
         self.mes_list_4.add('PCS virtuel', Tags.RATIO_PCS_VTL, unit='Wh/Nm3', fmt='%.f')
         self.mes_list_4.add('Wobbe virtuel', Tags.RATIO_WBE_VTL, unit='Wh/Nm3', fmt='%.f')
-        self.mes_list_4.add('Débit AE 1+2', Tags.RATIO_Q_AE_VTL, unit='Nm3/h', fmt='%.f')
+        self.mes_list_4.add('Q B non appauvri', Tags.RATIO_Q_B_N_APP, unit='Nm3/h', fmt='%.f')
+        self.mes_list_4.add('Taux injection', Tags.TAUX_MINE, unit='%', fmt='%.2f')
         self.mes_list_4.build()
+        # Configuration de l'injection
+        self.frmInjCnf = tk.LabelFrame(self, text='Configuration de l\'injection', padx=10, pady=10)
+        self.frmInjCnf.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.inj_cnf_list = HMIBoolList(self.frmInjCnf, lbl_args={'width': 60})
+        self.inj_cnf_list.add('Injection mine via I4', Tags.API_MODE_I4)
+        self.inj_cnf_list.add('Injection mine via I3', Tags.API_MODE_I3)
+        self.inj_cnf_list.add('Schéma 1 (I4): Gaz B non appauvri = Q AO - Q mine', Tags.RATIO_SCH_1)
+        self.inj_cnf_list.add('Schéma 2 (I3): Gaz B non appauvri = import Q AE1 + import Q AE2', Tags.RATIO_SCH_2)
+        self.inj_cnf_list.add('Schéma 3 (I3): Gaz B non appauvri = Q AE2 - Q mine', Tags.RATIO_SCH_3)
+        self.inj_cnf_list.build()
 
     def tab_update(self):
         self.mes_list_1.update()
         self.mes_list_2.update()
         self.mes_list_3.update()
         self.mes_list_4.update()
+        self.inj_cnf_list.update()
 
 
 class TabAlarms(HMITab):
@@ -1103,7 +1123,7 @@ class HMIApp(tk.Tk):
         # configure main window
         self.wm_title('IHM Arleux mélangeur')
         # self.attributes('-fullscreen', True)
-        # self.geometry('800x600')
+        # self.geometry('1075x650')
         # periodic tags update
         self.do_every(Tags.update_tags, every_ms=500)
         # build a notebook with tabs
