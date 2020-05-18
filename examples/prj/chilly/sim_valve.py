@@ -52,6 +52,24 @@ class Tags(object):
     r6 = Relay()
 
     @classmethod
+    def init_tags(cls):
+        # init config for neutral (need I/O sym active on tbx)
+        # V1130 open
+        Devices.tbx.write_bit(524, True)
+        # V1133 open
+        Devices.tbx.write_bit(526, True)
+        # V1134 open
+        Devices.tbx.write_bit(528, True)
+        # V1135 close
+        Devices.tbx.write_bit(531, True)
+        # V1136 open
+        Devices.tbx.write_bit(532, True)
+        # V1137 open
+        Devices.tbx.write_bit(534, True)
+        # V1138 open
+        Devices.tbx.write_bit(536, True)
+
+    @classmethod
     def update_tags(cls):
         # update relay state
         cls.r1.update(cls.V1130_EV_OUV.val)
@@ -94,6 +112,10 @@ class MainApp(object):
     def __init__(self):
         # jobs
         self.jobs = []
+        # wait modbus thread start
+        time.sleep(1.0)
+        # init tags
+        Tags.init_tags()
         # periodic update tags
         self.do_every(Tags.update_tags, every_ms=500)
 

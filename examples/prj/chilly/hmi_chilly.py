@@ -16,14 +16,10 @@ class Devices(object):
     # PLC TBox
     tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
-    tbx.add_bits_table(3050, 61)
+    tbx.add_bits_table(3050, 69)
     tbx.add_bits_table(1536, 8)
     tbx.add_words_table(4000, 5)
-    tbx.add_floats_table(5030, 8)
-    # Reg. T640
-    reg = ModbusTCPDevice('163.111.181.84', port=502, unit_id=2, timeout=5.0, refresh=1.0)
-    reg.add_bits_table(240, 9)
-    reg.add_words_table(201, 6)
+    tbx.add_floats_table(5030, 15)
     # Aconcagua supervisor
     acon = ModbusTCPDevice('163.111.181.83', port=502, timeout=2.0, refresh=1.0)
     acon.add_words_table(12288, 11)
@@ -95,6 +91,13 @@ class Tags(object):
     V1741_DEF_PST = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3108})
     DEF_DJ_220V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3109})
     DEF_DJ_24V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3110})
+    REG_MARCHE = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3112})
+    REG_ERR_CONS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3113})
+    REG_DEF_MES_P = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3114})
+    REG_EN_ETL = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3115})
+    REG_AUTO_D = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3116})
+    REG_AUTO_L = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3117})
+    REG_MANU = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3118})
     TRA_REG_V_NEU = Tag(False, src=Devices.tbx, ref={'type': 'word', 'addr': 4000})
     TRA_REG_V_SEC = Tag(False, src=Devices.tbx, ref={'type': 'word', 'addr': 4001})
     TRA_NEU_V_REG = Tag(False, src=Devices.tbx, ref={'type': 'word', 'addr': 4002})
@@ -108,22 +111,13 @@ class Tags(object):
     POS_VL = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5040})
     POS_MV7 = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5042})
     P_CPTGE = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5044})
-    # Reg T640
-    REG_AUTO_D = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 240})
-    REG_AUTO_L = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 241})
-    REG_MANU = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 242})
-    REG_MARCHE = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 243})
-    REG_ARRET = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 244})
-    REG_EN_ETL = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 245})
-    REG_HORS_ETL = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 246})
-    REG_DEF_MES_P = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 247})
-    REG_ERR_CONS = Tag(False, src=Devices.reg, ref={'type': 'bit', 'addr': 248})
-    REG_P_AM_VL = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 201, 'span': 0.1})
-    REG_P_AV_VL = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 202, 'span': 0.1})
-    REG_C_ACTIVE = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 203, 'span': 0.1})
-    REG_C_CSR = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 204, 'span': 0.1})
-    REG_SORTIE = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 205, 'span': 0.1})
-    REG_MDV = Tag(False, src=Devices.reg, ref={'type': 'word', 'addr': 206})
+    P_AM_VL = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5046})
+    P_AV_VL = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5048})
+    REG_C_ACTIVE = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5050})
+    REG_C_CSR = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5052})
+    REG_M_P_AVAL = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5054})
+    REG_PID_P_OUT = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5056})
+    REG_SORTIE = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5058})
     # Aconcagua
     ACON_MDV = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12288})
     ACON_PCS = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12289})
@@ -138,7 +132,11 @@ class Tags(object):
     ACON_P_AIR = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12298})
     # virtual (a tag from tag(s))
     GET_TAG_TEST = Tag(False, get_cmd=lambda: Tags.V1130_FDC_FER.val and Tags.V1133_FDC_FER.val)
-    DELTA_P_VL = Tag(0, get_cmd=lambda: Tags.REG_P_AM_VL.e_val - Tags.REG_P_AV_VL.e_val)
+    REG_LOCAL = Tag(False, get_cmd=lambda: Tags.REG_AUTO_L.val or Tags.REG_MANU.val)
+    REG_ARRET = Tag(False, get_cmd=lambda: not Tags.REG_MARCHE.e_val)
+    REG_HORS_ETL = Tag(False, get_cmd=lambda: not Tags.REG_EN_ETL.e_val)
+    DELTA_P_VL = Tag(0, get_cmd=lambda: Tags.P_AM_VL.e_val - Tags.P_AV_VL.e_val)
+    ECART_C_M = Tag(0, get_cmd=lambda: Tags.REG_C_ACTIVE.e_val - Tags.REG_M_P_AVAL.e_val)
     P_ANTENNES = Tag(0, get_cmd=lambda: Tags.P_CPTGE.e_val - 1.0)
     TRA_NVR_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(Tags.TRA_NEU_V_REG, 1))
     TRA_RVN_STEP_1 = Tag(0, get_cmd=lambda: tag_equal(Tags.TRA_REG_V_NEU, 1))
@@ -158,6 +156,7 @@ class Tags(object):
     HMI_WORD2 = Tag(0)
     # WRITE TAGS
     # API
+    # write bits
     CMD_V1130_OPEN = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6017})
     CMD_V1130_CLOSE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6018})
     CMD_V1135_OPEN = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6019})
@@ -168,11 +167,17 @@ class Tags(object):
     CMD_V1741_PST = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6025})
     CMD_CONF_REGION = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6026})
     CMD_CONF_NEUTRE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6027})
-    # REG
-    CMD_REG_MARCHE = Tag(False, src=Devices.reg, ref={'type': 'w_bit', 'addr': 220})
-    CMD_REG_ARRET = Tag(False, src=Devices.reg, ref={'type': 'w_bit', 'addr': 221})
-    CMD_ETL_MARCHE = Tag(False, src=Devices.reg, ref={'type': 'w_bit', 'addr': 222})
-    CMD_ETL_ARRET = Tag(False, src=Devices.reg, ref={'type': 'w_bit', 'addr': 223})
+    CMD_REG_TELE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6029})
+    CMD_REG_LOCAL = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6030})
+    CMD_REG_MARCHE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6031})
+    CMD_REG_ARRET = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6032})
+    CMD_REG_AUTO = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6033})
+    CMD_REG_MANU = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6034})
+    CMD_ETL_MARCHE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6035})
+    CMD_ETL_ARRET = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6036})
+    # write floats
+    REG_W_CONS_P = Tag(0.0, src=Devices.tbx, ref={'type': 'w_float', 'addr': 6100})
+    REG_W_OUV_MAN = Tag(0.0, src=Devices.tbx, ref={'type': 'w_float', 'addr': 6102})
 
     @classmethod
     def update_tags(cls):
@@ -261,9 +266,9 @@ class TabInterco(HMITab):
         self.map_int.add_pipe('t22', from_name='p4', to_name='ANT_REG')
         # add value box
         self.map_int.add_vbox('P_GNY_DN900', 230, 475, get_value=lambda: Tags.P_GNY_DN900, prefix='P', suffix='bars')
-        self.map_int.add_vbox('P_GNY_DN800', 160, 300, get_value=lambda: Tags.REG_P_AM_VL, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_GNY_DN800', 160, 300, get_value=lambda: Tags.P_AM_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('P_ARL', 640, 300, get_value=lambda: Tags.P_ARL, prefix='P', suffix='bars')
-        self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: Tags.REG_P_AV_VL, prefix='P', suffix='bars')
+        self.map_int.add_vbox('P_AV_VL', 160, 80, get_value=lambda: Tags.P_AV_VL, prefix='P', suffix='bars')
         self.map_int.add_vbox('OUV_VL', 160, 190, get_value=lambda: Tags.REG_SORTIE, prefix='', suffix='%')
         self.map_int.add_vbox('Q_ANTENNES', 375, 50, get_value=lambda: Tags.Q_ANTENNES, prefix='Q', suffix='Nm3/h',
                               tk_fmt='{:.0f}')
@@ -276,6 +281,15 @@ class TabInterco(HMITab):
         self.cnfDist.pack(fill=tk.X)
         self.cnfLoc = tk.Label(self.frmConf, text='Local', background=WHITE)
         self.cnfLoc.pack(fill=tk.X)
+        tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
+        # Pilotage régulation
+        tk.Label(self.frmConf, text='Pilot. régulation').pack(fill=tk.X)
+        self.cnfRegAD = tk.Label(self.frmConf, text='Auto distant', background=WHITE)
+        self.cnfRegAD.pack(fill=tk.X)
+        self.cnfRegAL = tk.Label(self.frmConf, text='Auto local', background=WHITE)
+        self.cnfRegAL.pack(fill=tk.X)
+        self.cnfRegMAN = tk.Label(self.frmConf, text='Manuel', background=WHITE)
+        self.cnfRegMAN.pack(fill=tk.X)
         tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
         # Configuration poste
         tk.Label(self.frmConf, text='TC Auto.').pack(fill=tk.X)
@@ -294,7 +308,7 @@ class TabInterco(HMITab):
         self.cnfNop.pack(fill=tk.X)
         self.frmConf.pack()
         tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
-        self.map_int.can.create_window(55, 130, window=self.frmConf)
+        self.map_int.can.create_window(55, 170, window=self.frmConf)
         # build all
         self.map_int.build()
 
@@ -323,6 +337,9 @@ class TabInterco(HMITab):
         # update config.
         self.cnfDist.configure(background=color_tag_state(Tags.PIL_TELE))
         self.cnfLoc.configure(background=color_tag_state(Tags.PIL_LOCAL))
+        self.cnfRegAD.configure(background=color_tag_state(Tags.REG_AUTO_D))
+        self.cnfRegAL.configure(background=color_tag_state(Tags.REG_AUTO_L))
+        self.cnfRegMAN.configure(background=color_tag_state(Tags.REG_MANU))
         self.cnfAuto.configure(background=color_tag_state(Tags.TC_AUTO))
         self.cnfReg.configure(background=color_tag_state(Tags.CONF_REG))
         self.cnfNeu.configure(background=color_tag_state(Tags.CONF_NEU))
@@ -418,50 +435,191 @@ class TabGnyDN900(HMITab):
 class TabReg(HMITab):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
         HMITab.__init__(self, notebook, update_ms, *args, **kwargs)
+        # Some vars
+        self.manu_str = tk.StringVar(value='0.0')
+        self.cons_p_str = tk.StringVar(value='0.0')
         # Etats régulateur
         self.frmEtatReg = tk.LabelFrame(self, text='Etats régulateur', padx=10, pady=10)
-        self.frmEtatReg.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.etat_l = HMIBoolList(self.frmEtatReg, lbl_args={'width': 15}, grid_args={'padx': 15})
+        self.frmEtatReg.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.etat_l = HMIBoolList(self.frmEtatReg, lbl_args={'width': 20}, grid_args={'padx': 20})
         self.etat_l.add('Marche', Tags.REG_MARCHE)
         self.etat_l.add('Arrêt', Tags.REG_ARRET)
         self.etat_l.add('Auto Distant', Tags.REG_AUTO_D)
         self.etat_l.add('Auto Local', Tags.REG_AUTO_L)
         self.etat_l.add('Manuel', Tags.REG_MANU)
-        self.etat_l.add('En etalonnage', Tags.REG_EN_ETL, alarm=True)
-        self.etat_l.add('Hors etalonnage', Tags.REG_HORS_ETL)
-        self.etat_l.add('Défaut mesure P', Tags.REG_DEF_MES_P, alarm=True)
-        self.etat_l.add('Erreur consigne', Tags.REG_ERR_CONS, alarm=True)
+        self.etat_l.add('Déf. mesure', Tags.REG_DEF_MES_P, alarm=True)
+        self.etat_l.add('Err. consigne', Tags.REG_ERR_CONS, alarm=True)
         self.etat_l.build()
+        # Consignes régulateur
+        self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
+        self.frmConsReg.grid(row=0, column=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.cons_r = HMIAnalogList(self.frmConsReg, lbl_args={'width': 10})
+        self.cons_r.add('Consigne pression aval active', Tags.REG_C_ACTIVE, unit='barg', fmt='%0.2f')
+        self.cons_r.add('Consigne pression aval CSR', Tags.REG_C_CSR, unit='barg', fmt='%0.2f')
+        self.cons_r.build()
+        # warning label
+        self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 9, 'bold'))
+        self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+        # Mode automatique local
+        self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
+        self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        tk.Label(self.frmAutoReg, text='Consigne pression').grid(row=0, column=0, padx=5, pady=5)
+        self.ent_cons_p = tk.Entry(self.frmAutoReg, width='6', justify=tk.RIGHT, textvariable=self.cons_p_str)
+        self.ent_cons_p.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(self.frmAutoReg, text='barg').grid(row=0, column=2, padx=5, pady=5)
+        self.but_cons_p = tk.Button(self.frmAutoReg, text='Set', command=self.send_cons_p_value)
+        self.but_cons_p.grid(row=0, column=3, padx=5, pady=5)
+        # Marche/arrêt régulation
+        self.frmMarche = tk.LabelFrame(self, text='Marche/Arrêt régulation', padx=10, pady=10)
+        self.frmMarche.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.marche_l = HMIButtonList(self.frmMarche, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.marche_l.add('En marche', tag_valid=Tags.REG_LOCAL, cmd=self.send_etat_marche)
+        self.marche_l.add('À l\'arrêt', tag_valid=Tags.REG_LOCAL, cmd=self.send_etat_arret)
+        self.marche_l.build()
+        # lieu de pilotage
+        self.frmPil = tk.LabelFrame(self, text='Lieu de pilotage régulation', padx=10, pady=10)
+        self.frmPil.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.pil_l = HMIButtonList(self.frmPil, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.pil_l.add('En distant', cmd=self.send_pil_tele)
+        self.pil_l.add('En local', cmd=self.send_pil_local)
+        self.pil_l.build()
         # Mesures régulateur
         self.frmMesReg = tk.LabelFrame(self, text='Mesures régulateur', padx=10, pady=10)
-        self.frmMesReg.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
-        self.mes_l = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
-        self.mes_l.add('Pression amont VL', Tags.REG_P_AM_VL, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.add('Pression aval VL', Tags.REG_P_AV_VL, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.add('Retour consigne active', Tags.REG_C_ACTIVE, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.add('Retour consigne CSR', Tags.REG_C_CSR, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.add('Sortie régulateur', Tags.REG_SORTIE, unit='%', fmt='%0.2f')
-        self.mes_l.add('Position VL', Tags.POS_VL, unit='%', fmt='%0.2f')
-        self.mes_l.add('Calcul Delta P VL', Tags.DELTA_P_VL, unit='bars rel.', fmt='%0.2f')
-        self.mes_l.build()
-        # Commande du régulateur
-        self.frmCmdReg = tk.LabelFrame(self, text='Commandes', padx=10, pady=10)
-        self.frmCmdReg.grid(row=1, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.cmd_l = HMIButtonList(self.frmCmdReg, btn_args={'width': 15}, grid_args={'pady': 5})
-        self.cmd_l.add('Marche régulateur', tag_valid=Tags.PIL_LOCAL, cmd=lambda: Tags.CMD_REG_MARCHE.set(True),
-                       btn_args={'bg': GREEN})
-        self.cmd_l.add('Arrêt régulateur', tag_valid=Tags.PIL_LOCAL, cmd=lambda: Tags.CMD_REG_ARRET.set(True),
-                       btn_args={'bg': RED})
-        self.cmd_l.add('En étalonnage', tag_valid=Tags.PIL_LOCAL, cmd=lambda: Tags.CMD_ETL_MARCHE.set(True),
-                       btn_args={'bg': ORANGE})
-        self.cmd_l.add('Hors étalonnage', tag_valid=Tags.PIL_LOCAL, cmd=lambda: Tags.CMD_ETL_ARRET.set(True),
-                       btn_args={'bg': ORANGE})
-        self.cmd_l.build()
+        self.frmMesReg.grid(row=1, column=2, rowspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.mes_r = HMIAnalogList(self.frmMesReg, lbl_args={'width': 10})
+        self.mes_r.add('Mesure pression', Tags.REG_M_P_AVAL, unit='barg', fmt='%0.2f')
+        self.mes_r.add('Ecart consigne/mesure', Tags.ECART_C_M, unit='bar', fmt='%0.2f')
+        self.mes_r.add('Delta P VL', Tags.DELTA_P_VL, unit='bar', fmt='%0.2f')
+        self.mes_r.add('PID pression', Tags.REG_PID_P_OUT, unit='% ouv.', fmt='%0.2f')
+        self.mes_r.add('Sortie régulateur', Tags.REG_SORTIE, unit='% ouv.', fmt='%0.2f')
+        self.mes_r.add('Retour position VL', Tags.POS_VL, unit='% ouv.', fmt='%0.2f')
+        self.mes_r.build()
+        # Commande de la sortie du régulateur
+        self.frmManuReg = tk.LabelFrame(self, text='Mode manuel', padx=10, pady=10)
+        self.frmManuReg.grid(row=1, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        tk.Label(self.frmManuReg, text='Sortie').grid(row=0, column=0, padx=5, pady=5)
+        self.ent_man = tk.Entry(self.frmManuReg, width='6', justify=tk.RIGHT, textvariable=self.manu_str)
+        self.ent_man.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(self.frmManuReg, text='% ouv.').grid(row=0, column=2, padx=5, pady=5)
+        self.but_man = tk.Button(self.frmManuReg, text='Set', command=self.send_man_value)
+        self.but_man.grid(row=0, column=3, padx=5, pady=5)
+        # Choix des modes du régulateur
+        self.frmModeReg = tk.LabelFrame(self, text='Choix du mode', padx=10, pady=10)
+        self.frmModeReg.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        self.mode_l = HMIButtonList(self.frmModeReg, btn_args={'width': 15}, grid_args={'pady': 5})
+        self.mode_l.add('mode automatique', tag_valid=Tags.REG_LOCAL, cmd=self.send_auto_mode)
+        self.mode_l.add('mode manuel', tag_valid=Tags.REG_LOCAL, cmd=self.send_man_mode)
+        self.mode_l.build()
+        # install callback
+        self.manu_str.trace('w', self.manu_str_refresh)
+        self.cons_p_str.trace('w', self.cons_p_str_refresh)
 
     def tab_update(self):
+        # warning label
+        if not abs(Tags.REG_C_ACTIVE.val - Tags.REG_C_CSR.val) <= 3.0:
+            self.lblWarn['text'] = 'Attention: consignes CSR et active non alignées'
+            self.lblWarn['bg'] = 'yellow1'
+        else:
+            self.lblWarn['text'] = ''
+            self.lblWarn['bg'] = self.cget('bg')
+        # refresh widget
         self.etat_l.update()
-        self.mes_l.update()
-        self.cmd_l.update()
+        self.cons_r.update()
+        self.mes_r.update()
+        self.marche_l.update()
+        self.pil_l.update()
+        self.mode_l.update()
+        # update manu entry
+        self.manu_str_refresh()
+        self.cons_p_str_refresh()
+
+    def cons_p_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG_LOCAL.val:
+            try:
+                if not (0.0 <= float(self.cons_p_str.get()) <= 100.0):
+                    raise ValueError
+                if abs(Tags.REG_C_ACTIVE.val - float(self.cons_p_str.get())) < 1.0:
+                    self.ent_cons_p.config(bg='white')
+                else:
+                    self.ent_cons_p.config(bg='yellow2')
+                self.but_cons_p.configure(state='normal')
+            except ValueError:
+                self.ent_cons_p.config(bg='red')
+                self.but_cons_p.configure(state='disabled')
+        else:
+            self.ent_cons_p.config(bg='white')
+            self.but_cons_p.configure(state='disabled')
+            self.cons_p_str.set('%.f' % Tags.REG_C_ACTIVE.val)
+
+    def send_cons_p_value(self):
+        try:
+            send_cons = float(self.cons_p_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi consigne pression %.2f barg ?' % send_cons,
+                          valid_command=lambda: Tags.REG_W_CONS_P.set(send_cons))
+            self.ent_cons_p.config(bg='white')
+        except ValueError:
+            self.ent_cons_p.config(bg='red')
+
+    def manu_str_refresh(self, *args):
+        # update manu entry
+        if Tags.REG_MANU.val:
+            try:
+                if not (0.0 <= float(self.manu_str.get()) <= 100.0):
+                    raise ValueError
+                if abs(Tags.REG_SORTIE.val - float(self.manu_str.get())) < 1.0:
+                    self.ent_man.config(bg='white')
+                else:
+                    self.ent_man.config(bg='yellow2')
+                self.but_man.configure(state='normal')
+            except ValueError:
+                self.ent_man.config(bg='red')
+                self.but_man.configure(state='disabled')
+        else:
+            self.ent_man.config(bg='white')
+            self.but_man.configure(state='disabled')
+            self.manu_str.set('%.2f' % Tags.REG_SORTIE.val)
+
+    def send_man_value(self):
+        try:
+            send_cons = float(self.manu_str.get())
+            ConfirmDialog(self, title='Confirmation',
+                          text='Envoi ouverture VL à %.2f %% ?' % send_cons,
+                          valid_command=lambda: Tags.REG_W_OUV_MAN.set(send_cons))
+            self.ent_man.config(bg='white')
+        except ValueError:
+            self.ent_man.config(bg='red')
+
+    def send_pil_tele(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en pilotage distant du régulateur ?',
+                      valid_command=lambda: Tags.CMD_REG_TELE.set(True))
+
+    def send_pil_local(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en pilotage local du régulateur ?',
+                      valid_command=lambda: Tags.CMD_REG_LOCAL.set(True))
+
+    def send_etat_marche(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en marche du régulateur ?',
+                      valid_command=lambda: Tags.CMD_REG_MARCHE.set(True))
+
+    def send_etat_arret(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage à l\'arrêt du régulateur (arrêt = VL 100% ouverte) ?',
+                      valid_command=lambda: Tags.CMD_REG_ARRET.set(True))
+
+    def send_auto_mode(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en mode automatique du régulateur ?',
+                      valid_command=lambda: Tags.CMD_REG_AUTO.set(True))
+
+    def send_man_mode(self):
+        ConfirmDialog(self, title='Confirmation',
+                      text='Passage en mode manuel du régulateur ?',
+                      valid_command=lambda: Tags.CMD_REG_MANU.set(True))
 
 
 class TabInfo(HMITab):
@@ -536,8 +694,8 @@ class TabInfo(HMITab):
         self.poste_list.add('P comptage (aval VL)', Tags.P_CPTGE, 'bars abs.', fmt='%.02f')
         self.poste_list.add('P Gournay DN900 (amt V1741)', Tags.P_GNY_DN900, 'bars rel.', fmt='%.02f')
         self.poste_list.add('P Arleux', Tags.P_ARL, 'bars rel.', fmt='%.02f')
-        self.poste_list.add('P amont VL', Tags.REG_P_AM_VL, 'bars rel.', fmt='%.02f')
-        self.poste_list.add('P aval VL', Tags.REG_P_AV_VL, 'bars rel.', fmt='%.02f')
+        self.poste_list.add('P amont VL', Tags.P_AM_VL, 'bars rel.', fmt='%.02f')
+        self.poste_list.add('P aval VL', Tags.P_AV_VL, 'bars rel.', fmt='%.02f')
         self.poste_list.add('Position MV7', Tags.POS_MV7, '%', fmt='%.02f')
         self.poste_list.add('Position VL', Tags.POS_VL, '%', fmt='%.02f')
         self.poste_list.add('Sortie régulateur VL', Tags.REG_SORTIE, '%', fmt='%.02f')
@@ -591,7 +749,6 @@ class TabInfo(HMITab):
         self.frmSys.grid(row=2, column=3, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
         self.sys_l = HMIAnalogList(self.frmSys, lbl_args={'width': 10})
         self.sys_l.add('Mot de vie API', Tags.API_TBX_MDV)
-        self.sys_l.add('Mot de vie REG', Tags.REG_MDV)
         self.sys_l.add('Mot de vie Acon.', Tags.ACON_MDV)
         self.sys_l.build()
 
@@ -694,9 +851,6 @@ class HMIToolbar(tk.Frame):
         self.butTbox = tk.Button(self, text='API T-Box', relief=tk.SUNKEN,
                                  state='disabled', disabledforeground='black')
         self.butTbox.pack(side=tk.LEFT)
-        self.butReg = tk.Button(self, text='REG T640', relief=tk.SUNKEN,
-                                state='disabled', disabledforeground='black')
-        self.butReg.pack(side=tk.LEFT)
         self.butAcon = tk.Button(self, text='Aconcagua', relief=tk.SUNKEN,
                                  state='disabled', disabledforeground='black')
         self.butAcon.pack(side=tk.LEFT)
@@ -713,7 +867,6 @@ class HMIToolbar(tk.Frame):
 
     def tab_update(self):
         self.butTbox.configure(background=GREEN if Devices.tbx.connected else PINK)
-        self.butReg.configure(background=GREEN if Devices.reg.connected else PINK)
         self.butAcon.configure(background=GREEN if Devices.acon.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
@@ -723,7 +876,7 @@ class HMIApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         # configure main window
         self.wm_title('Poste de Chilly')
-        self.attributes('-fullscreen', True)
+        # self.attributes('-fullscreen', True)
         # self.geometry("800x600")
         # periodic tags update
         self.do_every(Tags.update_tags, every_ms=500)
