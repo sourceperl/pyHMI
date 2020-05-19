@@ -8,7 +8,13 @@ from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
 from pyHMI.Misc import Relay
 import time
+import math
 from threading import Timer
+
+# some const (see http://www.idealvalve.com/pdf/Flow-Calculation-for-Gases.pdf)
+SG = 0.554
+T_DEG_C = 8.0
+VALVE_CV = 0.1
 
 
 class Devices(object):
@@ -17,11 +23,13 @@ class Devices(object):
     tbx = ModbusTCPDevice('163.111.181.85', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
     tbx.add_bits_table(3050, 55)
+    tbx.add_floats_table(5030, 16)
 
 
 class Tags(object):
     # tags list
     # from PLC
+    # bit
     V1130_EV_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3066})
     V1130_EV_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3067})
     V1135_EV_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3068})
@@ -43,6 +51,12 @@ class Tags(object):
     V1137_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3085})
     V1138_FDC_OUV = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3086})
     V1138_FDC_FER = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3087})
+    # float
+    P_AM_VL = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5046})
+    P_AV_VL = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5048})
+    REG_SORTIE = Tag(0.0, src=Devices.tbx, ref={'type': 'float', 'addr': 5060})
+    # virtual
+    DELTA_P_VL = Tag(0.0, get_cmd=lambda: Tags.P_AM_VL.e_val - Tags.P_AV_VL.e_val)
     # relay
     r1 = Relay()
     r2 = Relay()
@@ -61,13 +75,24 @@ class Tags(object):
         # V1134 open
         Devices.tbx.write_bit(528, True)
         # V1135 close
+        Devices.tbx.write_bit(530, False)
         Devices.tbx.write_bit(531, True)
         # V1136 open
-        Devices.tbx.write_bit(532, True)
+        Devices.tbx.write_bit(532, False)
+        Devices.tbx.write_bit(533, True)
         # V1137 open
         Devices.tbx.write_bit(534, True)
         # V1138 open
         Devices.tbx.write_bit(536, True)
+        # set pressure and flow
+        Devices.tbx.write_float(1280, 59.2)
+        Devices.tbx.write_float(1282, 59.1)
+        Devices.tbx.write_float(1284, 59.2)
+        # Devices.tbx.write_float(1286, 10000)
+        Devices.tbx.write_float(1288, 4.5)
+        Devices.tbx.write_float(1290, 0.0)
+        Devices.tbx.write_float(1292, 59.0)
+        Devices.tbx.write_float(1294, 48.0)
 
     @classmethod
     def update_tags(cls):
@@ -99,6 +124,15 @@ class Tags(object):
         if cls.r6.trigger_pos():
             Devices.tbx.write_bit(532, False)
             Timer(5, lambda: Devices.tbx.write_bit(533, True)).start()
+        # compute flow in process valve
+        deg_r = T_DEG_C * 1.8 + 32 + 459.67
+        try:
+            z_qi = (962 * VALVE_CV * cls.REG_SORTIE.val) / \
+                   math.sqrt((SG * deg_r) / (cls.P_AM_VL.val ** 2 - cls.P_AV_VL.val ** 2))
+        except ZeroDivisionError:
+            z_qi = 0.0
+        # write flow
+        Devices.tbx.write_float(1286, z_qi)
 
 
 class Job(object):
