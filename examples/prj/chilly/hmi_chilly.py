@@ -22,7 +22,8 @@ class Devices(object):
     tbx.add_floats_table(5030, 16)
     # Aconcagua supervisor
     acon = ModbusTCPDevice('163.111.181.83', port=502, timeout=2.0, refresh=1.0)
-    acon.add_words_table(12288, 11)
+    acon.add_words_table(12288, 2)
+    acon.add_floats_table(12290, 24)
     # PSLS
     psls = ModbusTCPDevice('163.111.181.80', port=502, timeout=2.0, refresh=1.0)
 
@@ -91,6 +92,7 @@ class Tags(object):
     V1741_DEF_PST = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3108})
     DEF_DJ_220V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3109})
     DEF_DJ_24V = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3110})
+    DEF_ELEC_VL = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3111})
     REG_MARCHE = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3112})
     REG_ERR_CONS = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3113})
     REG_DEF_MES_P = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3114})
@@ -121,16 +123,16 @@ class Tags(object):
     REG_SORTIE = Tag(False, src=Devices.tbx, ref={'type': 'float', 'addr': 5060})
     # Aconcagua
     ACON_MDV = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12288})
-    ACON_PCS = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12289})
-    ACON_DENS = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12290, 'span': 0.0001})
-    ACON_PCS_ANC = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12291})
-    ACON_N2 = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12292})
-    ACON_CO2 = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12293})
-    ACON_THT = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12294})
-    ACON_THT_ANC = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12295})
-    ACON_H2O = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12296})
-    ACON_P_HE = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12297})
-    ACON_P_AIR = Tag(0, src=Devices.acon, ref={'type': 'word', 'addr': 12298})
+    ACON_PCS = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12290})
+    ACON_N2 = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12294})
+    ACON_CO2 = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12296})
+    ACON_DENS = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12316})
+    ACON_PCS_ANC = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12324})
+    ACON_THT = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12326})
+    ACON_THT_ANC = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12328})
+    ACON_H2O = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12330})
+    ACON_H2O_ANC = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12332})
+    ACON_P_HE = Tag(0, src=Devices.acon, ref={'type': 'float', 'addr': 12334})
     # virtual (a tag from tag(s))
     GET_TAG_TEST = Tag(False, get_cmd=lambda: Tags.V1130_FDC_FER.val and Tags.V1133_FDC_FER.val)
     REG_LOCAL = Tag(False, get_cmd=lambda: Tags.REG_AUTO_L.val or Tags.REG_MANU.val)
@@ -175,8 +177,6 @@ class Tags(object):
     CMD_REG_AUTO = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6033})
     CMD_REG_MANU = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6034})
     CMD_REG_ACK = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6035})
-    # CMD_ETL_MARCHE = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6035})
-    # CMD_ETL_ARRET = Tag(False, src=Devices.tbx, ref={'type': 'w_bit', 'addr': 6036})
     # write floats
     REG_W_CONS_P = Tag(0.0, src=Devices.tbx, ref={'type': 'w_float', 'addr': 6100})
     REG_W_OUV_MAN = Tag(0.0, src=Devices.tbx, ref={'type': 'w_float', 'addr': 6102})
@@ -284,15 +284,6 @@ class TabInterco(HMITab):
         self.cnfLoc = tk.Label(self.frmConf, text='Local', background=WHITE)
         self.cnfLoc.pack(fill=tk.X)
         tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
-        # Pilotage régulation
-        tk.Label(self.frmConf, text='Pilot. régulation').pack(fill=tk.X)
-        self.cnfRegAD = tk.Label(self.frmConf, text='Auto distant', background=WHITE)
-        self.cnfRegAD.pack(fill=tk.X)
-        self.cnfRegAL = tk.Label(self.frmConf, text='Auto local', background=WHITE)
-        self.cnfRegAL.pack(fill=tk.X)
-        self.cnfRegMAN = tk.Label(self.frmConf, text='Manuel', background=WHITE)
-        self.cnfRegMAN.pack(fill=tk.X)
-        tk.Label(self.frmConf, text='', background=GRAY).pack(fill=tk.X)
         # Configuration poste
         tk.Label(self.frmConf, text='TC Auto.').pack(fill=tk.X)
         self.cnfAuto = tk.Label(self.frmConf, text='Auto', background=WHITE)
@@ -339,9 +330,6 @@ class TabInterco(HMITab):
         # update config.
         self.cnfDist.configure(background=color_tag_state(Tags.PIL_TELE))
         self.cnfLoc.configure(background=color_tag_state(Tags.PIL_LOCAL))
-        self.cnfRegAD.configure(background=color_tag_state(Tags.REG_AUTO_D))
-        self.cnfRegAL.configure(background=color_tag_state(Tags.REG_AUTO_L))
-        self.cnfRegMAN.configure(background=color_tag_state(Tags.REG_MANU))
         self.cnfAuto.configure(background=color_tag_state(Tags.TC_AUTO))
         self.cnfReg.configure(background=color_tag_state(Tags.CONF_REG))
         self.cnfNeu.configure(background=color_tag_state(Tags.CONF_NEU))
@@ -700,7 +688,7 @@ class TabInfo(HMITab):
         self.labo_list.add('THT', Tags.ACON_THT, 'mg/nm3')
         self.labo_list.add('THT Ancienneté', Tags.ACON_THT_ANC, 'min')
         self.labo_list.add('Taux H2O', Tags.ACON_H2O, 'mg/nm3')
-        self.labo_list.add('P Air', Tags.ACON_P_AIR, 'barg', fmt='%0.2f')
+        self.labo_list.add('H2O Ancienneté', Tags.ACON_H2O_ANC, 'min', fmt='%0.2f')
         self.labo_list.add('P Hélium', Tags.ACON_P_HE, 'barg', fmt='%0.2f')
         self.labo_list.build()
         #  Poste
@@ -761,9 +749,18 @@ class TabInfo(HMITab):
         self.v1741_l.add('PST actif', Tags.V1741_PST_EN_COURS)
         self.v1741_l.add('Défaut PST', Tags.V1741_DEF_PST, alarm=True)
         self.v1741_l.build()
+        # Vanne régulation
+        self.frmProcValve = tk.LabelFrame(self, text='Vanne régul.', padx=5, pady=5)
+        self.frmProcValve.grid(row=2, column=3, padx=5, pady=5, sticky=tk.NSEW)
+        # VL
+        self.frmVL = tk.Frame(self.frmProcValve, padx=0, pady=0)
+        self.frmVL.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
+        self.vl_l = HMIBoolList(self.frmVL, head_str='VL', lbl_args={'width': 10})
+        self.vl_l.add('Défaut élec.', Tags.DEF_ELEC_VL)
+        self.vl_l.build()
         # Système
         self.frmSys = tk.LabelFrame(self, text='Système', padx=5, pady=5)
-        self.frmSys.grid(row=2, column=3, columnspan=2, padx=5, pady=5, sticky=tk.NSEW)
+        self.frmSys.grid(row=2, column=4, columnspan=1, padx=5, pady=5, sticky=tk.NSEW)
         self.sys_l = HMIAnalogList(self.frmSys, lbl_args={'width': 10})
         self.sys_l.add('Mot de vie API', Tags.API_TBX_MDV)
         self.sys_l.add('Mot de vie Acon.', Tags.ACON_MDV)
@@ -781,6 +778,7 @@ class TabInfo(HMITab):
         self.v1135_l.update()
         self.v1136_l.update()
         self.v1741_l.update()
+        self.vl_l.update()
         self.sys_l.update()
 
 
