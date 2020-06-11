@@ -7,14 +7,16 @@
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
 from pyHMI.Misc import Relay
+from pyHMI.SimGas import GasPipe
 import time
 import math
+import random
 from threading import Timer
 
 # some const (see http://www.idealvalve.com/pdf/Flow-Calculation-for-Gases.pdf)
 SG = 0.554
 T_DEG_C = 8.0
-VALVE_CV = 0.1
+VALVE_CV = 410
 
 
 class Devices(object):
@@ -64,6 +66,10 @@ class Tags(object):
     r4 = Relay()
     r5 = Relay()
     r6 = Relay()
+    # simulate aval pipe
+    dn200_m = 62e3
+    w_vol = math.pi * 0.2**2 * dn200_m
+    pipe_aval = GasPipe(init_volume=w_vol * 50, water_volume=w_vol)
 
     @classmethod
     def init_tags(cls):
@@ -92,7 +98,7 @@ class Tags(object):
         Devices.tbx.write_float(1288, 4.5)
         Devices.tbx.write_float(1290, 0.0)
         Devices.tbx.write_float(1292, 59.0)
-        Devices.tbx.write_float(1294, 48.0)
+        Devices.tbx.write_float(1294, Tags.pipe_aval.avg_p)
 
     @classmethod
     def update_tags(cls):
@@ -127,12 +133,19 @@ class Tags(object):
         # compute flow in process valve
         deg_r = T_DEG_C * 1.8 + 32 + 459.67
         try:
-            z_qi = (962 * VALVE_CV * cls.REG_SORTIE.val) / \
+            z_qi = (962 * VALVE_CV * (cls.REG_SORTIE.val/100.0)) / \
                    math.sqrt((SG * deg_r) / (cls.P_AM_VL.val ** 2 - cls.P_AV_VL.val ** 2))
         except ZeroDivisionError:
             z_qi = 0.0
         # write flow
         Devices.tbx.write_float(1286, z_qi)
+        # update pipe value
+        Tags.pipe_aval.in_flow = z_qi
+        Tags.pipe_aval.out_flow = 40e3
+        # update p aval
+        Devices.tbx.write_float(1294, Tags.pipe_aval.avg_p)
+        # update metering pressure
+        Devices.tbx.write_float(1282, Tags.pipe_aval.avg_p + 1.0 - 0.2 * random.random())
 
 
 class Job(object):
