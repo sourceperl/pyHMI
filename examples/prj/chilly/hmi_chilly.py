@@ -747,7 +747,7 @@ class TabInfo(HMITab):
         self.v1741_l.add('Ouv', Tags.V1741_FDC_OUV)
         self.v1741_l.add('Fer', Tags.V1741_FDC_FER)
         self.v1741_l.add('PST actif', Tags.V1741_PST_EN_COURS)
-        self.v1741_l.add('Défaut PST', Tags.V1741_DEF_PST, alarm=True)
+        self.v1741_l.add('Déf. PST', Tags.V1741_DEF_PST, alarm=True)
         self.v1741_l.build()
         # Vanne régulation
         self.frmProcValve = tk.LabelFrame(self, text='Vanne régul.', padx=5, pady=5)
@@ -756,7 +756,9 @@ class TabInfo(HMITab):
         self.frmVL = tk.Frame(self.frmProcValve, padx=0, pady=0)
         self.frmVL.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.vl_l = HMIBoolList(self.frmVL, head_str='VL', lbl_args={'width': 10})
-        self.vl_l.add('Défaut élec.', Tags.DEF_ELEC_VL)
+        self.vl_l.add('Ouv', Tags.VL_FDC_OUV)
+        self.vl_l.add('Fer', Tags.VL_FDC_FER)
+        self.vl_l.add('Déf. élec.', Tags.DEF_ELEC_VL, alarm=True)
         self.vl_l.build()
         # Système
         self.frmSys = tk.LabelFrame(self, text='Système', padx=5, pady=5)
