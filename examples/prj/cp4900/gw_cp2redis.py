@@ -65,6 +65,7 @@ class Tags(object):
     RD_CP_FLOW_GAS = Tag(0.0, src=Devices.rd, ref={'type': 'float', 'key': 'cp4900:flow_gas', 'ttl': 10})
     RD_CP_ANALYSIS_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:analysis_fault', 'ttl': 10})
     RD_CP_SENSOR_FAULT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:sensor_fault', 'ttl': 10})
+    RD_CP_STATE_INT = Tag(0, src=Devices.rd, ref={'type': 'int', 'key': 'cp4900:state_int', 'ttl': 10})
     RD_CP_STATE = Tag('', src=Devices.rd, ref={'type': 'str', 'key': 'cp4900:state', 'ttl': 10})
     # virtual
     LOOP_COUNT = Tag(0)
@@ -93,6 +94,7 @@ class Tags(object):
         Tags.RD_CP_FLOW_GAS.val = limit(Tags.DEBIT_CHROM.e_val, 0.0, 100.0)
         Tags.RD_CP_ANALYSIS_FAULT.val = Tags.DEF_ANALYSE.e_val
         Tags.RD_CP_SENSOR_FAULT.val = Tags.DEF_CAPTEUR.e_val
+        Tags.RD_CP_STATE_INT.val = Tags.ETAT_GC.e_val
         if Tags.ETAT_GC.err:
             Tags.RD_CP_STATE.err = True
         else:
