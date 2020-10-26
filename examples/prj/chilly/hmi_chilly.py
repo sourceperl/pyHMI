@@ -139,7 +139,7 @@ class Tags(object):
     GET_TAG_TEST = Tag(False, get_cmd=lambda: Tags.V1130_FDC_FER.val and Tags.V1133_FDC_FER.val)
     REG_LOCAL = Tag(False, get_cmd=lambda: Tags.REG_AUTO_L.val or Tags.REG_MANU.val)
     REG_AUTO = Tag(False, get_cmd=lambda: Tags.REG_AUTO_D.val or Tags.REG_AUTO_L.val)
-    REG_ARRET = Tag(False, get_cmd=lambda: not Tags.REG_MARCHE.e_val)
+    REG_ARRET = Tag(False, get_cmd=lambda: tag_equal(Tags.REG_MARCHE, False))
     DELTA_P_VL = Tag(0, get_cmd=lambda: Tags.P_AM_VL.e_val - Tags.P_AV_VL.e_val)
     ECART_C_M = Tag(0, get_cmd=lambda: Tags.REG_C_ACTIVE.e_val - Tags.REG_M_P_AVAL.e_val)
     P_ANTENNES = Tag(0, get_cmd=lambda: Tags.P_CPTGE.e_val - 1.0)
