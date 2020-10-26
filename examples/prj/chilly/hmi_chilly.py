@@ -102,6 +102,7 @@ class Tags(object):
     REG_MANU = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3118})
     DEF_O2_1 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3119})
     DEF_O2_2 = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3120})
+    REG_FREEZE = Tag(False, src=Devices.tbx, ref={'type': 'bit', 'addr': 3121})
     TRA_REG_V_NEU = Tag(0, src=Devices.tbx, ref={'type': 'word', 'addr': 4000})
     TRA_REG_V_SEC = Tag(0, src=Devices.tbx, ref={'type': 'word', 'addr': 4001})
     TRA_NEU_V_REG = Tag(0, src=Devices.tbx, ref={'type': 'word', 'addr': 4002})
@@ -451,6 +452,7 @@ class TabReg(HMITab):
         self.etat_l.add('Défaut mesure', Tags.REG_DEF_MES_P, alarm=True)
         self.etat_l.add('Erreur consigne', Tags.REG_ERR_CONS, alarm=True)
         self.etat_l.add('Limitation d\'ouverture', Tags.REG_OUT_LIM_ON, alarm=True)
+        self.etat_l.add('PID figé', Tags.REG_FREEZE, alarm=True)
         self.etat_l.build()
         # Consignes régulateur
         self.frmConsReg = tk.LabelFrame(self, text='Consignes régulateur', padx=10, pady=10)
@@ -461,7 +463,10 @@ class TabReg(HMITab):
         self.cons_r.build()
         # warning label
         self.lblWarn = tk.Label(self.frmConsReg, padx=5, font=('Arial', 9, 'bold'))
-        self.lblWarn.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+        self.lblWarn.place(relx=0.5, rely=0.7, anchor=tk.CENTER)
+        # error label
+        self.lblErr = tk.Label(self.frmConsReg, padx=5, font=('Arial', 9, 'bold'))
+        self.lblErr.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         # Mode automatique local
         self.frmAutoReg = tk.LabelFrame(self, text='Mode automatique local', padx=10, pady=10)
         self.frmAutoReg.grid(row=0, column=3, padx=5, pady=5, sticky=tk.NSEW)
@@ -525,13 +530,20 @@ class TabReg(HMITab):
         self.cons_p_str.trace('w', self.cons_p_str_refresh)
 
     def tab_update(self):
-        # warning label
+        # warning label (setpoint mismatch)
         if not abs(Tags.REG_C_ACTIVE.val - Tags.REG_C_CSR.val) <= 3.0:
             self.lblWarn['text'] = 'Attention: consignes CSR et active non alignées'
             self.lblWarn['bg'] = 'yellow1'
         else:
             self.lblWarn['text'] = ''
             self.lblWarn['bg'] = self.cget('bg')
+        # error label (PID freeze)
+        if Tags.REG_FREEZE.val:
+            self.lblErr['text'] = 'Attention: PID figé en raison du défaut électrique VL'
+            self.lblErr['bg'] = 'red1'
+        else:
+            self.lblErr['text'] = ''
+            self.lblErr['bg'] = self.cget('bg')
         # refresh widget
         self.etat_l.update()
         self.cons_r.update()
