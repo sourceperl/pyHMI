@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup
+from pyHMI import __version__
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 setup(
     name='pyHMI',
-    version='0.0.4',
+    version=__version__,
     description='A set of class for easy build tkinter HMI with Python',
     long_description='',
     author='Loic Lefebvre',
