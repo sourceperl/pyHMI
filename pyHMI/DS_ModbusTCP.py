@@ -26,7 +26,7 @@ class ModbusTCPDevice(object):
         self._w_buffer = []
         self._r_buffer = []
         self._c = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
-                               timeout=self.timeout)
+                               timeout=self.timeout, debug=self.debug)
         # start thread
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
