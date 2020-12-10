@@ -7,13 +7,18 @@ import time
 
 
 class ModbusTCPDevice(object):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, client_adv_args=None):
+        # public vars
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
-        self.debug = debug
+        # client advenced parameters (like 'debug' = True)
+        if client_adv_args is None:
+            self.client_adv_args = dict()
+        else:
+            self.client_adv_args = client_adv_args
         # privates vars
         self._bits = {}
         self._words = {}
@@ -26,7 +31,7 @@ class ModbusTCPDevice(object):
         self._w_buffer = []
         self._r_buffer = []
         self._c = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
-                               timeout=self.timeout, debug=self.debug)
+                               timeout=self.timeout, **self.client_adv_args)
         # start thread
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True

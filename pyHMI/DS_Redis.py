@@ -59,18 +59,26 @@ class RedisKey(object):
 
 
 class RedisDevice(object):
-    def __init__(self, host='localhost', port=6379, refresh=1.0, timeout=1.0):
+    def __init__(self, host='localhost', port=6379, refresh=1.0, timeout=1.0, client_adv_args=None):
+        # public vars
         self.host = host
         self.port = port
         self.refresh = refresh
         self.timeout = timeout
+        # client advenced parameters
+        if client_adv_args is None:
+            self.client_adv_args = dict()
+        else:
+            self.client_adv_args = client_adv_args
         # privates vars
         self._all_keys = {}
         self._tmp_keys = {}
         self._lock = threading.Lock()
         self._wait_evt = threading.Event()
         # redis client
-        self._r = redis.Redis(host=self.host, port=self.port, socket_timeout=self.timeout, socket_keepalive=True)
+        self._r = redis.Redis(host=self.host, port=self.port,
+                              socket_timeout=self.timeout, socket_keepalive=True,
+                              **self.client_adv_args)
         self._poll_cycle = 0
         self._connected = False
         # start thread
