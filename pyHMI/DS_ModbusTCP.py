@@ -7,14 +7,15 @@ import time
 
 
 class ModbusTCPDevice(object):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, client_adv_args=None):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False, client_adv_args=None):
         # public vars
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
-        # client advenced parameters (like 'debug' = True)
+        self.debug = debug
+        # client advanced parameters (like 'debug' = True)
         if client_adv_args is None:
             self.client_adv_args = dict()
         else:
