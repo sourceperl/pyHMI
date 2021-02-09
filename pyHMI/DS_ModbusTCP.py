@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import threading
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
+from .Tag import DS
+import threading
 import time
 
 
-class ModbusTCPDevice(object):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False, client_adv_args=None):
+class ModbusTCPDevice(DS):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False,
+                 client_adv_args=None):
+        super().__init__()
         # public vars
         self.host = host
         self.port = port
@@ -37,6 +40,10 @@ class ModbusTCPDevice(object):
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
         self._th.start()
+
+    def __repr__(self):
+        return 'ModbusTCPDevice(host=%s, port=%i, unit_id=%i, timeout=%.1f, refresh=%.1f,  client_adv_args=%s)' \
+               % (self.host, self.port, self.unit_id, self.timeout, self.refresh, self.client_adv_args)
 
     @property
     def connected(self):

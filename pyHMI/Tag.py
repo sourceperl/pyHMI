@@ -1,6 +1,29 @@
 # -*- coding: utf-8 -*-
 
 
+class DS(object):
+    def __init__(self):
+        """Constructor
+
+        DataSource template for externaly sourced tags (from Modbus/TCP, database...)
+
+        :rtype DS
+        """
+        pass
+
+    def tag_add(self, tag):
+        pass
+
+    def get(self, ref):
+        return None
+
+    def set(self, value, ref):
+        return None
+
+    def err(self, ref):
+        return True
+
+
 class Tag(object):
     def __init__(self, init_value, src=None, ref=None, get_cmd=None):
         """Constructor
@@ -16,14 +39,42 @@ class Tag(object):
         """
         # public
         self.ref = ref
+        # set on tag change, reset by package user
+        self.updated = False
         # private
         self._get_cmd = get_cmd
         self._src = src
-        self._val = init_value
-        self._err = False
+        self._cache_cur_val = init_value
+        self._cache_old_val = init_value
+        self._error = False
         # notify tag creation to external source
-        if self._src is not None:
+        if isinstance(self._src, DS):
             self._src.tag_add(self)
+
+    def __str__(self):
+        return '%s' % self._cache_cur_val
+
+    def __repr__(self):
+        return 'Tag(%s, src=%r, ref=%s, get_cmd=%s)' % (self._cache_cur_val, self._src, self.ref, self._get_cmd)
+
+    def _set_cache_value(self, value):
+        if value != self._cache_cur_val:
+            self._cache_old_val = self._cache_cur_val
+            self._cache_cur_val = value
+            self.updated = True
+            self.on_value_change()
+
+    def _get_cache_value(self):
+        return self._cache_cur_val
+
+    def _set_error(self, value):
+        self._error = bool(value)
+
+    def _get_error(self):
+        return self._error
+
+    def on_value_change(self):
+        pass
 
     def set(self, value):
         """ Set value of the tag
@@ -31,21 +82,21 @@ class Tag(object):
         :param value: value of the tag
         """
         if value is None:
-            self._err = True
+            self._set_error(True)
         else:
-            # no external source to notify
-            if self._src is None:
-                self._val = value
-                self._err = False
             # notify external source to update the value
-            else:
+            if isinstance(self._src, DS):
                 if self._src.set(value, self.ref):
                     # on update success
-                    self._val = value
-                    self._err = False
+                    self._set_cache_value(value)
+                    self._set_error(False)
                 else:
                     # on update error
-                    self._err = True
+                    self._set_error(True)
+            # no external source to notify
+            else:
+                self._set_cache_value(value)
+                self._set_error(False)
 
     @property
     def val(self):
@@ -54,26 +105,26 @@ class Tag(object):
         :return: tag value
         """
         # read tag from external source
-        if self._src is not None:
+        if isinstance(self._src, DS):
             ret = self._src.get(self.ref)
             if ret is not None:
-                self._val = ret
-            return self._val
+                self._set_cache_value(ret)
+            return self._get_cache_value()
         # read tag from a get command
-        elif self._get_cmd is not None:
+        elif callable(self._get_cmd):
             try:
                 ret = self._get_cmd()
             except TypeError:
-                return self._val
+                return self._get_cache_value()
             else:
                 if ret is None:
-                    return self._val
+                    return self._get_cache_value()
                 else:
-                    self._val = ret
-                    return self._val
+                    self._set_cache_value(ret)
+                    return self._get_cache_value()
         # read tag from internal store
         else:
-            return self._val
+            return self._get_cache_value()
 
     @val.setter
     def val(self, value):
@@ -98,17 +149,20 @@ class Tag(object):
         :return: error status
         :rtype: bool
         """
-        if self._src is not None:
+        # read error status from external source
+        if isinstance(self._src, DS):
             return self._src.err(self.ref)
-        elif self._get_cmd is not None:
+        # read error status from a get command
+        elif callable(self._get_cmd):
             try:
                 ret = self._get_cmd()
             except TypeError:
                 return True
             else:
                 return ret is None
+        # read error status from internal store
         else:
-            return self._err
+            return self._get_error()
 
     @err.setter
     def err(self, value):
@@ -117,11 +171,11 @@ class Tag(object):
         :param value: error status
         :type bool
         """
-        self._err = bool(value)
+        self._set_error(value)
 
 
 def tag_equal(tag, value):
-    if not tag.err:
-        return tag.val == value
-    else:
+    if tag.err:
         return None
+    else:
+        return tag.val == value

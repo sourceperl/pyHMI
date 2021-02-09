@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from .Tag import DS
 import redis
 import threading
 
@@ -58,8 +59,9 @@ class RedisKey(object):
             self.write_flag = True
 
 
-class RedisDevice(object):
+class RedisDevice(DS):
     def __init__(self, host='localhost', port=6379, refresh=1.0, timeout=1.0, client_adv_args=None):
+        super().__init__()
         # public vars
         self.host = host
         self.port = port
@@ -85,6 +87,10 @@ class RedisDevice(object):
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
         self._th.start()
+
+    def __repr__(self):
+        return 'RedisDevice(host=%s, port=%i, refresh=%.1f, timeout=%.1f, client_adv_args=%s)' \
+               % (self.host, self.port, self.refresh, self.timeout, self.client_adv_args)
 
     @property
     def connected(self):
