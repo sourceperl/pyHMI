@@ -5,7 +5,7 @@ class DS(object):
     def __init__(self):
         """Constructor
 
-        DataSource template for externaly sourced tags (from Modbus/TCP, database...)
+        DataSource template for externally sourced tags (from Modbus/TCP, database...)
 
         :rtype DS
         """
@@ -15,7 +15,7 @@ class DS(object):
         pass
 
     def get(self, ref):
-        return None
+        return 0
 
     def set(self, value, ref):
         return None
