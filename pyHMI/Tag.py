@@ -14,13 +14,15 @@ class Tag(object):
 
         :rtype Tags
         """
+        # public
         self.ref = ref
+        # private
         self._get_cmd = get_cmd
         self._src = src
         self._val = init_value
         self._err = False
-        # notify src for tag add
-        if self._src:
+        # notify tag creation to external source
+        if self._src is not None:
             self._src.tag_add(self)
 
     def set(self, value):
@@ -28,18 +30,22 @@ class Tag(object):
 
         :param value: value of the tag
         """
-        if value is not None:
-            if self._src is not None:
+        if value is None:
+            self._err = True
+        else:
+            # no external source to notify
+            if self._src is None:
+                self._val = value
+                self._err = False
+            # notify external source to update the value
+            else:
                 if self._src.set(value, self.ref):
+                    # on update success
                     self._val = value
                     self._err = False
                 else:
+                    # on update error
                     self._err = True
-            else:
-                self._val = value
-                self._err = False
-        else:
-            self._err = True
 
     @property
     def val(self):
