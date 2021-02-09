@@ -88,8 +88,8 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# Idea workspace
-.idea/workspace.xml
+# Idea
+.idea/
 
 # Some keys or password
 examples/MyPrivateConstants.py
