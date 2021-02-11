@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+import time
+
 
 class DS(object):
     def __init__(self):
@@ -35,10 +38,13 @@ class Tag(object):
         :param ref: ref dict for data source
         :param get_cmd: a callback to read value/error status of the tag
 
-        :rtype Tags
+        :rtype Tag
         """
         # public
         self.ref = ref
+        self.tag_type = type(init_value)
+        self.dt_created = datetime.datetime.utcnow()
+        self.dt_last_change = datetime.datetime.utcnow()
         # set on tag change, reset by package user
         self.updated = False
         # private
@@ -61,6 +67,7 @@ class Tag(object):
         if value != self._cache_cur_val:
             self._cache_old_val = self._cache_cur_val
             self._cache_cur_val = value
+            self.dt_last_change = datetime.datetime.utcnow()
             self.updated = True
             self.on_value_change()
 
@@ -152,7 +159,7 @@ class Tag(object):
         # read error status from external source
         if isinstance(self._src, DS):
             return self._src.err(self.ref)
-        # read error status from a get command
+        # read error status from get command
         elif callable(self._get_cmd):
             try:
                 ret = self._get_cmd()
@@ -166,10 +173,9 @@ class Tag(object):
 
     @err.setter
     def err(self, value):
-        """Set the error status of tag
+        """Set the error status of tag (useless for externally sourced or tag with get_cmd set)
 
         :param value: error status
-        :type bool
         """
         self._set_error(value)
 
@@ -179,3 +185,18 @@ def tag_equal(tag, value):
         return None
     else:
         return tag.val == value
+
+
+def dt_utc2local(dt_utc):
+    """Convert UTC datetime to local datetime
+
+    :param dt_utc: UTC datetime
+    :type dt_utc: datetime.datetime
+
+    :return: local datetime
+    :rtype: datetime.datetime
+    """
+    now_ts = time.time()
+    offset = datetime.datetime.fromtimestamp(now_ts) - datetime.datetime.utcfromtimestamp(now_ts)
+    dt_local = dt_utc + offset
+    return dt_local
