@@ -121,7 +121,7 @@ class ModbusTCPDevice(DS):
             with self._lock:
                 return self._floats[ref['addr']]['err']
 
-    def set(self, value, ref):
+    def set(self, ref, value):
         if ref['type'] == 'w_bit':
             return self.write_bit(ref['addr'], value)
         elif ref['type'] == 'w_word':

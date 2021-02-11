@@ -20,7 +20,7 @@ class DS(object):
     def get(self, ref):
         return 0
 
-    def set(self, value, ref):
+    def set(self, ref, value):
         return None
 
     def err(self, ref):
@@ -93,7 +93,7 @@ class Tag(object):
         else:
             # notify external source to update the value
             if isinstance(self._src, DS):
-                if self._src.set(value, self.ref):
+                if self._src.set(self.ref, value):
                     # on update success
                     self._set_cache_value(value)
                     self._set_error(False)

@@ -34,7 +34,7 @@ class RedisKey(object):
                 return float('nan')
         elif self.var_type == 'str':
             if type(self.redis_read) is bytes:
-                return self.redis_read.decode('utf-8')
+                return bytes(self.redis_read).decode('utf-8')
             elif type(self.redis_read) is str:
                 return self.redis_read
             else:
@@ -122,7 +122,7 @@ class RedisDevice(DS):
         with self._lock:
             return self._all_keys[ref['key']].error
 
-    def set(self, value, ref):
+    def set(self, ref, value):
         with self._lock:
             return self._all_keys[ref['key']].update(value)
 
