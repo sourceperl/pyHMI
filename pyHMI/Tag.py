@@ -8,7 +8,7 @@ class DS(object):
     def __init__(self):
         """Constructor
 
-        DataSource template for externally sourced tags (from Modbus/TCP, database...)
+        DataSource template for externally sourced tags (from Modbus/TCP, database...).
 
         :rtype DS
         """
@@ -81,7 +81,7 @@ class Tag(object):
         pass
 
     def set(self, value):
-        """ Set value of the tag
+        """ Set value of the tag.
 
         :param value: value of the tag
         """
@@ -104,7 +104,7 @@ class Tag(object):
 
     @property
     def val(self):
-        """Return current tag value from any way (ext sourced tag, get command tag or internal value)
+        """Return current tag value from any way (ext sourced tag, get command tag or internal value).
 
         :return: tag value
         """
@@ -132,7 +132,7 @@ class Tag(object):
 
     @val.setter
     def val(self, value):
-        """Set value of tag
+        """Set value of tag.
 
         :param value: value of tag
         """
@@ -140,7 +140,7 @@ class Tag(object):
 
     @property
     def e_val(self):
-        """Return tag value or None if tag error status is set
+        """Return tag value or None if tag error status is set.
 
         :return: tag value or None
         """
@@ -148,7 +148,7 @@ class Tag(object):
 
     @property
     def err(self):
-        """Return True is Tag have error status set, False if not
+        """Return True is Tag have error status set, False if not.
 
         :return: error status
         :rtype: bool
@@ -170,7 +170,7 @@ class Tag(object):
 
     @err.setter
     def err(self, value):
-        """Set the error status of tag (useless for externally sourced or tag with get_cmd set)
+        """Set the error status of tag (useless for externally sourced or tag with get_cmd set).
 
         :param value: error status
         """
@@ -184,10 +184,22 @@ class TagsBank(Tag, Enum):
     """
     @classmethod
     def to_dict(cls):
+        """
+        Retrieve Tags as a dict with tag name as key and tag as value.
+
+        :return: Tags dict with {tag name: tag object, ...} format.
+        :rtype: dict
+        """
         return {t.name: t.value for t in cls}
 
     @classmethod
     def items(cls):
+        """
+        Retrieve Tags as a list of tuple for easy iteration with for loop.
+
+        :return: List of Tags as tuple [(tag name, tag object), (...), ...].
+        :rtype: list
+        """
         return [(t.name, t.value) for t in cls]
 
 
@@ -199,7 +211,7 @@ def tag_equal(tag, value):
 
 
 def dt_utc2local(dt_utc):
-    """Convert UTC datetime to local datetime
+    """Convert UTC datetime to local datetime.
 
     :param dt_utc: UTC datetime
     :type dt_utc: datetime.datetime
