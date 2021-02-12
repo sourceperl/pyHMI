@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from enum import Enum
 import datetime
 import time
 
@@ -56,9 +56,6 @@ class Tag(object):
         # notify tag creation to external source
         if isinstance(self._src, DS):
             self._src.tag_add(self)
-
-    def __str__(self):
-        return '%s' % self._cache_cur_val
 
     def __repr__(self):
         return 'Tag(%s, src=%r, ref=%s, get_cmd=%s)' % (self._cache_cur_val, self._src, self.ref, self._get_cmd)
@@ -178,6 +175,20 @@ class Tag(object):
         :param value: error status
         """
         self._set_error(value)
+
+
+class TagsBank(Tag, Enum):
+    """Generic Tags enumeration
+
+    Derive from this class to define Tags enumerations in your project.
+    """
+    @classmethod
+    def to_dict(cls):
+        return {t.name: t.value for t in cls}
+
+    @classmethod
+    def items(cls):
+        return [(t.name, t.value) for t in cls]
 
 
 def tag_equal(tag, value):
