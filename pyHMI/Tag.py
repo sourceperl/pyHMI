@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from enum import Enum
 import datetime
 import time
 
@@ -28,7 +27,7 @@ class DS(ABC):
         pass
 
 
-class Tag(object):
+class Tag:
     def __init__(self, init_value, src=None, ref=None, get_cmd=None):
         """Constructor
 
@@ -178,7 +177,7 @@ class Tag(object):
         self._set_error(value)
 
 
-class TagsBank(Tag, Enum):
+class TagsBank:
     """Generic Tags enumeration
 
     Derive from this class to define Tags enumerations in your project.
@@ -191,7 +190,7 @@ class TagsBank(Tag, Enum):
         :return: Tags dict with {tag name: tag object, ...} format.
         :rtype: dict
         """
-        return {t.name: t.value for t in cls}
+        return {k: v for k, v in cls.__dict__.items() if not k.startswith('__') and isinstance(v, Tag)}
 
     @classmethod
     def items(cls):
@@ -201,7 +200,7 @@ class TagsBank(Tag, Enum):
         :return: List of Tags as tuple [(tag name, tag object), (...), ...].
         :rtype: list
         """
-        return [(t.name, t.value) for t in cls]
+        return [(k, v) for k, v in cls.__dict__.items() if not k.startswith('__') and isinstance(v, Tag)]
 
 
 def tag_equal(tag, value):
