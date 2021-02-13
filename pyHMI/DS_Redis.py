@@ -67,7 +67,7 @@ class RedisDevice(DS):
         self.port = port
         self.refresh = refresh
         self.timeout = timeout
-        # client advenced parameters
+        # client advanced parameters
         if client_adv_args is None:
             self.client_adv_args = dict()
         else:
