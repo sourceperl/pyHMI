@@ -1,30 +1,31 @@
 # -*- coding: utf-8 -*-
+
+from abc import ABC, abstractmethod
 from enum import Enum
 import datetime
 import time
 
 
-class DS(object):
-    def __init__(self):
-        """Constructor
+class DS(ABC):
+    """DataSource class template for externally sourced tags (from Modbus/TCP, database...).
 
-        DataSource template for externally sourced tags (from Modbus/TCP, database...).
-
-        :rtype DS
-        """
-        pass
-
+    Every DataSource must derive from this abstract class.
+    """
+    @abstractmethod
     def tag_add(self, tag):
         pass
 
+    @abstractmethod
     def get(self, ref):
-        return 0
+        pass
 
+    @abstractmethod
     def set(self, ref, value):
-        return None
+        pass
 
+    @abstractmethod
     def err(self, ref):
-        return True
+        pass
 
 
 class Tag(object):
