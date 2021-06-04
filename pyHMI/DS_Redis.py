@@ -155,7 +155,7 @@ class RedisDevice(DS):
             with self._lock:
                 try:
                     self._connected = self._r.ping()
-                except redis.ConnectionError:
+                except redis.RedisError:
                     self._connected = False
                 self._poll_cycle += 1
             # wait before next polling (or not if a write trig wait event)
