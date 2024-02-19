@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyHMI"
+dynamic = ["dependencies", "version"]
+license = { text = "MIT" }
+authors = [{ name = "Loïc Lefebvre" }]
+description = "A set of class for easy build tkinter HMI with Python"
+requires-python = ">=3.2"
+
+[project.urls]
+Homepage = "https://github.com/sourceperl/pyHMI/"
+
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
+version = { attr = "pyHMI.__version__" }
