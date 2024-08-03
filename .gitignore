@@ -96,3 +96,6 @@ ENV/
 
 # Some keys or password
 examples/MyPrivateConstants.py
+
+# test directory
+lab/
