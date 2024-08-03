@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-import datetime
+from datetime import datetime, timezone
 import operator
-import time
 from typing import Callable, Optional, Union
 
 
@@ -48,8 +47,8 @@ class Tag:
         # public
         self.ref = ref
         self.tag_type = type(init_value)
-        self.dt_created = datetime.datetime.utcnow()
-        self.dt_last_change = datetime.datetime.utcnow()
+        self.dt_created = datetime.now(timezone.utc)
+        self.dt_last_change = self.dt_created
         # set on tag change, reset by package user
         self.updated = False
         # private
@@ -69,7 +68,7 @@ class Tag:
         if value != self._cache_cur_val:
             self._cache_old_val = self._cache_cur_val
             self._cache_cur_val = value
-            self.dt_last_change = datetime.datetime.utcnow()
+            self.dt_last_change = datetime.now(timezone.utc)
             self.updated = True
             self.on_value_change()
 
@@ -236,18 +235,3 @@ def tag_sel(tag: Tag, *args):
 
 def tag_equal(tag: Tag, value: Union[float, int]):
     return tag_op(tag, operator.eq, value)
-
-
-def dt_utc2local(dt_utc):
-    """Convert UTC datetime to local datetime.
-
-    :param dt_utc: UTC datetime
-    :type dt_utc: datetime.datetime
-
-    :return: local datetime
-    :rtype: datetime.datetime
-    """
-    now_ts = time.time()
-    offset = datetime.datetime.fromtimestamp(now_ts) - datetime.datetime.utcfromtimestamp(now_ts)
-    dt_local = dt_utc + offset
-    return dt_local
