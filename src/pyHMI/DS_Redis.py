@@ -1,12 +1,35 @@
 import threading
-from .Tag import DS
+from typing import Dict
+from .Tag import Tag, DS
 import redis
 
 
+class _LockRedisCli:
+    """ Allow thread safe access to redis client.
 
-class RedisKey(object):
+    Essential to share access between internal IO thread and direct user acess.
+
+    Usage:
+        lock_redis_cli = _LockRedisCli(redis.StrictRedis())
+
+        with lock_redis_cli as cli:
+            cli.get('foo')
+    """
+
+    def __init__(self, client: redis.StrictRedis):
+        self._client = client
+        self._thread_lock = threading.Lock()
+
+    def __enter__(self):
+        self._thread_lock.acquire()
+        return self._client
+
+    def __exit__(self, *_args):
+        self._thread_lock.release()
+
+
+class _RedisKey(object):
     def __init__(self, var_type='int', init_value=0, ttl=None):
-
         self.var_type = var_type
         self.error = True
         self.redis_read = init_value
@@ -66,24 +89,19 @@ class RedisDevice(DS):
         self.port = port
         self.refresh = refresh
         self.timeout = timeout
-        # client advanced parameters
-        if client_adv_args is None:
-            self.client_adv_args = dict()
-        else:
-            self.client_adv_args = client_adv_args
+        self.client_adv_args = client_adv_args
         # privates vars
-        self._all_keys = {}
-        self._tmp_keys = {}
-        self._lock = threading.Lock()
+        self._keys_d: Dict[_RedisKey] = {}
+        self._keys_d_lock = threading.Lock()
         self._wait_evt = threading.Event()
         # redis client
-        self._r = redis.Redis(host=self.host, port=self.port,
-                              socket_timeout=self.timeout, socket_keepalive=True,
-                              **self.client_adv_args)
+        args_d = {} if self.client_adv_args is None else self.client_adv_args
+        self.lock_cli = _LockRedisCli(redis.Redis(host=self.host, port=self.port,
+                                                  socket_timeout=self.timeout, socket_keepalive=True, **args_d))
         self._poll_cycle = 0
         self._connected = False
         # start thread
-        self._th = threading.Thread(target=self.polling_thread)
+        self._th = threading.Thread(target=self._io_thread)
         self._th.daemon = True
         self._th.start()
 
@@ -93,16 +111,14 @@ class RedisDevice(DS):
 
     @property
     def connected(self):
-        with self._lock:
-            return self._connected
+        return self._connected
 
     @property
     def poll_cycle(self):
-        with self._lock:
-            return self._poll_cycle
+        return self._poll_cycle
 
     # tag_add, get, err and set are mandatory function to be a valid tag source
-    def tag_add(self, tag):
+    def tag_add(self, tag: Tag):
         # check key is set
         if 'key' not in tag.ref:
             raise ValueError('Key is not define for tag on Redis host %s' % self.host)
@@ -110,53 +126,57 @@ class RedisDevice(DS):
         if not tag.ref['type'] in ('bool', 'int', 'float', 'str'):
             raise ValueError('Wrong tag type %s for Redis host %s' % (tag.ref['type'], self.host))
         # add tag to keys dict
-        with self._lock:
-            self._all_keys[tag.ref['key']] = RedisKey(var_type=tag.ref['type'], ttl=tag.ref.get('ttl', None))
+        with self._keys_d_lock:
+            self._keys_d[tag.ref['key']] = _RedisKey(var_type=tag.ref['type'], ttl=tag.ref.get('ttl', None))
 
     def get(self, ref):
-        with self._lock:
-            return self._all_keys[ref['key']].value()
+        with self._keys_d_lock:
+            return self._keys_d[ref['key']].value()
 
     def err(self, ref):
-        with self._lock:
-            return self._all_keys[ref['key']].error
+        with self._keys_d_lock:
+            return self._keys_d[ref['key']].error
 
     def set(self, ref, value):
-        with self._lock:
-            return self._all_keys[ref['key']].update(value)
+        with self._keys_d_lock:
+            return self._keys_d[ref['key']].update(value)
 
-    def polling_thread(self):
-        # polling cycle
+    def _io_thread(self):
+        """ Process every I/O with redis DB. """
         while True:
             # do thread safe copy of read/write buffer for this cycle
-            with self._lock:
-                self._tmp_keys = self._all_keys.copy()
-            # do all redis read
-            for k in self._tmp_keys:
+            with self._keys_d_lock:
+                keys_d_copy = self._keys_d.copy()
+            # do redis i/o
+            for key in keys_d_copy:
                 try:
-                    # write value in redis if need
-                    if self._tmp_keys[k].write_flag:
-                        self._tmp_keys[k].write_flag = False
-                        self._r.set(k, self._tmp_keys[k].redis_write, ex=self._tmp_keys[k].ttl)
-                    # read value in redis
-                    redis_val = self._r.get(k)
-                    if redis_val is not None:
-                        self._tmp_keys[k].redis_read = redis_val
-                        self._tmp_keys[k].error = False
+                    # write
+                    if keys_d_copy[key].write_flag:
+                        keys_d_copy[key].write_flag = False
+                        with self.lock_cli as cli:
+                            cli.set(key, keys_d_copy[key].redis_write, ex=keys_d_copy[key].ttl)
+                    # read
+                    with self.lock_cli as cli:
+                        redis_val = cli.get(key)
+                    # status update
+                    if redis_val is None:
+                        keys_d_copy[key].error = True
                     else:
-                        self._tmp_keys[k].error = True
+                        keys_d_copy[key].redis_read = redis_val
+                        keys_d_copy[key].error = False
                 except redis.RedisError:
-                    self._tmp_keys[k].error = True
-            # update _keys dict
-            with self._lock:
-                self._all_keys.update(self._tmp_keys)
-            # do stat stuff
-            with self._lock:
-                try:
-                    self._connected = self._r.ping()
-                except redis.RedisError:
-                    self._connected = False
-                self._poll_cycle += 1
+                    keys_d_copy[key].error = True
+            # update keys dict
+            with self._keys_d_lock:
+                self._keys_d.update(keys_d_copy)
+            # update connected flag
+            try:
+                with self.lock_cli as cli:
+                    self._connected = cli.ping()
+            except redis.RedisError:
+                self._connected = False
+            # loop counter
+            self._poll_cycle += 1
             # wait before next polling (or not if a write trig wait event)
             if self._wait_evt.wait(self.refresh):
                 self._wait_evt.clear()

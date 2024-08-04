@@ -11,19 +11,23 @@ class DS(ABC):
     """
 
     @abstractmethod
-    def tag_add(self, tag):
+    def tag_add(self, tag: "Tag") -> None:
+        """ Method call by Tag class constructor to notify datasource of tag creation. """
         pass
 
     @abstractmethod
-    def get(self, ref):
+    def get(self, ref: dict) -> Union[bool, int, float, str, bytes]:
+        """ Method call by Tag class to retrieve value from datasource. """
         pass
 
     @abstractmethod
-    def set(self, ref, value):
+    def set(self, ref: dict, value: Union[bool, int, float, str, bytes]) -> None:
+        """ Method call by Tag class to set value in datasource. """
         pass
 
     @abstractmethod
-    def err(self, ref):
+    def err(self, ref: dict) -> bool:
+        """ Method call by Tag class to retrieve error status from datasource. """
         pass
 
 
