@@ -1,7 +1,7 @@
 from collections import defaultdict
 import threading
 import time
-from .Tag import DS
+from .Tag import Tag, DS
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
 
@@ -75,35 +75,38 @@ class ModbusTCPDevice(DS):
             return self._poll_cycle
 
     # tag_add, get, err and set are mandatory function to be a valid tag source
-    def tag_add(self, tag):
+    def tag_add(self, tag: Tag):
         # check a table already reference the tag, raise ValueError if not
-        with self._thread_lock:
-            if tag.ref['type'] == 'bit':
-                if tag.ref['addr'] not in self._rdb_bits:
-                    raise ValueError('Tag address %d have no bits table define on modbus host %s'
-                                     % (tag.ref['addr'], self.host))
-            elif tag.ref['type'] == 'word':
-                if tag.ref['addr'] not in self._rdb_words:
-                    raise ValueError('Tag address %d have no words table define on modbus host %s'
-                                     % (tag.ref['addr'], self.host))
-            elif tag.ref['type'] == 'long':
-                if tag.ref['addr'] not in self._rdb_longs:
-                    raise ValueError('Tag address %d have no longs table define on modbus host %s'
-                                     % (tag.ref['addr'], self.host))
-            elif tag.ref['type'] == 'float':
-                if tag.ref['addr'] not in self._rdb_floats:
-                    raise ValueError('Tag address %d have no floats table define on modbus host %s'
-                                     % (tag.ref['addr'], self.host))
-            elif tag.ref['type'] == 'w_bit':
-                pass
-            elif tag.ref['type'] == 'w_word':
-                pass
-            elif tag.ref['type'] == 'w_float':
-                pass
-            else:
-                raise ValueError('Wrong tag type %s for modbus host %s' % (tag.ref['type'], self.host))
+        if isinstance(tag.ref, dict):
+            with self._thread_lock:
+                if tag.ref['type'] == 'bit':
+                    if tag.ref['addr'] not in self._rdb_bits:
+                        raise ValueError('Tag address %d have no bits table define on modbus host %s'
+                                         % (tag.ref['addr'], self.host))
+                elif tag.ref['type'] == 'word':
+                    if tag.ref['addr'] not in self._rdb_words:
+                        raise ValueError('Tag address %d have no words table define on modbus host %s'
+                                         % (tag.ref['addr'], self.host))
+                elif tag.ref['type'] == 'long':
+                    if tag.ref['addr'] not in self._rdb_longs:
+                        raise ValueError('Tag address %d have no longs table define on modbus host %s'
+                                         % (tag.ref['addr'], self.host))
+                elif tag.ref['type'] == 'float':
+                    if tag.ref['addr'] not in self._rdb_floats:
+                        raise ValueError('Tag address %d have no floats table define on modbus host %s'
+                                         % (tag.ref['addr'], self.host))
+                elif tag.ref['type'] == 'w_bit':
+                    pass
+                elif tag.ref['type'] == 'w_word':
+                    pass
+                elif tag.ref['type'] == 'w_float':
+                    pass
+                else:
+                    raise ValueError('Wrong tag type %s for modbus host %s' % (tag.ref['type'], self.host))
+        else:
+            raise ValueError(f'Wrong ref type for tag {tag}')
 
-    def get(self, ref):
+    def get(self, ref: dict):
         try:
             with self._thread_lock:
                 if ref['type'] == 'bit':
@@ -133,7 +136,7 @@ class ModbusTCPDevice(DS):
         except KeyError:
             return
 
-    def err(self, ref):
+    def err(self, ref: dict):
         try:
             with self._thread_lock:
                 if ref['type'] == 'bit':
@@ -155,7 +158,7 @@ class ModbusTCPDevice(DS):
         except KeyError:
             return
 
-    def set(self, ref, value):
+    def set(self, ref: dict, value):
         if ref['type'] == 'w_bit':
             self.write_bit(ref['addr'], value)
             return True

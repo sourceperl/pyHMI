@@ -6,4 +6,4 @@
 #    Description: A set of class for easy build tkinter HMI with Python
 
 __all__ = ()
-__version__ = '0.0.19.dev0'
+__version__ = '0.0.19.dev1'

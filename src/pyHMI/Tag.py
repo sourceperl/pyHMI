@@ -16,23 +16,27 @@ class DS(ABC):
         pass
 
     @abstractmethod
-    def get(self, ref: dict) -> Union[bool, int, float, str, bytes]:
+    def get(self, ref: Union[dict, "TagRef"]) -> Union[bool, int, float, str, bytes]:
         """ Method call by Tag class to retrieve value from datasource. """
         pass
 
     @abstractmethod
-    def set(self, ref: dict, value: Union[bool, int, float, str, bytes]) -> None:
+    def set(self, ref: Union[dict, "TagRef"], value: Union[bool, int, float, str, bytes]) -> None:
         """ Method call by Tag class to set value in datasource. """
         pass
 
     @abstractmethod
-    def err(self, ref: dict) -> bool:
+    def err(self, ref: Union[dict, "TagRef"]) -> bool:
         """ Method call by Tag class to retrieve error status from datasource. """
         pass
 
 
+class TagRef(ABC):
+    pass
+
+
 class Tag:
-    def __init__(self, init_value, src: Optional[DS] = None, ref: Optional[dict] = None,
+    def __init__(self, init_value, src: Optional[DS] = None, ref: Union[dict, TagRef, None] = None,
                  get_cmd: Optional[Callable] = None):
         """Constructor
 
