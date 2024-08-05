@@ -1,5 +1,7 @@
+from queue import Queue, Full
 import threading
-from typing import Any, Dict, Optional
+import time
+from typing import Any, Dict, Optional, Union
 from .Tag import Tag, DS, TagRef
 import redis
 
@@ -26,6 +28,34 @@ class _LockRedisCli:
 
     def __exit__(self, *_args):
         self._thread_lock.release()
+
+
+class _PubRequest:
+    """ A publish request data container for publish io thread queue. """
+
+    def __init__(self, redis_pub: "RedisPub", message: Union[str, bytes]) -> None:
+        self.redis_pub = redis_pub
+        self.message = message
+
+
+class RedisPub(TagRef):
+    def __init__(self, channel: str) -> None:
+        # args
+        self.channel = channel
+        # error flags
+        self.error = False
+        # private
+        self._pub_q: Optional[Queue[_PubRequest]] = None
+
+    def __repr__(self):
+        return f'RedisPub({self.channel!r})'
+
+    def publish(self, value: Union[str, bytes]):
+        try:
+            if self._pub_q:
+                self._pub_q.put(_PubRequest(self, value))
+        except Full:
+            self.error = True
 
 
 class RedisKey(TagRef):
@@ -113,17 +143,17 @@ class RedisDevice(DS):
         # privates vars
         self._keys_d: Dict[int, RedisKey] = {}
         self._keys_d_lock = threading.Lock()
-        self._wait_evt = threading.Event()
+        self._pub_q = Queue(maxsize=5)
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.lock_cli = _LockRedisCli(redis.Redis(host=self.host, port=self.port, db=self.db,
                                                   socket_timeout=self.timeout, socket_keepalive=True, **args_d))
-        self._poll_cycle = 0
         self._connected = False
-        # start thread
-        self._th = threading.Thread(target=self._io_thread)
-        self._th.daemon = True
-        self._th.start()
+        # start threads
+        self._th_keys_io = threading.Thread(target=self._keys_io_thread, daemon=True)
+        self._th_pub_io = threading.Thread(target=self._pub_io_thread, daemon=True)
+        self._th_keys_io.start()
+        self._th_pub_io.start()
 
     def __repr__(self):
         return 'RedisDevice(host=%s, port=%i, refresh=%.1f, timeout=%.1f, client_adv_args=%s)' \
@@ -133,38 +163,47 @@ class RedisDevice(DS):
     def connected(self):
         return self._connected
 
-    @property
-    def poll_cycle(self):
-        return self._poll_cycle
-
     # tag_add, get, err and set are mandatory function to be a valid tag source
     def tag_add(self, tag: Tag):
         if isinstance(tag.ref, RedisKey):
             # add tag to keys dict
             with self._keys_d_lock:
                 self._keys_d[tag.ref.uid] = tag.ref
+        elif isinstance(tag.ref, RedisPub):
+            tag.ref._pub_q = self._pub_q
         else:
-            raise ValueError(f'bad type for ref in tag {Tag} it must be a RedisKey instance')
+            raise ValueError(f'RedisDevice: bad type for ref in tag {Tag} it must be a RedisKey/RedisPub/RedisSub')
 
-    def get(self, ref: RedisKey):
-        with self._keys_d_lock:
-            return self._keys_d[ref.uid].value
+    def get(self, ref: Union[RedisKey, RedisPub]):
+        if isinstance(ref, RedisKey):
+            with self._keys_d_lock:
+                return self._keys_d[ref.uid].value
+        elif isinstance(ref, RedisPub):
+            raise ValueError(f'cannot read write-only {ref!r}')
 
-    def err(self, ref: RedisKey):
-        with self._keys_d_lock:
-            return self._keys_d[ref.uid].error
+    def err(self, ref: Union[RedisKey, RedisPub]):
+        if isinstance(ref, RedisKey):
+            with self._keys_d_lock:
+                return self._keys_d[ref.uid].error
+        elif isinstance(ref, RedisPub):
+            return ref.error
 
-    def set(self, ref: RedisKey, value):
-        with self._keys_d_lock:
-            self._keys_d[ref.uid].value = value
+    def set(self, ref: Union[RedisKey, RedisPub], value):
+        if isinstance(ref, RedisKey):
+            with self._keys_d_lock:
+                self._keys_d[ref.uid].value = value
+        elif isinstance(ref, RedisPub):
+            if not isinstance(value, (str, bytes)):
+                raise ValueError(f'bad type for publish on {ref!r}')
+            ref.publish(value)
 
-    def _io_thread(self):
-        """ Process every I/O with redis DB. """
+    def _keys_io_thread(self):
+        """ Process every I/O for keys on redis DB. """
         while True:
             # do thread safe copy of read/write buffer for this cycle
             with self._keys_d_lock:
                 keys_d_copy = self._keys_d.copy()
-            # do redis i/o
+            # redis i/o keys part
             for _uid, redis_key in keys_d_copy.items():
                 try:
                     # write
@@ -175,7 +214,7 @@ class RedisDevice(DS):
                                 cli.set(redis_key.name, redis_key._write_raw, ex=redis_key.ttl)
                             redis_key.io_error = False
                     # read
-                    if not redis_key.writable:
+                    else:
                         with self.lock_cli as cli:
                             read_raw = cli.get(redis_key.name)
                         # status of reading
@@ -186,15 +225,13 @@ class RedisDevice(DS):
                             try:
                                 redis_key._read_value = redis_key.parse_raw(read_raw)
                                 redis_key.fmt_error = False
-                            except ValueError as e:
+                            except ValueError:
                                 redis_key.fmt_error = True
                 except redis.RedisError:
                     redis_key.io_error = True
             # update keys dict
             with self._keys_d_lock:
                 self._keys_d.update(keys_d_copy)
-            # loop counter
-            self._poll_cycle += 1
             # set connected flag
             try:
                 with self.lock_cli as cli:
@@ -202,5 +239,17 @@ class RedisDevice(DS):
             except redis.RedisError:
                 self._connected = False
             # wait before next polling (or not if a write trig wait event)
-            if self._wait_evt.wait(self.refresh):
-                self._wait_evt.clear()
+            time.sleep(self.refresh)
+
+    def _pub_io_thread(self):
+        """ Process every I/O for pub/sub on redis DB. """
+        while True:
+            # do thread safe copy of read/write buffer for this cycle
+            request: _PubRequest = self._pub_q.get()
+            # redis i/o pub/sub part
+            try:
+                with self.lock_cli as cli:
+                    cli.publish(request.redis_pub.channel, request.message)
+                request.redis_pub.error = False
+            except redis.RedisError:
+                request.redis_pub.error = True
