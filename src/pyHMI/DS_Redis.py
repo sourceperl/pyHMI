@@ -2,7 +2,7 @@ from queue import Queue, Full
 import threading
 import time
 from typing import Any, Dict, Optional, Union
-from .Tag import Tag, DS, TagRef
+from .Tag import Tag, Device, DataSource
 import redis
 
 
@@ -18,7 +18,7 @@ class _LockRedisCli:
             cli.get('foo')
     """
 
-    def __init__(self, client: redis.StrictRedis):
+    def __init__(self, client: redis.Redis):
         self._client = client
         self._thread_lock = threading.Lock()
 
@@ -38,31 +38,40 @@ class _PubRequest:
         self.message = message
 
 
-class RedisPub(TagRef):
-    def __init__(self, channel: str) -> None:
+class RedisPub(DataSource):
+    def __init__(self, device: "RedisDevice", channel: str) -> None:
         # args
+        self.device = device
         self.channel = channel
         # error flags
-        self.error = False
-        # private
-        self._pub_q: Optional[Queue[_PubRequest]] = None
+        self.err_flag = False
 
     def __repr__(self):
-        return f'RedisPub({self.channel!r})'
+        return f'RedisPub(device={self.device!r}, channel={self.channel!r})'
 
-    def publish(self, value: Union[str, bytes]):
+    def tag_add(self, tag: Tag) -> None:
+        pass
+
+    def get(self) -> None:
+        raise ValueError(f'cannot read write-only {self!r}')
+
+    def set(self, value: Union[str, bytes]) -> None:
         try:
-            if self._pub_q:
-                self._pub_q.put(_PubRequest(self, value))
+            self.device._pub_q.put(_PubRequest(self, value))
         except Full:
-            self.error = True
+            self.err_flag = True
+
+    def error(self) -> bool:
+        return self.err_flag
 
 
-class RedisKey(TagRef):
+class RedisKey(DataSource):
     _uid: int = 0
 
-    def __init__(self, name: str, type: type, ttl: Optional[float] = None, writable: bool = False) -> None:
+    def __init__(self, device: "RedisDevice", name: str, type: type[bool | int | float | str | bytes],
+                 writable: bool = False, ttl: Optional[float] = None) -> None:
         # args
+        self.device = device
         self.name = name
         self.type = type
         self.ttl = ttl
@@ -75,41 +84,25 @@ class RedisKey(TagRef):
         self.fmt_error = True
         # private
         self.write_flag = False
-        self._read_value = self.type()
+        self._read_value = None
         self._write_raw = b''
+        # schedule key polling at device level
+        self.device.schedule_key(self)
 
     def __repr__(self):
-        return f'RedisKey({self.name!r}, type={self.type.__name__}, ttl={self.ttl}, writable={self.writable})'
+        return f'RedisKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__}, ' \
+               f'ttl={self.ttl}, writable={self.writable})'
 
-    def parse_raw(self, redis_raw: bytes) -> Any:
-        if self.type is bool:
-            if redis_raw == b'True':
-                return True
-            elif redis_raw == b'False':
-                return False
-            else:
-                raise ValueError
-        elif self.type is str:
-            return redis_raw.decode()
-        else:
-            return self.type(redis_raw)
+    def tag_add(self, tag: Tag) -> None:
+        pass
 
-    @property
-    def error(self):
-        return self.io_error or self.fmt_error
-
-    @property
-    def value(self):
+    def get(self) -> Union[bool, int, float, str, bytes, None]:
         # check read-only
         if self.writable:
             raise ValueError(f'cannot read write-only {self!r}')
-        if not self.error:
-            return self._read_value
-        else:
-            return
+        return self._read_value
 
-    @value.setter
-    def value(self, value):
+    def set(self, value: Union[bool, int, float, str, bytes]) -> None:
         # check read-only
         if not self.writable:
             raise ValueError(f'cannot write read-only {self!r}')
@@ -122,14 +115,30 @@ class RedisKey(TagRef):
                 else:
                     raise TypeError
             else:
-                self._write_raw = str(self.type(value)).encode()
+                self._write_raw = str(self.type.__call__(value)).encode()
             # mark as to write
             self.write_flag = True
         except (TypeError, ValueError):
             raise ValueError(f'unable to set {self!r} to {value!r}')
 
+    def error(self) -> bool:
+        return self.io_error or self.fmt_error
 
-class RedisDevice(DS):
+    def redis_decode(self, redis_raw: bytes) -> Any:
+        if self.type is bool:
+            if redis_raw == b'True':
+                return True
+            elif redis_raw == b'False':
+                return False
+            else:
+                raise ValueError
+        elif self.type is str:
+            return redis_raw.decode()
+        else:
+            return self.type(redis_raw)
+
+
+class RedisDevice(Device):
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0, refresh: float = 1.0,
                  timeout: float = 1.0, client_adv_args: Optional[dict] = None):
         super().__init__()
@@ -156,46 +165,17 @@ class RedisDevice(DS):
         self._th_pub_io.start()
 
     def __repr__(self):
-        return 'RedisDevice(host=%s, port=%i, refresh=%.1f, timeout=%.1f, client_adv_args=%s)' \
-               % (self.host, self.port, self.refresh, self.timeout, self.client_adv_args)
+        return f'RedisDevice(host={self.host!r}, port={self.port}, db={self.db}, refresh={self.refresh:.1f}, ' \
+               f'timeout={self.timeout:.1f}, client_adv_args={self.client_adv_args})'
+
+    def schedule_key(self, redis_key: RedisKey):
+        """ schedule redis_key in device keys i/o thread. """
+        with self._keys_d_lock:
+            self._keys_d[redis_key.uid] = redis_key
 
     @property
     def connected(self):
         return self._connected
-
-    # tag_add, get, err and set are mandatory function to be a valid tag source
-    def tag_add(self, tag: Tag):
-        if isinstance(tag.ref, RedisKey):
-            # add tag to keys dict
-            with self._keys_d_lock:
-                self._keys_d[tag.ref.uid] = tag.ref
-        elif isinstance(tag.ref, RedisPub):
-            tag.ref._pub_q = self._pub_q
-        else:
-            raise ValueError(f'RedisDevice: bad type for ref in tag {Tag} it must be a RedisKey/RedisPub/RedisSub')
-
-    def get(self, ref: Union[RedisKey, RedisPub]):
-        if isinstance(ref, RedisKey):
-            with self._keys_d_lock:
-                return self._keys_d[ref.uid].value
-        elif isinstance(ref, RedisPub):
-            raise ValueError(f'cannot read write-only {ref!r}')
-
-    def err(self, ref: Union[RedisKey, RedisPub]):
-        if isinstance(ref, RedisKey):
-            with self._keys_d_lock:
-                return self._keys_d[ref.uid].error
-        elif isinstance(ref, RedisPub):
-            return ref.error
-
-    def set(self, ref: Union[RedisKey, RedisPub], value):
-        if isinstance(ref, RedisKey):
-            with self._keys_d_lock:
-                self._keys_d[ref.uid].value = value
-        elif isinstance(ref, RedisPub):
-            if not isinstance(value, (str, bytes)):
-                raise ValueError(f'bad type for publish on {ref!r}')
-            ref.publish(value)
 
     def _keys_io_thread(self):
         """ Process every I/O for keys on redis DB. """
@@ -223,7 +203,7 @@ class RedisDevice(DS):
                         else:
                             redis_key.io_error = False
                             try:
-                                redis_key._read_value = redis_key.parse_raw(read_raw)
+                                redis_key._read_value = redis_key.redis_decode(read_raw)
                                 redis_key.fmt_error = False
                             except ValueError:
                                 redis_key.fmt_error = True
@@ -250,6 +230,6 @@ class RedisDevice(DS):
             try:
                 with self.lock_cli as cli:
                     cli.publish(request.redis_pub.channel, request.message)
-                request.redis_pub.error = False
+                request.redis_pub.err_flag = False
             except redis.RedisError:
-                request.redis_pub.error = True
+                request.redis_pub.err_flag = True

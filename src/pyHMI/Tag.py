@@ -4,7 +4,15 @@ import operator
 from typing import Callable, Optional, Union
 
 
-class DS(ABC):
+class Device:
+    """Device class template for externally sourced tags (from Modbus/TCP, database...).
+
+    Each Device must derive from this class.
+    """
+    pass
+
+
+class DataSource(ABC):
     """DataSource class template for externally sourced tags (from Modbus/TCP, database...).
 
     Every DataSource must derive from this abstract class.
@@ -16,61 +24,52 @@ class DS(ABC):
         pass
 
     @abstractmethod
-    def get(self, ref: Union[dict, "TagRef"]) -> Union[bool, int, float, str, bytes]:
+    def get(self) -> Union[bool, int, float, str, bytes, None]:
         """ Method call by Tag class to retrieve value from datasource. """
         pass
 
     @abstractmethod
-    def set(self, ref: Union[dict, "TagRef"], value: Union[bool, int, float, str, bytes]) -> None:
+    def set(self, value: Union[bool, int, float, str, bytes]) -> None:
         """ Method call by Tag class to set value in datasource. """
         pass
 
     @abstractmethod
-    def err(self, ref: Union[dict, "TagRef"]) -> bool:
+    def error(self) -> bool:
         """ Method call by Tag class to retrieve error status from datasource. """
         pass
 
 
-class TagRef(ABC):
-    pass
-
-
 class Tag:
-    def __init__(self, init_value, src: Optional[DS] = None, ref: Union[dict, TagRef, None] = None,
-                 get_cmd: Optional[Callable] = None):
+    def __init__(self, init_value, src: Optional[DataSource] = None, get_cmd: Optional[Callable] = None):
         """Constructor
 
         Abstract access to project tags.
 
         :param init_value: initial value of the tag
-        :param src: an external data source like Modbus
-        :param ref: ref dict for data source
+        :param src: an external data source like RedisKey
         :param get_cmd: a callback to read value/error status of the tag
 
         :rtype Tag
         """
-        # mutable args
-        if ref is None:
-            ref = {}
+        # args
+        self.init_value = init_value
+        self.src = src
+        self.get_cmd = get_cmd
         # public
-        self.ref = ref
-        self.tag_type = type(init_value)
         self.dt_created = datetime.now(timezone.utc)
         self.dt_last_change = self.dt_created
-        # set on tag change, reset by package user
+        # set on tag change, must be reset by user
         self.updated = False
         # private
-        self._get_cmd = get_cmd
-        self._src = src
         self._cache_cur_val = init_value
         self._cache_old_val = init_value
         self._error = False
         # notify tag creation to external source
-        if isinstance(self._src, DS):
-            self._src.tag_add(self)
+        if isinstance(self.src, Device):
+            self.src.tag_add(self)
 
     def __repr__(self):
-        return 'Tag(%s, src=%r, ref=%s, get_cmd=%s)' % (self._cache_cur_val, self._src, self.ref, self._get_cmd)
+        return f'Tag({self.init_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
 
     def _set_cache_value(self, value):
         if value != self._cache_cur_val:
@@ -101,8 +100,8 @@ class Tag:
             self._set_error(True)
         else:
             # notify external source to update the value
-            if isinstance(self._src, DS):
-                if self._src.set(self.ref, value):
+            if isinstance(self.src, DataSource):
+                if self.src.set(value):
                     # on update success
                     self._set_cache_value(value)
                     self._set_error(False)
@@ -121,15 +120,15 @@ class Tag:
         :return: tag value
         """
         # read tag from external source
-        if isinstance(self._src, DS):
-            ret = self._src.get(self.ref)
+        if isinstance(self.src, DataSource):
+            ret = self.src.get()
             if ret is not None:
                 self._set_cache_value(ret)
             return self._get_cache_value()
         # read tag from a get command
-        elif callable(self._get_cmd):
+        elif callable(self.get_cmd):
             try:
-                ret = self._get_cmd()
+                ret = self.get_cmd()
             except TypeError:
                 return self._get_cache_value()
             else:
@@ -166,12 +165,12 @@ class Tag:
         :rtype: bool
         """
         # read error status from external source
-        if isinstance(self._src, DS):
-            return self._src.err(self.ref)
+        if isinstance(self.src, DataSource):
+            return self.src.error()
         # read error status from get command
-        elif callable(self._get_cmd):
+        elif callable(self.get_cmd):
             try:
-                ret = self._get_cmd()
+                ret = self.get_cmd()
             except TypeError:
                 return True
             else:

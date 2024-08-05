@@ -1,17 +1,17 @@
 from collections import defaultdict
 import threading
 import time
-from .Tag import Tag, DS
+from .Tag import Tag, DataSource, Device
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
 
 
-class _LockedClient:
+class _LockedModbusClient:
     """Allow thread safe access to modbus client."""
 
-    def __init__(self, client, thread_lock):
+    def __init__(self, client: ModbusClient):
         self._client = client
-        self._thread_lock = thread_lock
+        self._thread_lock = threading.Lock()
 
     def __enter__(self):
         self._thread_lock.acquire()
@@ -21,7 +21,20 @@ class _LockedClient:
         self._thread_lock.release()
 
 
-class ModbusTCPDevice(DS):
+class ModbusVarType:
+    bit = 0
+    word = 1
+    float = 2
+
+
+class ModbusVar(DataSource):
+    def __init__(self, device: "ModbusTCPDevice", type: str) -> None:
+        # args
+        self.device = device
+        self.type = type
+
+
+class ModbusTCPDevice(Device):
     def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False,
                  client_adv_args=None):
         super().__init__()
@@ -54,15 +67,15 @@ class ModbusTCPDevice(DS):
         self._c = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                timeout=self.timeout, auto_open=True, **self.client_adv_args)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
-        self.locked_client = _LockedClient(self._c, self._thread_lock)
+        self.locked_cli = _LockedModbusClient(self._c)
         # start thread
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
         self._th.start()
 
     def __repr__(self):
-        return 'ModbusTCPDevice(host=%s, port=%i, unit_id=%i, timeout=%.1f, refresh=%.1f,  client_adv_args=%s)' \
-               % (self.host, self.port, self.unit_id, self.timeout, self.refresh, self.client_adv_args)
+        return f'ModbusTCPDevice(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, '\
+               f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_adv_args!r})'
 
     @property
     def connected(self):
