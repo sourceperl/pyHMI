@@ -1,43 +1,128 @@
 from collections import defaultdict
 import threading
 import time
-from .Tag import Tag, DataSource, Device
+from typing import Any, Optional, Union
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
+from pyHMI.Tag import Tag
+from . import logger
+from .Tag import DataSource, Device
+from .Misc import SafeObject
+
+# 4 address spaces :
+#   - coils (0x01)
+#       Read Coils 1
+#       Write Single Coil 5	
+#       Write Multiple Coils 15
+#
+#   - discrete inputs (0x2) read-only
+#       Read Input Registers 4
+#
+#   - input registers (0x03)
+#       Read Multiple Holding Registers 3	
+#       Write Single Holding Register 6	
+#       Write Multiple Holding Registers 16
+#
+#   - holding registers (0x04) read-only
+#       Read Input Registers 4
 
 
-class _LockedModbusClient:
-    """Allow thread safe access to modbus client."""
-
-    def __init__(self, client: ModbusClient):
-        self.client = client
-        self._thread_lock = threading.Lock()
-
-    def __enter__(self):
-        self._thread_lock.acquire()
-        return self.client
-
-    def __exit__(self, *args):
-        self._thread_lock.release()
-
-
-class ModbusVarType:
-    bit = 0
-    word = 1
-    float = 2
-    long = 4
-
-
-class ModbusVar(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", type: str, write: bool = False) -> None:
+class ModbusCoils(DataSource):
+    def __init__(self, device: "ModbusTCPDevice", address: int, write: bool = False) -> None:
         # args
         self.device = device
-        self.type = type
+        self.address = address
+        self.write = write
+        # check table at device level
+        with self.device._r_coils_d as d:
+            if self.address not in d:
+                raise ValueError(f'bits @{self.address} have no table define on {self.device}')
+
+    def __repr__(self):
+        return f'ModbusBit(device={self.device!r}, address={self.address}, write={self.write})'
+
+    def add_tag(self, tag: Tag) -> None:
+        # warn user of type mismatch between initial tag value and this datasource
+        if type(tag.first_value) is not bool:
+            logger.warning(msg=f'first_value type should be bool in {tag}')
+
+    def get(self) -> Optional[bool]:
+        # check write-only
+        if self.write:
+            raise ValueError(f'cannot read write-only {self!r}')
+        #
+        with self.device._r_coils_d as d:
+            return bool(d[self.address]['bit'])
+
+    def set(self, value: bool) -> None:
+        # check read-only
+        if not self.write:
+            raise ValueError(f'cannot write read-only {self!r}')
+        #
+        self.device.write_bit(self.address, value)
+
+    def error(self) -> bool:
+        """ Method call by Tag class to retrieve error status from datasource. """
+        with self.device._r_coils_d as d:
+            return bool(d[self.address]['err'])
+
+        # read
+        # try:
+        #         elif self.type == 'word':
+        #             word = int(self._rdb_words[ref['addr']]['word'])
+        #             if ref.get('signed'):
+        #                 word = get_2comp(word, val_size=16)
+        #             return word
+        #         elif self.type == 'long':
+        #             long = int(self._rdb_longs[ref['addr']]['long'])
+        #             if ref.get('signed'):
+        #                 long = get_2comp(long, val_size=32)
+        #             return long
+        #         elif self.type == 'float':
+        #             flt = float(self._rdb_floats[ref['addr']]['float'])
+        #             return flt
+        #         elif self.type == 'w_bit':
+        #             return self._wdb_bits[ref['addr']]['w_value']
+        #         elif self.type == 'w_word':
+        #             return self._wdb_words[ref['addr']]['w_value']
+        #         elif self.type == 'w_float':
+        #             return self._wdb_floats[ref['addr']]['w_value']
+        #         else:
+        #             return
+        # except KeyError:
+        #     return
+
+        # write
+        # elif ref['type'] == 'w_word':
+        #     if ref.get('signed', False) and value < 0:
+        #         value += 0x10000
+        #     self.write_word(ref['addr'], value)
+
+        # elif ref['type'] == 'w_float':
+        #     self.write_float(ref['addr'], value, swap_word=ref.get('swap_word', False))
+
+        #         elif ref['type'] == 'word':
+        #             return self._rdb_words[ref['addr']]['err']
+
+        #         elif ref['type'] == 'long':
+        #             return self._rdb_longs[ref['addr']]['err']
+
+        #         elif ref['type'] == 'float':
+        #             return self._rdb_floats[ref['addr']]['err']
+
+        #         elif ref['type'] == 'w_bit':
+        #             return self._wdb_bits[ref['addr']]['err']
+
+        #         elif ref['type'] == 'w_word':
+        #             return self._wdb_words[ref['addr']]['err']
+
+        #         elif ref['type'] == 'w_float':
+        #             return self._wdb_floats[ref['addr']]['err']
 
 
 class ModbusTCPDevice(Device):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, debug=False,
-                 client_adv_args=None):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0,
+                 client_adv_args: Optional[dict] = None):
         super().__init__()
         # public vars
         self.host = host
@@ -45,34 +130,28 @@ class ModbusTCPDevice(Device):
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
-        self.debug = debug
-        # client advanced parameters (like 'debug' = True)
-        if client_adv_args is None:
-            self.client_adv_args = dict()
-        else:
-            self.client_adv_args = client_adv_args
+        self.client_adv_args = client_adv_args
         # privates vars
-        self._rdb_bits = defaultdict(dict)
-        self._rdb_words = defaultdict(dict)
-        self._rdb_longs = defaultdict(dict)
-        self._rdb_floats = defaultdict(dict)
-        self._wdb_bits = defaultdict(dict)
-        self._wdb_words = defaultdict(dict)
-        self._wdb_floats = defaultdict(dict)
-        self._connected = False
-        self._poll_cycle = 0
+        self._r_coils_d = SafeObject(defaultdict(dict))
+        self._r_words_d = defaultdict(dict)
+        self._r_longs_d = defaultdict(dict)
+        self._r_floats_d = defaultdict(dict)
+        self._w_bits_d = defaultdict(dict)
+        self._w_words_d = defaultdict(dict)
+        self._w_floats_d = defaultdict(dict)
+        self._read_requests_l = SafeObject(list())
+        self._write_requests_l = SafeObject(list())
         self._thread_lock = threading.Lock()
-        self._wait_evt = threading.Event()
-        self._w_scheduled_l = []
-        self._r_scheduled_l = []
+        self._write_io_evt = threading.Event()
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
-        m_cli = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
-                             timeout=self.timeout, auto_open=True, **self.client_adv_args)
-        self.lock_cli = _LockedModbusClient(m_cli)
-        # start thread
-        self._th = threading.Thread(target=self.polling_thread)
-        self._th.daemon = True
-        self._th.start()
+        args_d = {} if self.client_adv_args is None else self.client_adv_args
+        self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
+                                                timeout=self.timeout, auto_open=True, **args_d))
+        # start threads
+        self._read_io_th = threading.Thread(target=self._read_io_thread, daemon=True)
+        self._write_io_th = threading.Thread(target=self._write_io_thread, daemon=True)
+        self._read_io_th.start()
+        self._write_io_th.start()
 
     def __repr__(self):
         return f'ModbusTCPDevice(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, '\
@@ -80,314 +159,208 @@ class ModbusTCPDevice(Device):
 
     @property
     def connected(self):
-        with self._thread_lock:
-            return self._connected
+        with self.safe_cli as cli:
+            return cli.is_open
 
-    @property
-    def poll_cycle(self):
-        with self._thread_lock:
-            return self._poll_cycle
-
-    # tag_add, get, err and set are mandatory function to be a valid tag source
-    def tag_add(self, tag: Tag):
-        # check a table already reference the tag, raise ValueError if not
-        if isinstance(tag.ref, dict):
-            with self._thread_lock:
-                if tag.ref['type'] == 'bit':
-                    if tag.ref['addr'] not in self._rdb_bits:
-                        raise ValueError('Tag address %d have no bits table define on modbus host %s'
-                                         % (tag.ref['addr'], self.host))
-                elif tag.ref['type'] == 'word':
-                    if tag.ref['addr'] not in self._rdb_words:
-                        raise ValueError('Tag address %d have no words table define on modbus host %s'
-                                         % (tag.ref['addr'], self.host))
-                elif tag.ref['type'] == 'long':
-                    if tag.ref['addr'] not in self._rdb_longs:
-                        raise ValueError('Tag address %d have no longs table define on modbus host %s'
-                                         % (tag.ref['addr'], self.host))
-                elif tag.ref['type'] == 'float':
-                    if tag.ref['addr'] not in self._rdb_floats:
-                        raise ValueError('Tag address %d have no floats table define on modbus host %s'
-                                         % (tag.ref['addr'], self.host))
-                elif tag.ref['type'] == 'w_bit':
-                    pass
-                elif tag.ref['type'] == 'w_word':
-                    pass
-                elif tag.ref['type'] == 'w_float':
-                    pass
-                else:
-                    raise ValueError('Wrong tag type %s for modbus host %s' % (tag.ref['type'], self.host))
-        else:
-            raise ValueError(f'Wrong ref type for tag {tag}')
-
-    def get(self, ref: dict):
-        try:
-            with self._thread_lock:
-                if ref['type'] == 'bit':
-                    b = bool(self._rdb_bits[ref['addr']]['bit'])
-                    return not b if ref.get('not', False) else b
-                elif ref['type'] == 'word':
-                    word = int(self._rdb_words[ref['addr']]['word'])
-                    if ref.get('signed', False):
-                        word = get_2comp(word, val_size=16)
-                    return word * ref.get('span', 1) + ref.get('offset', 0)
-                elif ref['type'] == 'long':
-                    long = int(self._rdb_longs[ref['addr']]['long'])
-                    if ref.get('signed', False):
-                        long = get_2comp(long, val_size=32)
-                    return long * ref.get('span', 1) + ref.get('offset', 0)
-                elif ref['type'] == 'float':
-                    flt = float(self._rdb_floats[ref['addr']]['float'])
-                    return flt * ref.get('span', 1.0) + ref.get('offset', 0.0)
-                elif ref['type'] == 'w_bit':
-                    return self._wdb_bits[ref['addr']]['w_value']
-                elif ref['type'] == 'w_word':
-                    return self._wdb_words[ref['addr']]['w_value']
-                elif ref['type'] == 'w_float':
-                    return self._wdb_floats[ref['addr']]['w_value']
-                else:
-                    return
-        except KeyError:
-            return
-
-    def err(self, ref: dict):
-        try:
-            with self._thread_lock:
-                if ref['type'] == 'bit':
-                    return self._rdb_bits[ref['addr']]['err']
-                elif ref['type'] == 'word':
-                    return self._rdb_words[ref['addr']]['err']
-                elif ref['type'] == 'long':
-                    return self._rdb_longs[ref['addr']]['err']
-                elif ref['type'] == 'float':
-                    return self._rdb_floats[ref['addr']]['err']
-                elif ref['type'] == 'w_bit':
-                    return self._wdb_bits[ref['addr']]['err']
-                elif ref['type'] == 'w_word':
-                    return self._wdb_words[ref['addr']]['err']
-                elif ref['type'] == 'w_float':
-                    return self._wdb_floats[ref['addr']]['err']
-                else:
-                    return
-        except KeyError:
-            return
-
-    def set(self, ref: dict, value):
-        if ref['type'] == 'w_bit':
-            self.write_bit(ref['addr'], value)
-            return True
-        elif ref['type'] == 'w_word':
-            value = value * ref.get('span', 1) + ref.get('offset', 0)
-            if ref.get('signed', False) and value < 0:
-                value += 0x10000
-            self.write_word(ref['addr'], value)
-            return True
-        elif ref['type'] == 'w_float':
-            value = value * ref.get('span', 1) + ref.get('offset', 0)
-            self.write_float(ref['addr'], value, swap_word=ref.get('swap_word', False))
-            return True
-        else:
-            return False
-
-    def polling_thread(self):
-        # polling cycle
+    def _read_io_thread(self):
+        """ Process every read I/O. """
         while True:
             # do thread safe copy of read/write buffer for this cycle
-            with self._thread_lock:
-                copy_w_scheduled_l = list(self._w_scheduled_l)
-                copy_r_scheduled_l = list(self._r_scheduled_l)
-                self._w_scheduled_l = []
-            # do modbus write on socket
-            for w_sched in copy_w_scheduled_l:
-                # TODO improve debug system (move from com thread to main)
-                str_now = time.strftime('%Y-%m-%d %H:%M:%S')
-                if w_sched['type'] == 'bit':
-                    if self.debug:
-                        print('%s: write single coil @%d=%d' % (str_now, w_sched['addr'], w_sched['value']))
-                    with self.lock_cli as cli:
-                        write_ok = cli.write_single_coil(w_sched['addr'], w_sched['value'])
-                    # update write DB with status
-                    with self._thread_lock:
-                        self._wdb_bits[w_sched['addr']]['w_value'] = w_sched['value']
-                        self._wdb_bits[w_sched['addr']]['err'] = not write_ok
-                elif w_sched['type'] == 'word':
-                    if self.debug:
-                        print('%s: write single register @%d=%d' % (str_now, w_sched['addr'], w_sched['value']))
-                    with self.lock_cli as cli:
-                        write_ok = cli.write_single_register(w_sched['addr'], w_sched['value'])
-                    # update write DB with status
-                    with self._thread_lock:
-                        self._wdb_words[w_sched['addr']]['w_value'] = w_sched['value']
-                        self._wdb_words[w_sched['addr']]['err'] = not write_ok
-                elif w_sched['type'] == 'float':
-                    if self.debug:
-                        print('%s: write float register @%d=%.2f' % (str_now, w_sched['addr'], w_sched['value']))
-                    i32 = encode_ieee(w_sched['value'])
-                    (msb, lsb) = [(i32 & 0xFFFF0000) >> 16, i32 & 0xFFFF]
-                    with self.lock_cli as cli:
-                        write_ok = cli.write_multiple_registers(
-                            w_sched['addr'], [lsb, msb] if w_sched['swap_word'] else [msb, lsb])
-                    # update write DB with status
-                    with self._thread_lock:
-                        self._wdb_floats[w_sched['addr']]['w_value'] = w_sched['value']
-                        self._wdb_floats[w_sched['addr']]['err'] = not write_ok
-            # do modbus reading on socket
-            for r in copy_r_scheduled_l:
-                if r['type'] == 'bit':
-                    addr = r['addr']
-                    size = r['size']
-                    if r['use_f2']:
-                        with self.lock_cli as cli:
+            with self._read_requests_l as l:
+                copy_read_table_l = l.copy()
+            # read
+            for r_table_d in copy_read_table_l:
+                if r_table_d['type'] == 'bit':
+                    addr = r_table_d['addr']
+                    size = r_table_d['size']
+                    if r_table_d['use_f2']:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_discrete_inputs(addr, size)
                     else:
-                        with self.lock_cli as cli:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_coils(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
-                        with self._thread_lock:
-                            for reg in reg_list:
-                                self._rdb_bits[addr]['bit'] = reg
-                                self._rdb_bits[addr]['err'] = False
-                                addr += 1
+                        for offset, reg in enumerate(reg_list):
+                            with self._r_coils_d as d:
+                                d[addr+offset]['bit'] = reg
+                                d[addr+offset]['err'] = False
                     else:
-                        with self._thread_lock:
-                            for _addr in range(addr, addr + size):
-                                self._rdb_bits[_addr]['err'] = True
-                elif r['type'] == 'word':
-                    addr = r['addr']
-                    size = r['size']
-                    if r['use_f4']:
-                        with self.lock_cli as cli:
+                        with self._r_coils_d as d:
+                            for iter_addr in range(addr, addr + size):
+                                d[iter_addr]['err'] = True
+                elif r_table_d['type'] == 'word':
+                    addr = r_table_d['addr']
+                    size = r_table_d['size']
+                    if r_table_d['use_f4']:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_input_registers(addr, size)
                     else:
-                        with self.lock_cli as cli:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_holding_registers(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
                             for reg in reg_list:
-                                self._rdb_words[addr]['word'] = reg
-                                self._rdb_words[addr]['err'] = False
+                                self._r_words_d[addr]['word'] = reg
+                                self._r_words_d[addr]['err'] = False
                                 addr += 1
                     else:
                         with self._thread_lock:
                             for _addr in range(addr, addr + size):
-                                self._rdb_words[_addr]['err'] = True
-                elif r['type'] == 'long':
-                    addr = r['addr']
-                    size = r['size']
-                    if r['use_f4']:
-                        with self.lock_cli as cli:
+                                self._r_words_d[_addr]['err'] = True
+                elif r_table_d['type'] == 'long':
+                    addr = r_table_d['addr']
+                    size = r_table_d['size']
+                    if r_table_d['use_f4']:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_input_registers(addr, size * 2)
                     else:
-                        with self.lock_cli as cli:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
                             for off in range(0, size):
-                                if r['swap_word']:
+                                if r_table_d['swap_word']:
                                     w_list = [reg_list[off * 2 + 1], reg_list[off * 2]]
                                 else:
                                     w_list = [reg_list[off * 2], reg_list[off * 2 + 1]]
                                 long = word_list_to_long(w_list)[0]
-                                self._rdb_longs[addr + off * 2]['long'] = long
-                                self._rdb_longs[addr + off * 2]['err'] = False
+                                self._r_longs_d[addr + off * 2]['long'] = long
+                                self._r_longs_d[addr + off * 2]['err'] = False
                     else:
                         with self._thread_lock:
                             for off in range(0, size):
-                                self._rdb_longs[addr + off * 2]['err'] = True
-                elif r['type'] == 'float':
-                    addr = r['addr']
-                    size = r['size']
-                    if r['use_f4']:
-                        with self.lock_cli as cli:
+                                self._r_longs_d[addr + off * 2]['err'] = True
+                elif r_table_d['type'] == 'float':
+                    addr = r_table_d['addr']
+                    size = r_table_d['size']
+                    if r_table_d['use_f4']:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_input_registers(addr, size * 2)
                     else:
-                        with self.lock_cli as cli:
+                        with self.safe_cli as cli:
                             reg_list = cli.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
                             for off in range(0, size):
-                                if r['swap_word']:
+                                if r_table_d['swap_word']:
                                     w_list = [reg_list[off * 2 + 1], reg_list[off * 2]]
                                 else:
                                     w_list = [reg_list[off * 2], reg_list[off * 2 + 1]]
                                 flt = decode_ieee(word_list_to_long(w_list)[0])
-                                self._rdb_floats[addr + off * 2]['float'] = flt
-                                self._rdb_floats[addr + off * 2]['err'] = False
+                                self._r_floats_d[addr + off * 2]['float'] = flt
+                                self._r_floats_d[addr + off * 2]['err'] = False
                     else:
                         with self._thread_lock:
                             for off in range(0, size):
-                                self._rdb_floats[addr + off * 2]['err'] = True
-            # do stat stuff
-            with self.lock_cli as cli:
-                self._connected = cli.is_open
-            self._poll_cycle += 1
+                                self._r_floats_d[addr + off * 2]['err'] = True
+            # wait before next polling
+            time.sleep(self.refresh)
+
+    def _write_io_thread(self):
+        """ Process every write I/O. """
+        while True:
+            # do thread safe copy of read/write buffer for this cycle
+            with self._write_requests_l as l:
+                copy_write_requests_l = l.copy()
+                l.clear()
+            # write
+            for req_d in copy_write_requests_l:
+                if req_d['type'] == 'bit':
+                    logger.debug(f"write single coil @{req_d['addr']}={req_d['value']}")
+                    with self.safe_cli as cli:
+                        write_ok = cli.write_single_coil(req_d['addr'], req_d['value'])
+                    # update write DB with status
+                    with self._thread_lock:
+                        self._w_bits_d[req_d['addr']]['w_value'] = req_d['value']
+                        self._w_bits_d[req_d['addr']]['err'] = not write_ok
+                elif req_d['type'] == 'word':
+                    logger.debug(f"write single register @{req_d['addr']}={req_d['value']}")
+                    with self.safe_cli as cli:
+                        write_ok = cli.write_single_register(req_d['addr'], req_d['value'])
+                    # update write DB with status
+                    with self._thread_lock:
+                        self._w_words_d[req_d['addr']]['w_value'] = req_d['value']
+                        self._w_words_d[req_d['addr']]['err'] = not write_ok
+                elif req_d['type'] == 'float':
+                    logger.debug(f"write float register @{req_d['addr']}={req_d['value']}")
+                    i32 = encode_ieee(req_d['value'])
+                    (msb, lsb) = [(i32 & 0xFFFF0000) >> 16, i32 & 0xFFFF]
+                    with self.safe_cli as cli:
+                        write_ok = cli.write_multiple_registers(
+                            req_d['addr'], [lsb, msb] if req_d['swap_word'] else [msb, lsb])
+                    # update write DB with status
+                    with self._thread_lock:
+                        self._w_floats_d[req_d['addr']]['w_value'] = req_d['value']
+                        self._w_floats_d[req_d['addr']]['err'] = not write_ok
             # wait before next polling (or not if a write trig the wait event)
-            if self._wait_evt.wait(self.refresh):
-                self._wait_evt.clear()
+            if self._write_io_evt.wait(timeout=self.refresh):
+                self._write_io_evt.clear()
 
-    def write_bit(self, addr, value):
-        with self._thread_lock:
-            # schedules the write operation
-            self._w_scheduled_l.append({'type': 'bit', 'addr': addr, 'value': value})
+    def write_bit(self, addr: int, value: bool):
+        # schedules the write operation
+        with self._write_requests_l as l:
+            l.append({'type': 'bit', 'addr': addr, 'value': value})
         # immediate refresh of polling thread
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def write_word(self, addr, value):
-        with self._thread_lock:
-            # schedules the write operation
-            self._w_scheduled_l.append({'type': 'word', 'addr': addr, 'value': value})
+    def write_word(self, addr: int, value: int):
+        # schedules the write operation
+        with self._write_requests_l as l:
+            l.append({'type': 'word', 'addr': addr, 'value': value})
         # immediate refresh of polling thread
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def write_float(self, addr, value, swap_word=False):
-        with self._thread_lock:
-            # schedules the write operation
-            self._w_scheduled_l.append({'type': 'float', 'addr': addr, 'value': value, 'swap_word': swap_word})
+    def write_float(self, addr: int, value: float, swap_word: bool = False):
+        # schedules the write operation
+        with self._write_requests_l as l:
+            l.append({'type': 'float', 'addr': addr, 'value': value, 'swap_word': swap_word})
         # immediate refresh of polling thread
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def add_bits_table(self, addr, size=1, use_f2=False):
-        with self._thread_lock:
-            # init bits table with default value
-            for a in range(addr, addr + size):
-                self._rdb_bits[a] = {'bit': False, 'err': True}
+    def add_bits_table(self, addr: int, size: int = 1, use_f2: bool = False):
+        # init bits table with default value
+        with self._r_coils_d as d:
+            for iter_addr in range(addr, addr + size):
+                d[iter_addr] = {'bit': False, 'err': True}
+        with self._read_requests_l as l:
             # add bit table to read buffer
-            self._r_scheduled_l.append({'type': 'bit', 'addr': addr, 'size': size, 'use_f2': use_f2})
+            l.append({'type': 'bit', 'addr': addr, 'size': size, 'use_f2': use_f2})
         # immediate modbus refresh
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def add_words_table(self, addr, size=1, use_f4=False):
+    def add_words_table(self, addr: int, size: int = 1, use_f4: bool = False):
+        # init words table with default value
         with self._thread_lock:
-            # init words table with default value
             for a in range(addr, addr + size):
-                self._rdb_words[a] = {'word': 0, 'err': True}
-            # add word table to read buffer
-            self._r_scheduled_l.append({'type': 'word', 'addr': addr, 'size': size, 'use_f4': use_f4})
+                self._r_words_d[a] = {'word': 0, 'err': True}
+        # add word table to read buffer
+        with self._read_requests_l as l:
+            l.append({'type': 'word', 'addr': addr, 'size': size, 'use_f4': use_f4})
         # immediate modbus refresh
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def add_longs_table(self, addr, size=1, use_f4=False, swap_word=False):
+    def add_longs_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
+        # init longs table with default value
         with self._thread_lock:
-            # init longs table with default value
             for offset in range(0, size):
-                self._rdb_longs[addr + offset * 2] = {'long': 0, 'err': True}
-            # add long table to read buffer
-            self._r_scheduled_l.append({'type': 'long', 'addr': addr, 'size': size,
-                                        'use_f4': use_f4, 'swap_word': swap_word})
+                self._r_longs_d[addr + offset * 2] = {'long': 0, 'err': True}
+        # add long table to read buffer
+        with self._read_requests_l as l:
+            l.append({'type': 'long', 'addr': addr, 'size': size, 'use_f4': use_f4, 'swap_word': swap_word})
         # immediate modbus refresh
-        self._wait_evt.set()
+        self._write_io_evt.set()
 
-    def add_floats_table(self, addr, size=1, use_f4=False, swap_word=False):
+    def add_floats_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
+        # init words table with default value
         with self._thread_lock:
-            # init words table with default value
             for offset in range(0, size):
-                self._rdb_floats[addr + offset * 2] = {'float': 0.0, 'err': True}
-            # add float table to read buffer
-            self._r_scheduled_l.append({'type': 'float', 'addr': addr, 'size': size,
-                                        'use_f4': use_f4, 'swap_word': swap_word})
+                self._r_floats_d[addr + offset * 2] = {'float': 0.0, 'err': True}
+        # add float table to read buffer
+        with self._read_requests_l as l:
+            l.append({'type': 'float', 'addr': addr, 'size': size, 'use_f4': use_f4, 'swap_word': swap_word})
         # immediate modbus refresh
-        self._wait_evt.set()
+        self._write_io_evt.set()

@@ -2,32 +2,9 @@ from queue import Queue, Full
 import threading
 import time
 from typing import Any, Dict, Optional, Union
-from .Tag import Tag, Device, DataSource
 import redis
-
-
-class _LockRedisCli:
-    """ Allow thread safe access to redis client.
-
-    Essential to share access between internal IO thread and direct user acess.
-
-    Usage:
-        lock_redis_cli = _LockRedisCli(redis.StrictRedis())
-
-        with lock_redis_cli as cli:
-            cli.get('foo')
-    """
-
-    def __init__(self, client: redis.Redis):
-        self._client = client
-        self._thread_lock = threading.Lock()
-
-    def __enter__(self):
-        self._thread_lock.acquire()
-        return self._client
-
-    def __exit__(self, *_args):
-        self._thread_lock.release()
+from .Tag import Tag, Device, DataSource
+from .Misc import SafeObject
 
 
 class _PubRequest:
@@ -155,8 +132,8 @@ class RedisDevice(Device):
         self._publish_io_q = Queue(maxsize=5)
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
-        self.lock_cli = _LockRedisCli(redis.Redis(host=self.host, port=self.port, db=self.db,
-                                                  socket_timeout=self.timeout, socket_keepalive=True, **args_d))
+        self.safe_cli = SafeObject(redis.Redis(host=self.host, port=self.port, db=self.db,
+                                               socket_timeout=self.timeout, socket_keepalive=True, **args_d))
         self._connected = False
         # start threads
         self._th_keys_io = threading.Thread(target=self._keys_io_thread, daemon=True)
@@ -195,12 +172,12 @@ class RedisDevice(Device):
                     if redis_key.writable:
                         if redis_key.write_flag:
                             redis_key.write_flag = False
-                            with self.lock_cli as cli:
+                            with self.safe_cli as cli:
                                 cli.set(redis_key.name, redis_key._write_raw, ex=redis_key.ttl)
                             redis_key.io_error = False
                     # read
                     else:
-                        with self.lock_cli as cli:
+                        with self.safe_cli as cli:
                             read_raw = cli.get(redis_key.name)
                         # status of reading
                         if read_raw is None:
@@ -216,7 +193,7 @@ class RedisDevice(Device):
                     redis_key.io_error = True
             # set connected flag
             try:
-                with self.lock_cli as cli:
+                with self.safe_cli as cli:
                     self._connected = cli.ping()
             except redis.RedisError:
                 self._connected = False
@@ -230,8 +207,10 @@ class RedisDevice(Device):
             request: _PubRequest = self._publish_io_q.get()
             # publish it on redis
             try:
-                with self.lock_cli as cli:
+                with self.safe_cli as cli:
                     cli.publish(request.redis_pub.channel, request.message)
                 request.redis_pub.err_flag = False
             except redis.RedisError:
                 request.redis_pub.err_flag = True
+            # mark as done
+            self._publish_io_q.task_done()

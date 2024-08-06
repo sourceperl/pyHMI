@@ -1,6 +1,8 @@
 """Misc resources."""
 
+from typing import Any
 import math
+import threading
 
 
 def speed_ms(flow_nm3h: float, p_bara: float, dn_mm: int) -> float:
@@ -88,3 +90,25 @@ class Relay:
     def toggle(self):
         """Toggle relay state."""
         self.update(not self._value)
+
+
+class SafeObject:
+    """ Allow thread safe access to object. 
+
+    Usage:
+        safe_dict = SafeObject(dict())
+
+        with safe_dict as d:
+            d['foo'] += 1
+    """
+
+    def __init__(self, obj: Any):
+        self._obj = obj
+        self._lock = threading.Lock()
+
+    def __enter__(self):
+        self._lock.acquire()
+        return self._obj
+
+    def __exit__(self, *args):
+        self._lock.release()

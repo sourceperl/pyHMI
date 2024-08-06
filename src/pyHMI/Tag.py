@@ -35,13 +35,13 @@ class DataSource:
 
 
 class Tag:
-    def __init__(self, init_value, src: Optional[DataSource] = None, 
+    def __init__(self, first_value: Any, src: Optional[DataSource] = None, 
                  get_cmd: Optional[Callable] = None, chg_cmd: Optional[Callable] = None):
         """Constructor
 
         Abstract access to project tags.
 
-        :param init_value: initial value of the tag
+        :param first_value: initial value of the tag
         :param src: an external data source like RedisKey
         :param get_cmd: a callback to read value/error status of the tag
         :param chg_cmd: a method to change tag value (scale, limit value...)
@@ -49,7 +49,7 @@ class Tag:
         :rtype Tag
         """
         # args
-        self.init_value = init_value
+        self.first_value = first_value
         self.src = src
         self.get_cmd = get_cmd
         self.chg_cmd = chg_cmd
@@ -59,15 +59,14 @@ class Tag:
         # set on tag change, must be reset by user
         self.updated = False
         # private
-        self._value = init_value
-        self._old_value = init_value
+        self._value = first_value
         self._error = False
         # notify tag creation to external source
         if isinstance(self.src, DataSource):
             self.src.add_tag(self)
 
     def __repr__(self):
-        return f'Tag({self.init_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
+        return f'Tag({self.first_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
 
     def _set_value(self, value):
         # update value if change command if defined
@@ -75,7 +74,6 @@ class Tag:
             value = self.chg_cmd(value)
         # on change
         if value != self._value:
-            self._old_value = self._value
             self._value = value
             # set flags and call event for user
             self.dt_last_change = datetime.now(timezone.utc)
@@ -129,14 +127,12 @@ class Tag:
         if value is None:
             self._error = True
         else:
-            # notify external source to update the value
+            # !!! keep this order: _set_value can change self._value (by chg_cmd)
+            self._error = False
+            self._set_value(value)
+            # notify external source
             if isinstance(self.src, DataSource):
-                self.src.set(value)
-                self._set_value(value)
-            # no external source to notify
-            else:
-                self._set_value(value)
-                self._error = False
+                self.src.set(self._value)
 
     @property
     def e_val(self) -> Union[bool, int, float, str, bytes, None]:
