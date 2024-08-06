@@ -10,12 +10,12 @@ class _LockedModbusClient:
     """Allow thread safe access to modbus client."""
 
     def __init__(self, client: ModbusClient):
-        self._client = client
+        self.client = client
         self._thread_lock = threading.Lock()
 
     def __enter__(self):
         self._thread_lock.acquire()
-        return self._client
+        return self.client
 
     def __exit__(self, *args):
         self._thread_lock.release()
@@ -25,10 +25,11 @@ class ModbusVarType:
     bit = 0
     word = 1
     float = 2
+    long = 4
 
 
 class ModbusVar(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", type: str) -> None:
+    def __init__(self, device: "ModbusTCPDevice", type: str, write: bool = False) -> None:
         # args
         self.device = device
         self.type = type
@@ -64,10 +65,10 @@ class ModbusTCPDevice(Device):
         self._wait_evt = threading.Event()
         self._w_scheduled_l = []
         self._r_scheduled_l = []
-        self._c = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
-                               timeout=self.timeout, auto_open=True, **self.client_adv_args)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
-        self.locked_cli = _LockedModbusClient(self._c)
+        m_cli = ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
+                             timeout=self.timeout, auto_open=True, **self.client_adv_args)
+        self.lock_cli = _LockedModbusClient(m_cli)
         # start thread
         self._th = threading.Thread(target=self.polling_thread)
         self._th.daemon = True
@@ -203,7 +204,8 @@ class ModbusTCPDevice(Device):
                 if w_sched['type'] == 'bit':
                     if self.debug:
                         print('%s: write single coil @%d=%d' % (str_now, w_sched['addr'], w_sched['value']))
-                    write_ok = self._c.write_single_coil(w_sched['addr'], w_sched['value'])
+                    with self.lock_cli as cli:
+                        write_ok = cli.write_single_coil(w_sched['addr'], w_sched['value'])
                     # update write DB with status
                     with self._thread_lock:
                         self._wdb_bits[w_sched['addr']]['w_value'] = w_sched['value']
@@ -211,7 +213,8 @@ class ModbusTCPDevice(Device):
                 elif w_sched['type'] == 'word':
                     if self.debug:
                         print('%s: write single register @%d=%d' % (str_now, w_sched['addr'], w_sched['value']))
-                    write_ok = self._c.write_single_register(w_sched['addr'], w_sched['value'])
+                    with self.lock_cli as cli:
+                        write_ok = cli.write_single_register(w_sched['addr'], w_sched['value'])
                     # update write DB with status
                     with self._thread_lock:
                         self._wdb_words[w_sched['addr']]['w_value'] = w_sched['value']
@@ -221,8 +224,9 @@ class ModbusTCPDevice(Device):
                         print('%s: write float register @%d=%.2f' % (str_now, w_sched['addr'], w_sched['value']))
                     i32 = encode_ieee(w_sched['value'])
                     (msb, lsb) = [(i32 & 0xFFFF0000) >> 16, i32 & 0xFFFF]
-                    write_ok = self._c.write_multiple_registers(
-                        w_sched['addr'], [lsb, msb] if w_sched['swap_word'] else [msb, lsb])
+                    with self.lock_cli as cli:
+                        write_ok = cli.write_multiple_registers(
+                            w_sched['addr'], [lsb, msb] if w_sched['swap_word'] else [msb, lsb])
                     # update write DB with status
                     with self._thread_lock:
                         self._wdb_floats[w_sched['addr']]['w_value'] = w_sched['value']
@@ -233,9 +237,11 @@ class ModbusTCPDevice(Device):
                     addr = r['addr']
                     size = r['size']
                     if r['use_f2']:
-                        reg_list = self._c.read_discrete_inputs(addr, size)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_discrete_inputs(addr, size)
                     else:
-                        reg_list = self._c.read_coils(addr, size)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_coils(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
@@ -251,9 +257,11 @@ class ModbusTCPDevice(Device):
                     addr = r['addr']
                     size = r['size']
                     if r['use_f4']:
-                        reg_list = self._c.read_input_registers(addr, size)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_input_registers(addr, size)
                     else:
-                        reg_list = self._c.read_holding_registers(addr, size)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_holding_registers(addr, size)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
@@ -269,9 +277,11 @@ class ModbusTCPDevice(Device):
                     addr = r['addr']
                     size = r['size']
                     if r['use_f4']:
-                        reg_list = self._c.read_input_registers(addr, size * 2)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_input_registers(addr, size * 2)
                     else:
-                        reg_list = self._c.read_holding_registers(addr, size * 2)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
@@ -291,9 +301,11 @@ class ModbusTCPDevice(Device):
                     addr = r['addr']
                     size = r['size']
                     if r['use_f4']:
-                        reg_list = self._c.read_input_registers(addr, size * 2)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_input_registers(addr, size * 2)
                     else:
-                        reg_list = self._c.read_holding_registers(addr, size * 2)
+                        with self.lock_cli as cli:
+                            reg_list = cli.read_holding_registers(addr, size * 2)
                     # if read is ok, store result in dict (with thread _lock synchronization)
                     if reg_list:
                         with self._thread_lock:
@@ -310,9 +322,9 @@ class ModbusTCPDevice(Device):
                             for off in range(0, size):
                                 self._rdb_floats[addr + off * 2]['err'] = True
             # do stat stuff
-            with self._thread_lock:
-                self._connected = self._c.is_open
-                self._poll_cycle += 1
+            with self.lock_cli as cli:
+                self._connected = cli.is_open
+            self._poll_cycle += 1
             # wait before next polling (or not if a write trig the wait event)
             if self._wait_evt.wait(self.refresh):
                 self._wait_evt.clear()
