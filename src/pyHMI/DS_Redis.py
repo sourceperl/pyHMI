@@ -31,7 +31,7 @@ class RedisPub(DataSource):
 
     def set(self, value: Union[str, bytes]) -> None:
         try:
-            self.device._publish_io_q.put(_PubRequest(self, value))
+            self.device._publish_io_q.put(_PubRequest(self, value), block=False)
         except Full:
             self.err_flag = True
 

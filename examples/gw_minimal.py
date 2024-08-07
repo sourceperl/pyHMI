@@ -8,7 +8,7 @@ import time
 
 # Device PLC
 plc = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
-plc.add_bits_table(0, 4)
+plc.add_coils_table(0, 4)
 # Tags
 BIT_0 = Tag(False, src=plc, ref={'type': 'bit', 'addr': 0})
 BIT_1 = Tag(False, src=plc, ref={'type': 'bit', 'addr': 1})

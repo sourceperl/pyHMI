@@ -102,7 +102,7 @@ class SafeObject:
             d['foo'] += 1
     """
 
-    def __init__(self, obj: Any):
+    def __init__(self, obj):
         self._obj = obj
         self._lock = threading.Lock()
 
