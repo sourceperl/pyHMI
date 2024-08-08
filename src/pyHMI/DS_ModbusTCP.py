@@ -1,7 +1,7 @@
-from collections import defaultdict
 from queue import Queue, Full
 import threading
 import time
+from token import OP
 from typing import Any, Dict, List, Optional, Union
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
@@ -9,23 +9,6 @@ from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
 from .Misc import SafeObject
-
-# 4 address spaces :
-#   - coils (0x01)
-#       Read Coils 1
-#       Write Single Coil 5
-#       Write Multiple Coils 15
-#
-#   - discrete inputs (0x2) read-only
-#       Read Input Registers 4
-#
-#   - holding registers (0x03)
-#       Read Multiple Holding Registers 3
-#       Write Single Holding Register 6
-#       Write Multiple Holding Registers 16
-#
-#   - input registers (0x04) read-only
-#       Read Input Registers 4
 
 
 class _OneShotWriteRequest:
@@ -53,7 +36,7 @@ class _Table:
         self.default_value = default_value
 
 
-class _TableGroup:
+class _TablesGroup:
     def __init__(self) -> None:
         # private
         # list of all tables to be shedule by io thread loop
@@ -84,22 +67,38 @@ class _TableGroup:
     def as_list(self) -> List[_Table]:
         return self._schedule_l.copy()
 
-    def have_table(self, at_address: int) -> bool:
-        return at_address in self._address_d
+    def have_table(self, at_address: int, size: int = 1) -> bool:
+        for offset in range(size):
+            if not at_address + offset in self._address_d:
+                return False
+        return True
 
 
-class ModbusReadCoils(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int) -> None:
+class ModbusBool(DataSource):
+    def __init__(self, device: "ModbusTCPDevice", address: int, write: bool = False, d_inputs: bool = False) -> None:
         # args
         self.device = device
         self.address = address
+        self.write = write
+        self.d_inputs = d_inputs
+        # check no write set if input registers space is select
+        if self.d_inputs and self.write:
+            raise ValueError(f'unable to set write and d_inputs at same time (discrete inputs are read-only)')
+        # private
+        if self.write:
+            self._tables_group = self.device.w_coils_tables
+        elif self.d_inputs:
+            self._tables_group = self.device.r_d_inps_tables
+        else:
+            self._tables_group = self.device.r_coils_tables
         # check table exist at device level
-        with self.device.r_coils_tables as t:
-            if not t.have_table(at_address=address):
+        with self._tables_group as tg:
+            if not tg.have_table(at_address=address):
                 raise ValueError(f'@{self.address} have no table define on {self.device}')
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r})'
+        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r}, write={self.write!r}, ' \
+               f'd_inputs={self.d_inputs!r})'
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -107,136 +106,78 @@ class ModbusReadCoils(DataSource):
             logger.warning(msg=f'first_value type should be bool in {tag}')
 
     def get(self) -> Optional[bool]:
-        with self.device.r_coils_tables as tg:
-            return tg.address_d[self.address].value
-
-    def set(self, _value: bool) -> None:
-        raise ValueError(f'cannot write read-only {self!r}')
-
-    def error(self) -> bool:
-        with self.device.r_coils_tables as tg:
-            return tg.address_d[self.address].error
-
-
-class ModbusWriteCoils(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int) -> None:
-        # args
-        self.device = device
-        self.address = address
-        # check table exist at device level
-        with self.device.w_coils_tables as t:
-            if not t.have_table(at_address=address):
-                raise ValueError(f'@{self.address} have no table define on {self.device}')
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r})'
-
-    def add_tag(self, tag: Tag) -> None:
-        # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not bool:
-            logger.warning(msg=f'first_value type should be bool in {tag}')
-
-    def get(self) -> Optional[bool]:
-        with self.device.w_coils_tables as tg:
+        with self._tables_group as tg:
             return tg.address_d[self.address].value
 
     def set(self, value: bool) -> None:
-        with self.device.w_coils_tables as tg:
-            tg.address_d[self.address].value = value
+        if self.write:
+            with self._tables_group as tg:
+                tg.address_d[self.address].value = value
+        else:
+            raise ValueError(f'cannot write read-only {self!r}')
 
     def error(self) -> bool:
-        with self.device.w_coils_tables as tg:
+        with self._tables_group as tg:
             return tg.address_d[self.address].error
 
 
-class ModbusReadDiscreteInputs(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int) -> None:
+class ModbusInt(DataSource):
+    def __init__(self, device: "ModbusTCPDevice", address: int, bit_length: int = 16, write: bool = False,
+                 signed: bool = False, i_regs: bool = False) -> None:
         # args
         self.device = device
         self.address = address
+        self.bit_length = bit_length
+        self.write = write
+        self.signed = signed
+        self.i_regs = i_regs
+        # check no write set if input registers space is select
+        if self.i_regs and self.write:
+            raise ValueError(f'unable to set write and i_regs at same time (input registers are read-only)')
+        # private
+        if self.write:
+            self._tables_group = self.device.w_h_regs_tables
+        elif self.i_regs:
+            self._tables_group = self.device.r_i_regs_tables
+        else:
+            self._tables_group = self.device.r_h_regs_tables
         # check table exist at device level
-        with self.device.r_d_inps_tables as t:
-            if not t.have_table(at_address=address):
+        with self._tables_group as tg:
+            if not tg.have_table(at_address=address, size=self.bit_length//16):
                 raise ValueError(f'@{self.address} have no table define on {self.device}')
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r})'
+        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r}, write={self.write!r}, ' \
+               f'i_regs={self.i_regs!r})'
 
-    def add_tag(self, tag: Tag) -> None:
-        # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not bool:
-            logger.warning(msg=f'first_value type should be bool in {tag}')
-
-    def get(self) -> Optional[bool]:
-        with self.device.r_d_inps_tables as tg:
-            return tg.address_d[self.address].value
-
-    def set(self, _value: bool) -> None:
-        raise ValueError(f'cannot write read-only {self!r}')
-
-    def error(self) -> bool:
-        with self.device.r_d_inps_tables as tg:
-            return tg.address_d[self.address].error
-
-
-class ModbusReadHoldingRegs(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int) -> None:
-        # args
-        self.device = device
-        self.address = address
-        # check table exist at device level
-        with self.device.r_h_regs_tables as tg:
-            if not tg.have_table(at_address=address):
-                raise ValueError(f'@{self.address} have no table define on {self.device}')
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r})'
+    def _fmt_raw(self, raw: Optional[int]) -> Optional[int]:
+        if raw is not None:
+            return get_2comp(raw, val_size=self.bit_length) if self.signed else raw
+        else:
+            return
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
         if type(tag.first_value) is not int:
             logger.warning(msg=f'first_value type should be int in {tag}')
 
-    def get(self) -> Optional[bool]:
-        with self.device.r_h_regs_tables as tg:
-            return tg.address_d[self.address].value
-
-    def set(self, _value: bool) -> None:
-        raise ValueError(f'cannot write read-only {self!r}')
-
-    def error(self) -> bool:
-        with self.device.r_h_regs_tables as tg:
-            return tg.address_d[self.address].error
-
-
-class ModbusWriteHoldingRegs(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int) -> None:
-        # args
-        self.device = device
-        self.address = address
-        # check table exist at device level
-        with self.device.w_h_regs_tables as tg:
-            if not tg.have_table(at_address=address):
-                raise ValueError(f'@{self.address} have no table define on {self.device}')
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r})'
-
-    def add_tag(self, tag: Tag) -> None:
-        # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not int:
-            logger.warning(msg=f'first_value type should be int in {tag}')
-
-    def get(self) -> Optional[bool]:
-        with self.device.w_h_regs_tables as tg:
-            return tg.address_d[self.address].value
+    def get(self) -> Optional[int]:
+        # read raw
+        with self._tables_group as tg:
+            raw = tg.address_d[self.address].value
+        # format raw
+        return self._fmt_raw(raw)
 
     def set(self, value: int) -> None:
-        with self.device.w_h_regs_tables as tg:
-            tg.address_d[self.address].value = value
+        if not self.write:
+            raise ValueError(f'cannot write read-only {self!r}')
+        if value < 0 and not self.signed:
+            raise ValueError(f'cannot set negative value on unsigned {self!r}')
+        with self._tables_group as tg:
+            tg.address_d[self.address].value = self._fmt_raw(value)
 
     def error(self) -> bool:
-        with self.device.w_h_regs_tables as tg:
+        with self._tables_group as tg:
             return tg.address_d[self.address].error
 
 
@@ -252,21 +193,14 @@ class ModbusTCPDevice(Device):
         self.write_refresh = write_refresh
         self.client_adv_args = client_adv_args
         # public vars
-        self.r_coils_tables = SafeObject(_TableGroup())
-        self.r_d_inps_tables = SafeObject(_TableGroup())
-        self.r_h_regs_tables = SafeObject(_TableGroup())
-
-        self.w_coils_tables = SafeObject(_TableGroup())
-        self.w_h_regs_tables = SafeObject(_TableGroup())
+        self.r_coils_tables = SafeObject(_TablesGroup())
+        self.r_d_inps_tables = SafeObject(_TablesGroup())
+        self.r_h_regs_tables = SafeObject(_TablesGroup())
+        self.r_i_regs_tables = SafeObject(_TablesGroup())
+        self.w_coils_tables = SafeObject(_TablesGroup())
+        self.w_h_regs_tables = SafeObject(_TablesGroup())
         # privates vars
         self._one_shot_q = Queue(maxsize=5)
-
-        self._r_words_d = defaultdict(dict)
-        self._r_longs_d = defaultdict(dict)
-        self._r_floats_d = defaultdict(dict)
-        self._read_requests_l = SafeObject(list())
-        self._write_requests_l = SafeObject(list())
-
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -386,6 +320,9 @@ class ModbusTCPDevice(Device):
                 with self.w_coils_tables as tg:
                     for iter_addr in range(table.address, table.address + table.size):
                         values_l.append(tg.address_d[iter_addr].value)
+                # skip write for uninitialized variables (usually at startup)
+                if None in values_l:
+                    continue
                 # modbus request
                 try:
                     with self.safe_cli as cli:
@@ -411,6 +348,9 @@ class ModbusTCPDevice(Device):
                 with self.w_h_regs_tables as tg:
                     for iter_addr in range(table.address, table.address + table.size):
                         values_l.append(tg.address_d[iter_addr].value)
+                # skip write for uninitialized variables (usually at startup)
+                if None in values_l:
+                    continue
                 # modbus request
                 try:
                     with self.safe_cli as cli:
@@ -429,47 +369,47 @@ class ModbusTCPDevice(Device):
             # wait before next polling
             time.sleep(self.write_refresh)
 
-    def add_read_coils_table(self, address: int, size: int = 1):
-        table = _Table(address=address, size=size, default_value=False)
-        with self.r_coils_tables as tg:
+    def add_bool_table(self, address: int, size: int = 1, write: bool = False, d_inputs: bool = False):
+        # check no write set if input registers space is select
+        if d_inputs and write:
+            raise ValueError(f'unable to set write and d_inputs at same time (discrete inputs are read-only)')
+        # select tables group
+        if write:
+            tables_group = self.w_coils_tables
+        elif d_inputs:
+            tables_group = self.r_d_inps_tables
+        else:
+            tables_group = self.r_coils_tables
+        # init table
+        table = _Table(address=address, size=size, default_value=None)
+        # link it to table group
+        with tables_group as tg:
             tg.schedule(table)
         return table
 
-    def add_write_coils_table(self, address: int, size: int = 1, default_value=False):
-        table = _Table(address=address, size=size, default_value=default_value)
-        with self.w_coils_tables as tg:
-            tg.schedule(table)
-        return table
-
-    def add_read_h_regs_table(self, address: int, size: int = 1):
-        table = _Table(address=address, size=size, default_value=0)
-        with self.r_h_regs_tables as tg:
-            tg.schedule(table)
-        return table
-
-    def add_write_h_regs_table(self, address: int, size: int = 1, default_value=0):
-        table = _Table(address=address, size=size, default_value=default_value)
-        with self.w_h_regs_tables as tg:
+    def add_int_table(self, address: int, size: int = 1, write: bool = False, i_regs: bool = False):
+        # check no write set if input registers space is select
+        if i_regs and write:
+            raise ValueError(f'unable to set write and i_regs at same time (input registers are read-only)')
+        # select tables group
+        if write:
+            tables_group = self.w_h_regs_tables
+        elif i_regs:
+            tables_group = self.r_i_regs_tables
+        else:
+            tables_group = self.r_h_regs_tables
+        # init table
+        table = _Table(address=address, size=size, default_value=None)
+        # link it to table group
+        with tables_group as tg:
             tg.schedule(table)
         return table
 
     def add_longs_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
-        # init longs table with default value
-        # with self._thread_lock:
-        for offset in range(0, size):
-            self._r_longs_d[addr + offset * 2] = {'long': 0, 'err': True}
-        # add long table to read buffer
-        with self._read_requests_l as l:
-            l.append({'type': 'long', 'addr': addr, 'size': size, 'use_f4': use_f4, 'swap_word': swap_word})
+        pass
 
     def add_floats_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
-        # init words table with default value
-        # with self._thread_lock:
-        for offset in range(0, size):
-            self._r_floats_d[addr + offset * 2] = {'float': 0.0, 'err': True}
-        # add float table to read buffer
-        with self._read_requests_l as l:
-            l.append({'type': 'float', 'addr': addr, 'size': size, 'use_f4': use_f4, 'swap_word': swap_word})
+        pass
 
     def write_coils(self, address: int, value: bool) -> bool:
         # schedules the write operation

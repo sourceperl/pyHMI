@@ -35,7 +35,7 @@ class DataSource:
 
 
 class Tag:
-    def __init__(self, first_value: Any, src: Optional[DataSource] = None, 
+    def __init__(self, first_value: Any, src: Optional[DataSource] = None,
                  get_cmd: Optional[Callable] = None, chg_cmd: Optional[Callable] = None):
         """Constructor
 
@@ -64,6 +64,9 @@ class Tag:
         # notify tag creation to external source
         if isinstance(self.src, DataSource):
             self.src.add_tag(self)
+
+    def __str__(self):
+        return f'tag.val={self.val!r} tag.e_val={self.e_val!r} tag.err={self.err!r}'
 
     def __repr__(self):
         return f'Tag({self.first_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
@@ -112,7 +115,7 @@ class Tag:
                 return self._value
             # on success
             self._error = False
-            self._set_value(get_value)            
+            self._set_value(get_value)
             return get_value
         # read tag value from internal
         else:
@@ -127,7 +130,7 @@ class Tag:
         if value is None:
             self._error = True
         else:
-            # !!! keep this order: _set_value can change self._value (by chg_cmd)
+            # !!! keep this order: _set_value() can change self._value with chg_cmd()
             self._error = False
             self._set_value(value)
             # notify external source
