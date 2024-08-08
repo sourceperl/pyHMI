@@ -1,8 +1,25 @@
 """Misc resources."""
 
-from typing import Any
+from typing import Any, List, Union
 import math
 import threading
+
+
+def swap_word(value: Union[bytes, bytearray]) -> bytearray:
+    """Swapped words in the input bytearray (b'\xde\xad\xbe\xef' -> b'\xbe\xef\xde\xad')"""
+    sw_value = bytearray(len(value))
+    for i in range(0, len(value), 4):
+        sw_value[i:i+2] = value[i+2:i+4]
+        sw_value[i+2:i+4] = value[i:i+2]
+    return sw_value
+
+
+def bytes2word_list(value: Union[bytes, bytearray]) -> List[int]:
+    """Convert a bytearray to a list of word value"""
+    ret_l = []
+    for i in range(0, len(value), 2):
+        ret_l.append(int.from_bytes(value[i:i+2], byteorder='big'))
+    return ret_l
 
 
 def speed_ms(flow_nm3h: float, p_bara: float, dn_mm: int) -> float:

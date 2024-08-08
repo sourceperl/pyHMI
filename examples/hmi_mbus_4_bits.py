@@ -14,7 +14,7 @@ class Devices(object):
     # PLC TBox
     plc = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
     # init modbus tables
-    plc.add_bool_table(0, 4)
+    plc.add_read_bits_table(0, 4)
 
 
 class Tags(object):

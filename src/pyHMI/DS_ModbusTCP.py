@@ -2,13 +2,13 @@ from queue import Queue, Full
 import threading
 import time
 from token import OP
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 from pyModbusTCP.client import ModbusClient
-from pyModbusTCP.utils import word_list_to_long, decode_ieee, encode_ieee, get_2comp
+from pyModbusTCP.utils import decode_ieee, encode_ieee, get_2comp
 from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
-from .Misc import SafeObject
+from .Misc import SafeObject, swap_word, bytes2word_list
 
 
 class _OneShotWriteRequest:
@@ -75,7 +75,7 @@ class _TablesGroup:
 
 
 class ModbusBool(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int, write: bool = False, d_inputs: bool = False) -> None:
+    def __init__(self, device: "ModbusTCPDevice", address: int, d_inputs: bool = False, write: bool = False) -> None:
         # args
         self.device = device
         self.address = address
@@ -94,11 +94,11 @@ class ModbusBool(DataSource):
         # check table exist at device level
         with self._tables_group as tg:
             if not tg.have_table(at_address=address):
-                raise ValueError(f'@{self.address} have no table define on {self.device}')
+                raise ValueError(f'@{self.address} has no table defined (or it is undersized)')
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r}, write={self.write!r}, ' \
-               f'd_inputs={self.d_inputs!r})'
+        return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r}, ' \
+               f'd_inputs={self.d_inputs!r}, write={self.write!r})'
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -122,15 +122,17 @@ class ModbusBool(DataSource):
 
 
 class ModbusInt(DataSource):
-    def __init__(self, device: "ModbusTCPDevice", address: int, bit_length: int = 16, write: bool = False,
-                 signed: bool = False, i_regs: bool = False) -> None:
+    def __init__(self, device: "ModbusTCPDevice", address: int, i_regs: bool = False,
+                 bit_length: Literal[16, 32, 64, 128] = 16, signed: bool = False, swap_word: bool = False,
+                 write: bool = False) -> None:
         # args
         self.device = device
         self.address = address
-        self.bit_length = bit_length
-        self.write = write
-        self.signed = signed
         self.i_regs = i_regs
+        self.bit_length = bit_length
+        self.signed = signed
+        self.swap_word = swap_word
+        self.write = write
         # check no write set if input registers space is select
         if self.i_regs and self.write:
             raise ValueError(f'unable to set write and i_regs at same time (input registers are read-only)')
@@ -143,16 +145,20 @@ class ModbusInt(DataSource):
             self._tables_group = self.device.r_h_regs_tables
         # check table exist at device level
         with self._tables_group as tg:
-            if not tg.have_table(at_address=address, size=self.bit_length//16):
-                raise ValueError(f'@{self.address} have no table define on {self.device}')
+            if not tg.have_table(at_address=address, size=self.reg_nb):
+                raise ValueError(f'@{self.address} has no table defined (or it is undersized)')
 
     def __repr__(self):
         return f'{self.__class__.__name__}(device={self.device!r}, address={self.address!r}, write={self.write!r}, ' \
                f'i_regs={self.i_regs!r})'
 
-    def _fmt_raw(self, raw: Optional[int]) -> Optional[int]:
-        if raw is not None:
-            return get_2comp(raw, val_size=self.bit_length) if self.signed else raw
+    @property
+    def reg_nb(self):
+        return self.bit_length//16 + (1 if self.bit_length % 16 else 0)
+
+    def _apply_signed(self, value: Optional[int]) -> Optional[int]:
+        if value is not None:
+            return get_2comp(value, val_size=self.bit_length) if self.signed else value
         else:
             return
 
@@ -162,19 +168,44 @@ class ModbusInt(DataSource):
             logger.warning(msg=f'first_value type should be int in {tag}')
 
     def get(self) -> Optional[int]:
-        # read raw
+        # read register(s) into table
+        regs_l: List[int] = []
         with self._tables_group as tg:
-            raw = tg.address_d[self.address].value
+            for offest in range(self.reg_nb):
+                regs_l.append(tg.address_d[self.address + offest].value)
+        # skip decoding for uninitialized variables (usually at startup)
+        if None in regs_l:
+            return
+        # list of regs (int) -> bytes
+        value_as_b = bytes()
+        for reg in regs_l:
+            value_as_b += reg.to_bytes(2, byteorder='big')
+        # apply swap word if requested
+        if self.swap_word:
+            value_as_b = swap_word(value_as_b)
         # format raw
-        return self._fmt_raw(raw)
+        return int.from_bytes(value_as_b, byteorder='big', signed=self.signed)
 
     def set(self, value: int) -> None:
+        # check write status
         if not self.write:
             raise ValueError(f'cannot write read-only {self!r}')
-        if value < 0 and not self.signed:
-            raise ValueError(f'cannot set negative value on unsigned {self!r}')
+        # convert to bytearray:
+        # - check strange value status (negative for unsigned, ...)
+        # - apply 2's complement if requested
+        try:
+            value_b = bytearray(value.to_bytes(2*self.reg_nb, byteorder='big', signed=self.signed))
+        except OverflowError as e:
+            raise ValueError(f'cannot set this int ({e})')
+        # apply swap word if requested
+        if self.swap_word:
+            value_b = swap_word(value_b)
+        # build a list of register values
+        regs_l = bytes2word_list(value_b)
+        # apply it to write address space
         with self._tables_group as tg:
-            tg.address_d[self.address].value = self._fmt_raw(value)
+            for offset, reg_value in enumerate(regs_l):
+                tg.address_d[self.address + offset].value = reg_value
 
     def error(self) -> bool:
         with self._tables_group as tg:
@@ -320,9 +351,6 @@ class ModbusTCPDevice(Device):
                 with self.w_coils_tables as tg:
                     for iter_addr in range(table.address, table.address + table.size):
                         values_l.append(tg.address_d[iter_addr].value)
-                # skip write for uninitialized variables (usually at startup)
-                if None in values_l:
-                    continue
                 # modbus request
                 try:
                     with self.safe_cli as cli:
@@ -348,9 +376,6 @@ class ModbusTCPDevice(Device):
                 with self.w_h_regs_tables as tg:
                     for iter_addr in range(table.address, table.address + table.size):
                         values_l.append(tg.address_d[iter_addr].value)
-                # skip write for uninitialized variables (usually at startup)
-                if None in values_l:
-                    continue
                 # modbus request
                 try:
                     with self.safe_cli as cli:
@@ -369,14 +394,9 @@ class ModbusTCPDevice(Device):
             # wait before next polling
             time.sleep(self.write_refresh)
 
-    def add_bool_table(self, address: int, size: int = 1, write: bool = False, d_inputs: bool = False):
-        # check no write set if input registers space is select
-        if d_inputs and write:
-            raise ValueError(f'unable to set write and d_inputs at same time (discrete inputs are read-only)')
+    def add_read_bits_table(self, address: int, size: int = 1, d_inputs: bool = False):
         # select tables group
-        if write:
-            tables_group = self.w_coils_tables
-        elif d_inputs:
+        if d_inputs:
             tables_group = self.r_d_inps_tables
         else:
             tables_group = self.r_coils_tables
@@ -387,14 +407,17 @@ class ModbusTCPDevice(Device):
             tg.schedule(table)
         return table
 
-    def add_int_table(self, address: int, size: int = 1, write: bool = False, i_regs: bool = False):
-        # check no write set if input registers space is select
-        if i_regs and write:
-            raise ValueError(f'unable to set write and i_regs at same time (input registers are read-only)')
+    def add_write_bits_table(self, address: int, size: int = 1, default_value: bool = False):
+        # init table
+        table = _Table(address=address, size=size, default_value=default_value)
+        # link it to table group
+        with self.w_coils_tables as tg:
+            tg.schedule(table)
+        return table
+
+    def add_read_regs_table(self, address: int, size: int = 1, i_regs: bool = False):
         # select tables group
-        if write:
-            tables_group = self.w_h_regs_tables
-        elif i_regs:
+        if i_regs:
             tables_group = self.r_i_regs_tables
         else:
             tables_group = self.r_h_regs_tables
@@ -405,11 +428,13 @@ class ModbusTCPDevice(Device):
             tg.schedule(table)
         return table
 
-    def add_longs_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
-        pass
-
-    def add_floats_table(self, addr: int, size: int = 1, use_f4: bool = False, swap_word: bool = False):
-        pass
+    def add_write_regs_table(self, address: int, size: int = 1, default_value: int = 0):
+        # init table
+        table = _Table(address=address, size=size, default_value=default_value)
+        # link it to table group
+        with self.w_h_regs_tables as tg:
+            tg.schedule(table)
+        return table
 
     def write_coils(self, address: int, value: bool) -> bool:
         # schedules the write operation
@@ -419,18 +444,18 @@ class ModbusTCPDevice(Device):
         except Full:
             return False
 
-    def write_word(self, address: int, value: int):
-        # schedules the write operation
-        try:
-            self._one_shot_q.put(_OneShotWriteRequest(where='h_registers', address=address, value=value), block=False)
-            return True
-        except Full:
-            return False
+    # def write_word(self, address: int, value: int):
+    #     # schedules the write operation
+    #     try:
+    #         self._one_shot_q.put(_OneShotWriteRequest(where='h_registers', address=address, value=value), block=False)
+    #         return True
+    #     except Full:
+    #         return False
 
-    def write_float(self, address: int, value: float, swap_word: bool = False):
-        # schedules the write operation
-        try:
-            self._one_shot_q.put(_OneShotWriteRequest(where='float', address=address, value=value), block=False)
-            return True
-        except Full:
-            return False
+    # def write_float(self, address: int, value: float, swap_word: bool = False):
+    #     # schedules the write operation
+    #     try:
+    #         self._one_shot_q.put(_OneShotWriteRequest(where='float', address=address, value=value), block=False)
+    #         return True
+    #     except Full:
+    #         return False
