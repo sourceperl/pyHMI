@@ -37,17 +37,15 @@ class _Space:
 
 
 class _Request:
-    def __init__(self, space: _Space, address: int, size: int,  schedule: bool, default_value: Any) -> None:
+    def __init__(self, space: _Space, address: int, size: int, schedule: bool) -> None:
         # args
         self.space = space
         self.address = address
         self.size = size
         self.is_schedule = schedule
-        self.default_value = default_value
-        # init address space for this request
-        with self.space as sp:
-            for iter_addr in range(self.address, self.address + self.size):
-                sp[iter_addr] = _Space.Data(value=self.default_value, error=True)
+    
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(space={self.space!r}, address={self.address!r}, size={self.size!r})'
 
 
 class _ScheduleList:
@@ -95,12 +93,12 @@ class ModbusTCPDevice(Device):
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                                 timeout=self.timeout, auto_open=True, **args_d))
         # start threads
-        self._one_shot_io_th = threading.Thread(target=self._one_shot_io_thread, daemon=True)
-        self._read_io_th = threading.Thread(target=self._read_io_thread, daemon=True)
-        self._write_io_th = threading.Thread(target=self._write_io_thread, daemon=True)
-        self._one_shot_io_th.start()
-        self._read_io_th.start()
-        self._write_io_th.start()
+        self._one_shot_req_th = threading.Thread(target=self._one_shot_req_thread, daemon=True)
+        self._read_req_th = threading.Thread(target=self._read_req_thread, daemon=True)
+        self._write_req_th = threading.Thread(target=self._write_req_thread, daemon=True)
+        self._one_shot_req_th.start()
+        self._read_req_th.start()
+        self._write_req_th.start()
 
     def __repr__(self):
         return f'ModbusTCPDevice(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
@@ -112,16 +110,7 @@ class ModbusTCPDevice(Device):
         with self.safe_cli as cli:
             return cli.is_open
 
-    def _one_shot_io_thread(self):
-        """ Process every write I/O. """
-        while True:
-            request = self._request_io_q.get()
-            logger.warning(f'_one_shot_io_thread receive {request}')
-            self._process_read_request(request)
-            self._process_write_request(request)
-            self._request_io_q.task_done()
-
-    def _process_read_request(self, request: _Request):
+    def _process_read_request(self, request: _Request) -> None:
         # do request
         if request.space == self.read_coils_space:
             with self.safe_cli as cli:
@@ -132,6 +121,9 @@ class ModbusTCPDevice(Device):
         elif request.space == self.read_h_regs_space:
             with self.safe_cli as cli:
                 reg_list = cli.read_holding_registers(request.address, request.size)
+        else:
+            # skip process for unknown space
+            return
         # process result
         if reg_list:
             # on success
@@ -145,7 +137,7 @@ class ModbusTCPDevice(Device):
                 for iter_addr in range(request.address, request.address + request.size):
                     sp[iter_addr].error = True
 
-    def _process_write_request(self, request: _Request):
+    def _process_write_request(self, request: _Request) -> None:
         # format values to write
         values_l = []
         with request.space as sp:
@@ -165,6 +157,9 @@ class ModbusTCPDevice(Device):
                         write_ok = cli.write_single_register(request.address, values_l[0])
                     else:
                         write_ok = cli.write_multiple_registers(request.address, values_l)
+            else:
+                # skip process for unknown space
+                return
             # process result
             with request.space as sp:
                 # update error flag
@@ -173,13 +168,28 @@ class ModbusTCPDevice(Device):
         except ValueError as e:
             logger.warning(f'error in write_io_thread ({request.__class__.__name__}): {e}')
 
-    def _read_io_thread(self):
+    def _one_shot_req_thread(self):
+        """ Process every write I/O. """
+        while True:
+            # wait next request from queue
+            request = self._request_io_q.get()
+            # log it
+            logger.warning(f'{threading.current_thread().name} receive {request}')
+            # process it
+            try:
+                self._process_read_request(request)
+                self._process_write_request(request)
+            except ValueError as e:
+                logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
+            # mark queue task as done
+            self._request_io_q.task_done()
+
+    def _read_req_thread(self):
         """ Process every read I/O. """
         while True:
             # iterate over all requests in schedule list
             for request in self.read_io_sched_l.as_list():
                 try:
-                    # process request marked as scheduled
                     if request.is_schedule:
                         self._process_read_request(request)
                 except ValueError as e:
@@ -187,7 +197,7 @@ class ModbusTCPDevice(Device):
             # wait before next polling
             time.sleep(self.read_refresh)
 
-    def _write_io_thread(self):
+    def _write_req_thread(self):
         """ Process every write I/O. """
         while True:
             for request in self.write_io_sched_l.as_list():
@@ -203,15 +213,24 @@ class ModbusTCPDevice(Device):
     def add_read_bits_request(self, address: int, size: int = 1, schedule: bool = True, d_inputs: bool = False):
         # select space
         space = self.read_d_inps_space if d_inputs else self.read_coils_space
+        # init address space for this request
+        with space as sp:
+            for iter_addr in range(address, address + size):
+                sp[iter_addr] = _Space.Data(value=None, error=True)
         # init request
-        request = _Request(space, address, size, schedule=schedule, default_value=None)
+        request = _Request(space, address, size, schedule=schedule)
         # schedule it
         with self.read_io_sched_l as l:
             l.append(request)
         return request
 
     def add_write_bits_request(self, address: int, size: int = 1, schedule: bool = True, default_value: bool = False):
-        request = _Request(self.write_coils_space, address, size, schedule=schedule, default_value=default_value)
+        # init address space for this request
+        with self.write_coils_space as sp:
+            for iter_addr in range(address, address + size):
+                sp[iter_addr] = _Space.Data(value=default_value, error=True)
+        # init request
+        request = _Request(self.write_coils_space, address, size, schedule=schedule)
         # schedule it
         with self.write_io_sched_l as l:
             l.append(request)
@@ -220,15 +239,25 @@ class ModbusTCPDevice(Device):
     def add_read_regs_request(self, address: int, size: int = 1, schedule: bool = True, i_regs: bool = False):
         # select space
         space = self.read_i_regs_space if i_regs else self.read_h_regs_space
+        # init address space for this request
+        with space as sp:
+            for iter_addr in range(address, address + size):
+                sp[iter_addr] = _Space.Data(value=None, error=True)
         # init request
-        request = _Request(space, address, size, schedule=schedule, default_value=None)
+        request = _Request(space, address, size, schedule=schedule)
         # schedule it
         with self.read_io_sched_l as l:
             l.append(request)
         return request
 
     def add_write_regs_request(self, address: int, size: int = 1, is_schedule: bool = True, default_value: int = 0):
-        request = _Request(self.write_h_regs_space, address, size, schedule=is_schedule, default_value=default_value)
+        # init address space for this request
+        with self.write_h_regs_space as sp:
+            for iter_addr in range(address, address + size):
+                sp[iter_addr] = _Space.Data(value=default_value, error=True)
+        # init request
+        request = _Request(self.write_h_regs_space, address, size, schedule=is_schedule)
+        # schedule it
         with self.write_io_sched_l as l:
             l.append(request)
         return request

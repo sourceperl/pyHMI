@@ -133,7 +133,8 @@ class RedisDevice(Device):
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(redis.Redis(host=self.host, port=self.port, db=self.db,
-                                               socket_timeout=self.timeout, socket_keepalive=True, **args_d))
+                                               socket_timeout=self.timeout, socket_keepalive=True,
+                                               decode_responses=False, **args_d))
         self._connected = False
         # start threads
         self._th_keys_io = threading.Thread(target=self._keys_io_thread, daemon=True)
