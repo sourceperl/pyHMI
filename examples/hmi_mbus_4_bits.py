@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 from pyHMI.Colors import *
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
@@ -9,15 +8,15 @@ import tkinter as tk
 from tkinter import ttk
 
 
-class Devices(object):
+class Devices:
     # init datasource
     # PLC TBox
-    plc = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
+    plc = ModbusTCPDevice('localhost', port=502, timeout=2.0)
     # init modbus tables
     plc.add_read_bits_table(0, 4)
 
 
-class Tags(object):
+class Tags:
     # tags list
     # from PLC
     BIT_0 = Tag(False, src=Devices.plc, ref={'type': 'bit', 'addr': 0})

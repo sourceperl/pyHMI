@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 from pyHMI.Colors import *
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice

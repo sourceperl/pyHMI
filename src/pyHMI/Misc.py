@@ -1,8 +1,17 @@
 """Misc resources."""
 
-from typing import Any, List, Union
+from typing import List, Union
 import math
 import threading
+
+
+def swap_bytes(value: Union[bytes, bytearray]) -> bytearray:
+    """Swapped bytes in the input bytearray (b'\x01\x02\x03\x04' -> b'\x02\x01\x04\x03')"""
+    sw_value = bytearray(len(value))
+    for i in range(0, len(value), 2):
+        sw_value[i] = value[i+1]
+        sw_value[i+1] = value[i]
+    return sw_value
 
 
 def swap_word(value: Union[bytes, bytearray]) -> bytearray:

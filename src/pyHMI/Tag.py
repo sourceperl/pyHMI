@@ -92,7 +92,7 @@ class Tag:
         self.val = value
 
     @property
-    def val(self) -> Union[bool, int, float, str, bytes]:
+    def val(self) -> Any:
         """Return current tag value from any way (ext sourced tag, get command tag or internal value).
 
         :return: tag value

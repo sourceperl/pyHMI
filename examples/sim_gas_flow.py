@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-# simulate gas pipe for PID test purpose
+""" Simulate gas pipe for PID test purpose. """
 
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyHMI.Tag import Tag
