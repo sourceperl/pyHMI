@@ -10,8 +10,8 @@ import time
 class Devices:
     # list all datasource here
     md = ModbusTCPDevice('localhost', port=502, timeout=2.0, read_refresh=1.0, write_refresh=1.0)
-    md.add_write_bits_table(0)
-    md.add_read_bits_table(1, 2)
+    md.add_write_bits_request(0)
+    md.add_read_bits_request(1, 2)
 
 
 class Tags:

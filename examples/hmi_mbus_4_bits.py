@@ -11,8 +11,8 @@ from tkinter import ttk
 
 class Devices:
     md = ModbusTCPDevice('localhost', port=502, timeout=2.0)
-    md.add_read_bits_table(0, 4)
-    md.add_write_bits_table(0, 4, default_value=False)
+    md.add_read_bits_request(0, 4)
+    md.add_write_bits_request(0, 4, default_value=False)
 
 
 class Tags:
