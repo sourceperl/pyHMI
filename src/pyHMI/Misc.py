@@ -14,7 +14,7 @@ def swap_bytes(value: Union[bytes, bytearray]) -> bytearray:
     return sw_value
 
 
-def swap_word(value: Union[bytes, bytearray]) -> bytearray:
+def swap_words(value: Union[bytes, bytearray]) -> bytearray:
     """Swapped words in the input bytearray (b'\xde\xad\xbe\xef' -> b'\xbe\xef\xde\xad')"""
     sw_value = bytearray(len(value))
     for i in range(0, len(value), 4):

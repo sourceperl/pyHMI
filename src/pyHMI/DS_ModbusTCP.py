@@ -8,7 +8,7 @@ from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
-from .Misc import SafeObject, swap_word, bytes2word_list
+from .Misc import SafeObject, swap_bytes, swap_words, bytes2word_list
 
 
 # some consts
@@ -28,8 +28,14 @@ _WRITE_REQUESTS = (_RequestType.WRITE_COILS, _RequestType.WRITE_H_REGS)
 
 
 # some functions
-def _auto_repr(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(f'{k}={repr(v)}' for k, v in self.__dict__.items())})"
+def _auto_repr(self: object, export_t: Optional[tuple] = None) -> str:
+    args_str = ''
+    for k, v in self.__dict__.items():
+        if (export_t and k in export_t) or not export_t:
+            if args_str:
+                args_str += ', '
+            args_str += f'{k}={repr(v)}'
+    return f'{self.__class__.__name__}({args_str})'
 
 
 # some class
@@ -52,7 +58,7 @@ class _DataSpace:
             self._data_d[iter_addr] = _DataSpace.Data(value=default_value, error=True)
 
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return _auto_repr(self, export_t=('_data_d', ))
 
     def __enter__(self):
         self._lock.acquire()
@@ -88,10 +94,16 @@ class _Request:
         # reference request at device level
         self.device.requests_l.append(self)
 
-        self.device._request_io_q.put_nowait(self)
-
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return _auto_repr(self, export_t=('type', 'address', 'size'))
+
+    def run_now(self) -> bool:
+        try:
+            self.device.one_shot_q.put_nowait(self)
+            return True
+        except queue.Full:
+            logger.warning('unable to add request to one-shot run queue ({self!r})')
+            return False
 
 
 class _RequestsList:
@@ -99,9 +111,6 @@ class _RequestsList:
         # private
         self._lock = threading.Lock()
         self._requests_l: List[_Request] = list()
-
-    def __repr__(self) -> str:
-        return _auto_repr(self)
 
     def __len__(self) -> int:
         with self._lock:
@@ -128,17 +137,17 @@ class ModbusTCPDevice(Device):
         self.client_adv_args = client_adv_args
         # public
         self.requests_l = _RequestsList()
+        self.one_shot_q: queue.Queue[_Request] = queue.Queue(maxsize=5)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                                 timeout=self.timeout, auto_open=True, **args_d))
         # privates
-        self._request_io_q: queue.Queue[_Request] = queue.Queue(maxsize=5)
-        self._one_shot_req_th = threading.Thread(target=self._one_shot_req_thread, daemon=True)
-        self._sched_req_th = threading.Thread(target=self._schedule_req_thread, daemon=True)
+        self._one_shot_th = threading.Thread(target=self._one_shot_thread, daemon=True)
+        self._schedule_th = threading.Thread(target=self._schedule_thread, daemon=True)
         # start threads
-        self._one_shot_req_th.start()
-        self._sched_req_th.start()
+        self._one_shot_th.start()
+        self._schedule_th.start()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
@@ -207,11 +216,11 @@ class ModbusTCPDevice(Device):
             for iter_addr in range(request.address, request.address + request.size):
                 ds[iter_addr].error = not write_ok
 
-    def _one_shot_req_thread(self):
+    def _one_shot_thread(self):
         """ Process every write I/O. """
         while True:
             # wait next request from queue
-            request = self._request_io_q.get()
+            request = self.one_shot_q.get()
             # log it
             logger.debug(f'{threading.current_thread().name} receive {request}')
             # process it
@@ -221,9 +230,9 @@ class ModbusTCPDevice(Device):
             except ValueError as e:
                 logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
             # mark queue task as done
-            self._request_io_q.task_done()
+            self.one_shot_q.task_done()
 
-    def _schedule_req_thread(self):
+    def _schedule_thread(self):
         """ Process every read I/O. """
         while True:
             # iterate over all requests in schedule list
@@ -257,10 +266,11 @@ class ModbusTCPDevice(Device):
 
 
 class ModbusBool(DataSource):
-    def __init__(self, request: _Request, address: int) -> None:
+    def __init__(self, request: _Request, address: int, run_on_set: bool = False) -> None:
         # args
         self.request = request
         self.address = address
+        self.run_on_set = run_on_set
         # some check on request
         if request.type not in (_RequestType.READ_COILS, _RequestType.READ_D_INPUTS, _RequestType.WRITE_COILS):
             raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
@@ -287,6 +297,9 @@ class ModbusBool(DataSource):
         # apply value to request data space
         with self.request.data_space as ds:
             ds[self.address].value = value
+        # request executed immediately if value is written
+        if self.run_on_set:
+            self.request.run_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
@@ -297,18 +310,20 @@ class ModbusInt(DataSource):
     BIT_LENGTH_TYPE = Literal[16, 32, 64, 128]
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int,
+    def __init__(self, request: _Request, address: int, run_on_set: bool = False,
                  bit_length: BIT_LENGTH_TYPE = 16, byte_order: BYTE_ORDER_TYPE = 'big',
-                 signed: bool = False, swap_word: bool = False) -> None:
+                 signed: bool = False, swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._bit_length: ModbusInt.BIT_LENGTH_TYPE = 16
         self._byte_order: ModbusInt.BYTE_ORDER_TYPE = 'big'
         # args
         self.request = request
         self.address = address
+        self.run_on_set = run_on_set
         self.bit_length = bit_length
         self.byte_order = byte_order
         self.signed = signed
+        self.swap_bytes = swap_bytes
         self.swap_word = swap_word
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
@@ -363,9 +378,11 @@ class ModbusInt(DataSource):
         value_as_b = bytes()
         for reg in regs_l:
             value_as_b += reg.to_bytes(2, byteorder='big')
-        # apply swap word if requested
+        # apply swaps
+        if self.swap_bytes:
+            value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
-            value_as_b = swap_word(value_as_b)
+            value_as_b = swap_words(value_as_b)
         # format raw
         return int.from_bytes(value_as_b, byteorder=self._byte_order, signed=self.signed)
 
@@ -380,15 +397,20 @@ class ModbusInt(DataSource):
             value_b = value.to_bytes(2*self.reg_nb, byteorder=self.byte_order, signed=self.signed)
         except OverflowError as e:
             raise ValueError(f'cannot set this int ({e})')
-        # apply swap word if requested
+        # apply swaps
+        if self.swap_bytes:
+            value_b = swap_bytes(value_b)
         if self.swap_word:
-            value_b = swap_word(value_b)
+            value_b = swap_words(value_b)
         # build a list of register values
         regs_l = bytes2word_list(value_b)
-        # apply it to address space
+        # apply it to request address space
         for offset, reg_value in enumerate(regs_l):
             with self.request.data_space as ds:
                 ds[self.address + offset].value = reg_value
+        # request executed immediately if value is written
+        if self.run_on_set:
+            self.request.run_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
@@ -399,17 +421,19 @@ class ModbusFloat(DataSource):
     BIT_LENGTH_TYPE = Literal[32, 64]
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int,
+    def __init__(self, request: _Request, address: int, run_on_set: bool = False,
                  bit_length: BIT_LENGTH_TYPE = 32, byte_order: BYTE_ORDER_TYPE = 'big',
-                 swap_word: bool = False) -> None:
+                 swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._bit_length: ModbusFloat.BIT_LENGTH_TYPE = 32
         self._byte_order: ModbusFloat.BYTE_ORDER_TYPE = 'big'
         # args
         self.request = request
         self.address = address
+        self.run_on_set = run_on_set
         self.bit_length = bit_length
         self.byte_order = byte_order
+        self.swap_bytes = swap_bytes
         self.swap_word = swap_word
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
@@ -464,9 +488,11 @@ class ModbusFloat(DataSource):
         value_as_b = bytes()
         for reg in regs_l:
             value_as_b += reg.to_bytes(2, byteorder='big')
-        # apply swap word if requested
+        # apply swaps
+        if self.swap_bytes:
+            value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
-            value_as_b = swap_word(value_as_b)
+            value_as_b = swap_words(value_as_b)
         # convert bytes to float and return it
         fmt = '>' if self.byte_order == 'big' else '<'
         fmt += 'f' if self.bit_length == 32 else 'd'
@@ -485,15 +511,20 @@ class ModbusFloat(DataSource):
             value_b = struct.pack(fmt, value)
         except struct.error as e:
             raise ValueError(f'cannot set this float ({e})')
-        # apply swap word if requested
+        # apply swaps
+        if self.swap_bytes:
+            value_b = swap_bytes(value_b)
         if self.swap_word:
-            value_b = swap_word(value_b)
+            value_b = swap_words(value_b)
         # build a list of register values
         regs_l = bytes2word_list(value_b)
         # apply it to write address space
         with self.request.data_space as ds:
             for offset, reg_value in enumerate(regs_l):
                 ds[self.address + offset].value = reg_value
+        # request executed immediately if value is written
+        if self.run_on_set:
+            self.request.run_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
