@@ -28,7 +28,7 @@ class _Space:
     def __exit__(self, *args):
         self._lock.release()
 
-    def have_request(self, at_address: int, size: int = 1) -> bool:
+    def is_init(self, at_address: int, size: int = 1) -> bool:
         with self._lock:
             for offset in range(size):
                 if not at_address + offset in self._data_d:
@@ -37,15 +37,19 @@ class _Space:
 
 
 class _Request:
-    def __init__(self, space: _Space, address: int, size: int, schedule: bool) -> None:
+    def __init__(self, space: _Space, address: int, size: int, use_single: bool = False) -> None:
         # args
         self.space = space
         self.address = address
         self.size = size
-        self.is_schedule = schedule
-    
+        self.use_single = use_single
+        # unable to initialize single query for more than one coil/register
+        if use_single and size > 1:
+            raise ValueError('cannot use single query if size is greater than 1')
+
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(space={self.space!r}, address={self.address!r}, size={self.size!r})'
+        return f'{self.__class__.__name__}(space={self.space!r}, address={self.address!r}, size={self.size!r}), ' \
+               f'use_single={self.use_single!r})'
 
 
 class _ScheduleList:
@@ -54,28 +58,35 @@ class _ScheduleList:
         self._lock = threading.Lock()
         self._requests_l: List[_Request] = list()
 
-    def __enter__(self):
-        self._lock.acquire()
-        return self._requests_l
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._requests_l)
 
-    def __exit__(self, *args):
-        self._lock.release()
-
-    def as_list(self) -> List[_Request]:
+    def copy(self) -> List[_Request]:
         with self._lock:
             return self._requests_l.copy()
 
+    def append(self, request: _Request) -> None:
+        with self._lock:
+            self._requests_l.append(request)
+
+    def remove(self, request: _Request) -> None:
+        with self._lock:
+            try:
+                self._requests_l.remove(request)
+            except ValueError:
+                pass
+
 
 class ModbusTCPDevice(Device):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, read_refresh=1.0, write_refresh=1.0,
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0,
                  client_adv_args: Optional[dict] = None):
         # args
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
-        self.read_refresh = read_refresh
-        self.write_refresh = write_refresh
+        self.refresh = refresh
         self.client_adv_args = client_adv_args
         # public vars
         self.read_coils_space = _Space()
@@ -84,8 +95,7 @@ class ModbusTCPDevice(Device):
         self.read_i_regs_space = _Space()
         self.write_coils_space = _Space()
         self.write_h_regs_space = _Space()
-        self.read_io_sched_l = _ScheduleList()
-        self.write_io_sched_l = _ScheduleList()
+        self.schedule_l = _ScheduleList()
         # privates vars
         self._request_io_q: queue.Queue[_Request] = queue.Queue(maxsize=5)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
@@ -94,16 +104,13 @@ class ModbusTCPDevice(Device):
                                                 timeout=self.timeout, auto_open=True, **args_d))
         # start threads
         self._one_shot_req_th = threading.Thread(target=self._one_shot_req_thread, daemon=True)
-        self._read_req_th = threading.Thread(target=self._read_req_thread, daemon=True)
-        self._write_req_th = threading.Thread(target=self._write_req_thread, daemon=True)
+        self._sched_req_th = threading.Thread(target=self._schedule_req_thread, daemon=True)
         self._one_shot_req_th.start()
-        self._read_req_th.start()
-        self._write_req_th.start()
+        self._sched_req_th.start()
 
     def __repr__(self):
-        return f'ModbusTCPDevice(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
-               f'timeout={self.timeout:.1f}, read_refresh={self.read_refresh:.1f}, ' \
-               f'write_refresh={self.write_refresh:.1f}, client_adv_args={self.client_adv_args!r})'
+        return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
+               f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_adv_args!r})'
 
     @property
     def connected(self):
@@ -147,13 +154,13 @@ class ModbusTCPDevice(Device):
         try:
             if request.space == self.write_coils_space:
                 with self.safe_cli as cli:
-                    if len(values_l) == 1:
+                    if request.use_single:
                         write_ok = cli.write_single_coil(request.address, values_l[0])
                     else:
                         write_ok = cli.write_multiple_coils(request.address, values_l)
             elif request.space == self.write_h_regs_space:
                 with self.safe_cli as cli:
-                    if len(values_l) == 1:
+                    if request.use_single:
                         write_ok = cli.write_single_register(request.address, values_l[0])
                     else:
                         write_ok = cli.write_multiple_registers(request.address, values_l)
@@ -177,89 +184,81 @@ class ModbusTCPDevice(Device):
             logger.warning(f'{threading.current_thread().name} receive {request}')
             # process it
             try:
-                self._process_read_request(request)
                 self._process_write_request(request)
+                self._process_read_request(request)
             except ValueError as e:
                 logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
             # mark queue task as done
             self._request_io_q.task_done()
 
-    def _read_req_thread(self):
+    def _schedule_req_thread(self):
         """ Process every read I/O. """
         while True:
             # iterate over all requests in schedule list
-            for request in self.read_io_sched_l.as_list():
+            for request in self.schedule_l.copy():
                 try:
-                    if request.is_schedule:
-                        self._process_read_request(request)
+                    self._process_write_request(request)
+                    self._process_read_request(request)
                 except ValueError as e:
                     logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
-            # wait before next polling
-            time.sleep(self.read_refresh)
+            # wait before next refresh
+            time.sleep(self.refresh)
 
-    def _write_req_thread(self):
-        """ Process every write I/O. """
-        while True:
-            for request in self.write_io_sched_l.as_list():
-                try:
-                    # process request marked as scheduled
-                    if request.is_schedule:
-                        self._process_write_request(request)
-                except ValueError as e:
-                    logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
-            # wait before next polling
-            time.sleep(self.write_refresh)
+    def schedule(self, request: _Request):
+        self.schedule_l.append(request)
 
     def add_read_bits_request(self, address: int, size: int = 1, schedule: bool = True, d_inputs: bool = False):
         # select space
         space = self.read_d_inps_space if d_inputs else self.read_coils_space
+        # init request
+        request = _Request(space, address, size)
         # init address space for this request
         with space as sp:
             for iter_addr in range(address, address + size):
                 sp[iter_addr] = _Space.Data(value=None, error=True)
-        # init request
-        request = _Request(space, address, size, schedule=schedule)
         # schedule it
-        with self.read_io_sched_l as l:
-            l.append(request)
+        if schedule:
+            self.schedule_l.append(request)
         return request
 
-    def add_write_bits_request(self, address: int, size: int = 1, schedule: bool = True, default_value: bool = False):
+    def add_write_bits_request(self, address: int, size: int = 1, schedule: bool = True, default_value: bool = False, 
+                               use_single: bool = False):
+        # init request
+        request = _Request(self.write_coils_space, address, size, use_single=use_single)
         # init address space for this request
         with self.write_coils_space as sp:
             for iter_addr in range(address, address + size):
                 sp[iter_addr] = _Space.Data(value=default_value, error=True)
-        # init request
-        request = _Request(self.write_coils_space, address, size, schedule=schedule)
         # schedule it
-        with self.write_io_sched_l as l:
-            l.append(request)
+        if schedule:
+            self.schedule_l.append(request)
         return request
 
     def add_read_regs_request(self, address: int, size: int = 1, schedule: bool = True, i_regs: bool = False):
         # select space
         space = self.read_i_regs_space if i_regs else self.read_h_regs_space
+        # init request
+        request = _Request(space, address, size)
         # init address space for this request
         with space as sp:
             for iter_addr in range(address, address + size):
                 sp[iter_addr] = _Space.Data(value=None, error=True)
-        # init request
-        request = _Request(space, address, size, schedule=schedule)
         # schedule it
-        with self.read_io_sched_l as l:
-            l.append(request)
+        if schedule:
+            self.schedule_l.append(request)
         return request
 
-    def add_write_regs_request(self, address: int, size: int = 1, is_schedule: bool = True, default_value: int = 0):
+    def add_write_regs_request(self, address: int, size: int = 1, schedule: bool = True, default_value: int = 0, 
+                               use_single: bool = False):
+        # init request
+        request = _Request(self.write_h_regs_space, address, size, use_single=use_single)
         # init address space for this request
         with self.write_h_regs_space as sp:
             for iter_addr in range(address, address + size):
                 sp[iter_addr] = _Space.Data(value=default_value, error=True)
-        # init request
-        request = _Request(self.write_h_regs_space, address, size, schedule=is_schedule)
         # schedule it
-        with self.write_io_sched_l as l:
-            l.append(request)
+        if schedule:
+            self.schedule_l.append(request)
         return request
 
 
@@ -281,8 +280,8 @@ class ModbusBool(DataSource):
         else:
             self.space = self.device.read_coils_space
         # check if request exist at device level
-        if not self.space.have_request(at_address=address):
-            raise ValueError(f'@{self.address} has no request defined (or it is undersized)')
+        if not self.space.is_init(at_address=address):
+            raise ValueError(f'@{self.address} has no request defined')
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -335,7 +334,7 @@ class ModbusInt(DataSource):
         else:
             self.space = self.device.read_h_regs_space
         # check if request exist
-        if not self.space.have_request(at_address=address, size=self.reg_nb):
+        if not self.space.is_init(at_address=address, size=self.reg_nb):
             raise ValueError(f'@{self.address} has no request defined (or it is undersized)')
 
     @property
@@ -442,7 +441,7 @@ class ModbusFloat(DataSource):
         else:
             self.space = self.device.read_h_regs_space
         # check if request exist
-        if not self.space.have_request(at_address=address, size=self.reg_nb):
+        if not self.space.is_init(at_address=address, size=self.reg_nb):
             raise ValueError(f'@{self.address} has no request defined (or it is undersized)')
 
     @property
