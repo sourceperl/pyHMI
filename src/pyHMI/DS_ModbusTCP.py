@@ -307,14 +307,12 @@ class ModbusBool(DataSource):
 
 
 class ModbusInt(DataSource):
-    BIT_LENGTH_TYPE = Literal[16, 32, 64, 128]
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
     def __init__(self, request: _Request, address: int, run_on_set: bool = False,
-                 bit_length: BIT_LENGTH_TYPE = 16, byte_order: BYTE_ORDER_TYPE = 'big',
+                 bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
                  signed: bool = False, swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
-        self._bit_length: ModbusInt.BIT_LENGTH_TYPE = 16
         self._byte_order: ModbusInt.BYTE_ORDER_TYPE = 'big'
         # args
         self.request = request
@@ -328,7 +326,7 @@ class ModbusInt(DataSource):
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
             raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
-        if not request.data_space.is_init(at_address=self.address):
+        if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
@@ -337,17 +335,6 @@ class ModbusInt(DataSource):
     @property
     def reg_nb(self):
         return self.bit_length//16 + (1 if self.bit_length % 16 else 0)
-
-    @property
-    def bit_length(self) -> BIT_LENGTH_TYPE:
-        return self._bit_length
-
-    @bit_length.setter
-    def bit_length(self, value: BIT_LENGTH_TYPE):
-        # runtime literal check
-        if value not in get_args(ModbusInt.BIT_LENGTH_TYPE):
-            raise ValueError(f'bit_length must be in {get_args(ModbusInt.BIT_LENGTH_TYPE)}')
-        self._bit_length = value
 
     @property
     def byte_order(self) -> BYTE_ORDER_TYPE:
@@ -438,7 +425,7 @@ class ModbusFloat(DataSource):
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
             raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
-        if not request.data_space.is_init(at_address=self.address):
+        if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
