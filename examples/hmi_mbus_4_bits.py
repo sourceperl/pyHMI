@@ -10,20 +10,23 @@ from tkinter import ttk
 
 
 class Devices:
-    md = ModbusTCPDevice('localhost', port=502, timeout=2.0)
-    md.add_read_bits_request(0, 4)
-    md.add_write_bits_request(0, 4, default_value=False)
+    md = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=0.2)
+    md_r_req = md.add_read_bits_request(0, 4, scheduled=True)
+    md_w_coil_0_req = md.add_write_bits_request(0, single_func=True)
+    md_w_coil_1_req = md.add_write_bits_request(1, single_func=True)
+    md_w_coil_2_req = md.add_write_bits_request(2, single_func=True)
+    md_w_coil_3_req = md.add_write_bits_request(3, single_func=True)
 
 
 class Tags:
-    BIT_0 = Tag(False, src=ModbusBool(Devices.md, 0))
-    BIT_1 = Tag(False, src=ModbusBool(Devices.md, 1))
-    BIT_2 = Tag(False, src=ModbusBool(Devices.md, 2))
-    BIT_3 = Tag(False, src=ModbusBool(Devices.md, 3))
-    W_BIT_0 = Tag(False, src=ModbusBool(Devices.md, 0, write=True))
-    W_BIT_1 = Tag(False, src=ModbusBool(Devices.md, 1, write=True))
-    W_BIT_2 = Tag(False, src=ModbusBool(Devices.md, 2, write=True))
-    W_BIT_3 = Tag(False, src=ModbusBool(Devices.md, 3, write=True))
+    BIT_0 = Tag(False, src=ModbusBool(Devices.md_r_req, 0))
+    BIT_1 = Tag(False, src=ModbusBool(Devices.md_r_req, 1))
+    BIT_2 = Tag(False, src=ModbusBool(Devices.md_r_req, 2))
+    BIT_3 = Tag(False, src=ModbusBool(Devices.md_r_req, 3))
+    W_BIT_0 = Tag(False, src=ModbusBool(Devices.md_w_coil_0_req, 0, run_on_set=True))
+    W_BIT_1 = Tag(False, src=ModbusBool(Devices.md_w_coil_1_req, 1, run_on_set=True))
+    W_BIT_2 = Tag(False, src=ModbusBool(Devices.md_w_coil_2_req, 2, run_on_set=True))
+    W_BIT_3 = Tag(False, src=ModbusBool(Devices.md_w_coil_3_req, 3, run_on_set=True))
 
     @classmethod
     def update_tags(cls):
@@ -81,7 +84,7 @@ class TabMisc(HMITab):
         # apply custom design and build
         btn_colors_t = ('light salmon', 'OliveDrab1')
         for idx, item in enumerate(self.cmd_list.items):
-            item.tk_but.configure(width=10, bg=btn_colors_t[idx%2])
+            item.tk_but.configure(width=10, bg=btn_colors_t[idx % 2])
         self.cmd_list.build().pack()
 
     def tab_update(self):

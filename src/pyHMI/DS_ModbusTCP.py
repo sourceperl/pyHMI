@@ -77,7 +77,7 @@ class _DataSpace:
 
 class _Request:
     def __init__(self, device: "ModbusTCPDevice", type: _RequestType, address: int, size: int,
-                 default_value: Any, is_schedule: bool, single_func: bool = False) -> None:
+                 default_value: Any, scheduled: bool, single_func: bool = False) -> None:
         # no single query for more than one coil/register requested
         if single_func and size != 1:
             raise ValueError('cannot use single modbus function (single_func arg) if size is not set to 1')
@@ -87,7 +87,7 @@ class _Request:
         self.address = address
         self.size = size
         self.default_value = default_value
-        self.is_schedule = is_schedule
+        self.scheduled = scheduled
         self.single_func = single_func
         # public
         self.data_space = _DataSpace(address=address, size=size, default_value=self.default_value)
@@ -217,7 +217,7 @@ class ModbusTCPDevice(Device):
                 ds[iter_addr].error = not write_ok
 
     def _one_shot_thread(self):
-        """ Process every write I/O. """
+        """ Process one-shot request. """
         while True:
             # wait next request from queue
             request = self.one_shot_q.get()
@@ -233,12 +233,12 @@ class ModbusTCPDevice(Device):
             self.one_shot_q.task_done()
 
     def _schedule_thread(self):
-        """ Process every read I/O. """
+        """ Process every scheduled request. """
         while True:
-            # iterate over all requests in schedule list
+            # iterate over all requests
             for request in self.requests_l.copy():
                 try:
-                    if request.is_schedule:
+                    if request.scheduled:
                         self._process_read_request(request)
                         self._process_write_request(request)
                 except ValueError as e:
@@ -246,23 +246,23 @@ class ModbusTCPDevice(Device):
             # wait before next refresh
             time.sleep(self.refresh)
 
-    def add_read_bits_request(self, address: int, size: int = 1, schedule: bool = True, d_inputs: bool = False):
+    def add_read_bits_request(self, address: int, size: int = 1, scheduled: bool = False, d_inputs: bool = False):
         req_type = _RequestType.READ_D_INPUTS if d_inputs else _RequestType.READ_COILS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, is_schedule=schedule)
+        return _Request(self, type=req_type, address=address, size=size, default_value=None, scheduled=scheduled)
 
-    def add_write_bits_request(self, address: int, size: int = 1, schedule: bool = True,
+    def add_write_bits_request(self, address: int, size: int = 1, scheduled: bool = False,
                                default_value: bool = False, single_func: bool = False):
         return _Request(self, type=_RequestType.WRITE_COILS, address=address, size=size,
-                        default_value=default_value, is_schedule=schedule, single_func=single_func)
+                        default_value=default_value, scheduled=scheduled, single_func=single_func)
 
-    def add_read_regs_request(self, address: int, size: int = 1, schedule: bool = True, i_regs: bool = False):
+    def add_read_regs_request(self, address: int, size: int = 1, scheduled: bool = False, i_regs: bool = False):
         req_type = _RequestType.READ_I_REGS if i_regs else _RequestType.READ_H_REGS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, is_schedule=schedule)
+        return _Request(self, type=req_type, address=address, size=size, default_value=None, scheduled=scheduled)
 
-    def add_write_regs_request(self, address: int, size: int = 1, is_schedule: bool = True, default_value: int = 0,
+    def add_write_regs_request(self, address: int, size: int = 1, scheduled: bool = False, default_value: int = 0,
                                single_func: bool = False):
         return _Request(self, type=_RequestType.WRITE_H_REGS, address=address, size=size,
-                        default_value=default_value, is_schedule=is_schedule, single_func=single_func)
+                        default_value=default_value, scheduled=scheduled, single_func=single_func)
 
 
 class ModbusBool(DataSource):

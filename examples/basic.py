@@ -6,13 +6,13 @@ import time
 
 
 # Device PLC
-md = ModbusTCPDevice('localhost', port=502)
-md.add_write_bits_request(0)
-md.add_read_bits_request(1, 2)
+md = ModbusTCPDevice('localhost', port=502, refresh=0.5)
+md_read_req = md.add_read_bits_request(1, 2, scheduled=True)
+md_write_req = md.add_write_bits_request(0, scheduled=True)
 # Tags
-W_BIT_0 = Tag(False, src=ModbusBool(md, address=0, write=True))
-R_BIT_1 = Tag(False, src=ModbusBool(md, address=1))
-R_BIT_2 = Tag(False, src=ModbusBool(md, address=2))
+W_BIT_0 = Tag(False, src=ModbusBool(md_write_req, address=0))
+R_BIT_1 = Tag(False, src=ModbusBool(md_read_req, address=1))
+R_BIT_2 = Tag(False, src=ModbusBool(md_read_req, address=2))
 
 
 # Main loop

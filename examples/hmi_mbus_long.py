@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-from pyHMI.Colors import *
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice
+from pyHMI.Colors import GREEN, PINK
+from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusInt
 from pyHMI.Tag import Tag
 from pyHMI.Dialog import SetIntValueDialog
+from pyHMI.UI import UIAnalogListFrame, UIButtonListFrame
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -13,17 +14,18 @@ class Devices(object):
     # init datasource
     # PLC TBox
     plc = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
-    # init modbus tables
-    plc.add_longs_table(0, 1)
+    plc_r_reg0_req = plc.add_read_regs_request(0, size=2, is_schedule=True)
+    plc_w_reg0_req = plc.add_write_regs_request(0)
+    plc_w_reg1_req = plc.add_write_regs_request(1)
 
 
 class Tags(object):
     # tags list
     # from PLC
-    R_LONG_0 = Tag(False, src=Devices.plc, ref={'type': 'long', 'addr': 0})
+    R_LONG_0 = Tag(0, src=ModbusInt(Devices.plc_r_reg0_req, 0, bit_length=32))
     # to PLC
-    W_WORD_0 = Tag(False, src=Devices.plc, ref={'type': 'w_word', 'addr': 0})
-    W_WORD_1 = Tag(False, src=Devices.plc, ref={'type': 'w_word', 'addr': 1})
+    W_WORD_0 = Tag(0, src=ModbusInt(Devices.plc_w_reg0_req, 0, run_on_set=True))
+    W_WORD_1 = Tag(0, src=ModbusInt(Devices.plc_w_reg1_req, 1, run_on_set=True))
 
     @classmethod
     def update_tags(cls):
@@ -58,18 +60,24 @@ class TabMisc(HMITab):
         # Long
         self.frmState = tk.LabelFrame(self, text='Long value', padx=10, pady=10)
         self.frmState.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
-        self.longs_list = HMIAnalogList(self.frmState, lbl_args={'width': 15})
+        self.longs_list = UIAnalogListFrame(self.frmState)
         self.longs_list.add('Long @0', Tags.R_LONG_0)
-        self.longs_list.build()
+        # apply custom design and build
+        for idx, item in enumerate(self.longs_list.items):
+            item.tk_lbl_value.configure(width=15)
+        self.longs_list.build().pack()
         self.frmCmd = tk.LabelFrame(self, text='Set/Reset', padx=10, pady=10)
         self.frmCmd.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
-        self.cmd_list = HMIButtonList(self.frmCmd, dim=2, btn_args={'width': 15})
-        c = ('light salmon', 'OliveDrab1')
-        self.cmd_list.add('Word @0 = 0xffff', cmd=lambda: Tags.W_WORD_0.set(0xffff), btn_args={'bg': c[0]})
-        self.cmd_list.add('Word @0 = 0x0000', cmd=lambda: Tags.W_WORD_0.set(0x0), btn_args={'bg': c[1]})
-        self.cmd_list.add('Word @1= 0xffff', cmd=lambda: Tags.W_WORD_1.set(0xffff), btn_args={'bg': c[0]})
-        self.cmd_list.add('Word @1 = 0x0000', cmd=lambda: Tags.W_WORD_1.set(0x0), btn_args={'bg': c[1]})
-        self.cmd_list.build()
+        self.cmd_list = UIButtonListFrame(self.frmCmd, n_cols=2)
+        self.cmd_list.add('Word @0 = 0xffff', cmd=lambda: Tags.W_WORD_0.set(0xffff))
+        self.cmd_list.add('Word @0 = 0x0000', cmd=lambda: Tags.W_WORD_0.set(0x0))
+        self.cmd_list.add('Word @1= 0xffff', cmd=lambda: Tags.W_WORD_1.set(0xffff))
+        self.cmd_list.add('Word @1 = 0x0000', cmd=lambda: Tags.W_WORD_1.set(0x0),)
+        # apply custom design and build
+        btn_colors_t = ('light salmon', 'OliveDrab1')
+        for idx, item in enumerate(self.cmd_list.items):
+            item.tk_but.configure(width=15, bg=btn_colors_t[idx % 2])
+        self.cmd_list.build().pack()
         # frame "set value of word"
         self.frmEntry = tk.LabelFrame(self, text='Set value of words', padx=10, pady=10)
         self.frmEntry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
