@@ -24,8 +24,8 @@ class Tags(object):
     # from PLC
     R_LONG_0 = Tag(0, src=ModbusInt(Devices.plc_r_reg0_req, 0, bit_length=32))
     # to PLC
-    W_WORD_0 = Tag(0, src=ModbusInt(Devices.plc_w_reg0_req, 0, run_on_set=True))
-    W_WORD_1 = Tag(0, src=ModbusInt(Devices.plc_w_reg1_req, 1, run_on_set=True))
+    W_WORD_0 = Tag(0, src=ModbusInt(Devices.plc_w_reg0_req, 0, sched_on_write=True))
+    W_WORD_1 = Tag(0, src=ModbusInt(Devices.plc_w_reg1_req, 1, sched_on_write=True))
 
     @classmethod
     def update_tags(cls):

@@ -97,7 +97,7 @@ class _Request:
     def __repr__(self) -> str:
         return _auto_repr(self, export_t=('type', 'address', 'size'))
 
-    def run_now(self) -> bool:
+    def schedule_now(self) -> bool:
         try:
             self.device.one_shot_q.put_nowait(self)
             return True
@@ -143,10 +143,10 @@ class ModbusTCPDevice(Device):
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                                 timeout=self.timeout, auto_open=True, **args_d))
         # privates
-        self._one_shot_th = threading.Thread(target=self._one_shot_thread, daemon=True)
+        self._schedule_once_th = threading.Thread(target=self._schedule_once_thread, daemon=True)
         self._schedule_th = threading.Thread(target=self._schedule_thread, daemon=True)
         # start threads
-        self._one_shot_th.start()
+        self._schedule_once_th.start()
         self._schedule_th.start()
 
     def __repr__(self):
@@ -216,7 +216,7 @@ class ModbusTCPDevice(Device):
             for iter_addr in range(request.address, request.address + request.size):
                 ds[iter_addr].error = not write_ok
 
-    def _one_shot_thread(self):
+    def _schedule_once_thread(self):
         """ Process one-shot request. """
         while True:
             # wait next request from queue
@@ -266,14 +266,14 @@ class ModbusTCPDevice(Device):
 
 
 class ModbusBool(DataSource):
-    def __init__(self, request: _Request, address: int, run_on_set: bool = False) -> None:
+    def __init__(self, request: _Request, address: int, sched_on_write: bool = False) -> None:
         # args
         self.request = request
         self.address = address
-        self.run_on_set = run_on_set
+        self.sched_on_write = sched_on_write
         # some check on request
         if request.type not in (_RequestType.READ_COILS, _RequestType.READ_D_INPUTS, _RequestType.WRITE_COILS):
-            raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
+            raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
         if not request.data_space.is_init(at_address=self.address):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
@@ -293,13 +293,16 @@ class ModbusBool(DataSource):
     def set(self, value: bool) -> None:
         # check write status
         if self.request.type is not _RequestType.WRITE_COILS:
-            raise ValueError(f'cannot write to this data source (bad request type {self.request.type.name})')
+            raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
+        # check value type
+        if not isinstance(value, bool):
+            raise TypeError(f'unsupported type for value (not a bool)')
         # apply value to request data space
         with self.request.data_space as ds:
             ds[self.address].value = value
         # request executed immediately if value is written
-        if self.run_on_set:
-            self.request.run_now()
+        if self.sched_on_write:
+            self.request.schedule_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
@@ -309,7 +312,7 @@ class ModbusBool(DataSource):
 class ModbusInt(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, run_on_set: bool = False,
+    def __init__(self, request: _Request, address: int, sched_on_write: bool = False,
                  bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
                  signed: bool = False, swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
@@ -317,7 +320,7 @@ class ModbusInt(DataSource):
         # args
         self.request = request
         self.address = address
-        self.run_on_set = run_on_set
+        self.sched_on_write = sched_on_write
         self.bit_length = bit_length
         self.byte_order = byte_order
         self.signed = signed
@@ -325,7 +328,7 @@ class ModbusInt(DataSource):
         self.swap_word = swap_word
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
-            raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
+            raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
         if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
@@ -376,7 +379,10 @@ class ModbusInt(DataSource):
     def set(self, value: int) -> None:
         # check write status
         if self.request.type is not _RequestType.WRITE_H_REGS:
-            raise ValueError(f'cannot write to this data source (bad request type {self.request.type.name})')
+            raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
+        # check value type
+        if not isinstance(value, int):
+            raise TypeError(f'unsupported type for value (not an int)')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
@@ -396,8 +402,8 @@ class ModbusInt(DataSource):
             with self.request.data_space as ds:
                 ds[self.address + offset].value = reg_value
         # request executed immediately if value is written
-        if self.run_on_set:
-            self.request.run_now()
+        if self.sched_on_write:
+            self.request.schedule_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
@@ -405,26 +411,25 @@ class ModbusInt(DataSource):
 
 
 class ModbusFloat(DataSource):
-    BIT_LENGTH_TYPE = Literal[32, 64]
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, run_on_set: bool = False,
-                 bit_length: BIT_LENGTH_TYPE = 32, byte_order: BYTE_ORDER_TYPE = 'big',
+    def __init__(self, request: _Request, address: int, sched_on_write: bool = False,
+                 bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
                  swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
-        self._bit_length: ModbusFloat.BIT_LENGTH_TYPE = 32
+        self._bit_length = 32
         self._byte_order: ModbusFloat.BYTE_ORDER_TYPE = 'big'
         # args
         self.request = request
         self.address = address
-        self.run_on_set = run_on_set
+        self.sched_on_write = sched_on_write
         self.bit_length = bit_length
         self.byte_order = byte_order
         self.swap_bytes = swap_bytes
         self.swap_word = swap_word
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
-            raise ValueError(f'bad request type {request.type.name} for {self.__class__.__name__}')
+            raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
         if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
@@ -436,14 +441,14 @@ class ModbusFloat(DataSource):
         return self.bit_length//16 + (1 if self.bit_length % 16 else 0)
 
     @property
-    def bit_length(self) -> BIT_LENGTH_TYPE:
+    def bit_length(self) -> int:
         return self._bit_length
 
     @bit_length.setter
-    def bit_length(self, value: BIT_LENGTH_TYPE):
+    def bit_length(self, value: int):
         # runtime literal check
-        if value not in get_args(ModbusFloat.BIT_LENGTH_TYPE):
-            raise ValueError(f'bit_length must be in {get_args(ModbusFloat.BIT_LENGTH_TYPE)}')
+        if value not in [32, 64]:
+            raise ValueError(f'bit_length must be either 32 or 64')
         self._bit_length = value
 
     @property
@@ -488,7 +493,10 @@ class ModbusFloat(DataSource):
     def set(self, value: float) -> None:
         # check write status
         if self.request.type is not _RequestType.WRITE_H_REGS:
-            raise ValueError(f'cannot write to this data source (bad request type {self.request.type.name})')
+            raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
+        # check value type
+        if not isinstance(value, float):
+            raise TypeError(f'unsupported type for value (not a float)')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
@@ -496,7 +504,7 @@ class ModbusFloat(DataSource):
             fmt = '>' if self.byte_order == 'big' else '<'
             fmt += 'f' if self.bit_length == 32 else 'd'
             value_b = struct.pack(fmt, value)
-        except struct.error as e:
+        except (struct.error, OverflowError) as e:
             raise ValueError(f'cannot set this float ({e})')
         # apply swaps
         if self.swap_bytes:
@@ -510,8 +518,8 @@ class ModbusFloat(DataSource):
             for offset, reg_value in enumerate(regs_l):
                 ds[self.address + offset].value = reg_value
         # request executed immediately if value is written
-        if self.run_on_set:
-            self.request.run_now()
+        if self.sched_on_write:
+            self.request.schedule_now()
 
     def error(self) -> bool:
         with self.request.data_space as ds:
