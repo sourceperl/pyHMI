@@ -115,13 +115,22 @@ class _Request:
         return _auto_repr(self, export_t=('type', 'address', 'size'))
 
     def schedule_now(self) -> bool:
-        try:
-            if self.device.connected or (self.device.shedule_once_q.qsize() < 3):
+        """ Try an immediate execution of this request by the schedule-once thread.
+
+        Return true if the request is accepted.
+        """
+        # accept this request when device is actually connected or if the schedule-once queue is empty
+        if self.device.connected or (self.device.shedule_once_q.qsize() == 0):
+            try:
                 self.device.shedule_once_q.put_nowait(self)
-            return True
-        except queue.Full:
-            logger.warning('unable to add request to schedule once queue ({self!r})')
-            return False
+                return True
+            except queue.Full:
+                logger.warning(f'schedule_once queue full drop {self.type.name} at @{self.address}')
+        # error reporting on data space
+        with self.data_space as ds:
+            for v in ds.values():
+                v.error = True
+        return False
 
 
 class _RequestsList:
@@ -156,7 +165,7 @@ class ModbusTCPDevice(Device):
         # public
         self.connected = False
         self.requests_l = _RequestsList()
-        self.shedule_once_q: queue.Queue[_Request] = queue.Queue(maxsize=10)
+        self.shedule_once_q: queue.Queue[_Request] = queue.Queue(maxsize=8)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -229,9 +238,9 @@ class ModbusTCPDevice(Device):
             # update error flag
             for iter_addr in range(request.address, request.address + request.size):
                 ds[iter_addr].error = not write_ok
-    
+
     def _update_device_status(self):
-        # update connected flag
+        # update connected flag
         with self.safe_cli as cli:
             self.connected = cli.is_open
 
