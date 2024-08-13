@@ -1,5 +1,4 @@
 import pytest
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice
 from pyModbusTCP.server import ModbusServer
 
 

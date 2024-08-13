@@ -78,9 +78,26 @@ class _DataSpace:
 class _Request:
     def __init__(self, device: "ModbusTCPDevice", type: _RequestType, address: int, size: int,
                  default_value: Any, scheduled: bool, single_func: bool = False) -> None:
-        # no single query for more than one coil/register requested
+        # check single queries
         if single_func and size != 1:
-            raise ValueError('cannot use single modbus function (single_func arg) if size is not set to 1')
+            raise ValueError('single modbus function requires size=1')
+        # check limits
+        if not 0 <= address <= 0xffff:
+            raise ValueError('address out of range (valid from 0 to 65535)')
+        if address + size > 0x10000:
+            raise ValueError('request after end of address space')
+        if type in (_RequestType.READ_COILS, _RequestType.READ_D_INPUTS):
+            if not 1 <= size <= 2000:
+                raise ValueError('size out of range (valid from 1 to 2000)')
+        elif type in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS):
+            if not 1 <= size <= 125:
+                raise ValueError('size out of range (valid from 1 to 125)')
+        elif type is _RequestType.WRITE_COILS:
+            if not 1 <= size <= 1968:
+                raise ValueError('size out of range (valid from 1 to 1968)')
+        elif type is _RequestType.WRITE_H_REGS:
+            if not 1 <= size <= 123:
+                raise ValueError('size out of range (valid from 1 to 123)')
         # args
         self.device = device
         self.type = type
@@ -227,8 +244,10 @@ class ModbusTCPDevice(Device):
             try:
                 self._process_read_request(request)
                 self._process_write_request(request)
-            except ValueError as e:
-                logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
+            except Exception as e:
+                msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
+                      f'({request.__class__.__name__}): {e}'
+                logger.warning(msg)
             # mark queue task as done
             self.one_shot_q.task_done()
 
@@ -241,8 +260,10 @@ class ModbusTCPDevice(Device):
                     if request.scheduled:
                         self._process_read_request(request)
                         self._process_write_request(request)
-                except ValueError as e:
-                    logger.warning(f'error in {threading.current_thread().name} ({request.__class__.__name__}): {e}')
+                except Exception as e:
+                    msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
+                          f'({request.__class__.__name__}): {e}'
+                    logger.warning(msg)
             # wait before next refresh
             time.sleep(self.refresh)
 

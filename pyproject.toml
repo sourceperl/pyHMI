@@ -16,3 +16,7 @@ Homepage = "https://github.com/sourceperl/pyHMI/"
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }
 version = { attr = "pyHMI.__version__" }
+
+[tool.pytest.ini_options]
+addopts = "-ra -v"
+testpaths = ["tests"]
