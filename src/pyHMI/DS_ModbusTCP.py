@@ -116,10 +116,11 @@ class _Request:
 
     def schedule_now(self) -> bool:
         try:
-            self.device.one_shot_q.put_nowait(self)
+            if self.device.connected or (self.device.shedule_once_q.qsize() < 3):
+                self.device.shedule_once_q.put_nowait(self)
             return True
         except queue.Full:
-            logger.warning('unable to add request to one-shot run queue ({self!r})')
+            logger.warning('unable to add request to schedule once queue ({self!r})')
             return False
 
 
@@ -153,8 +154,9 @@ class ModbusTCPDevice(Device):
         self.refresh = refresh
         self.client_adv_args = client_adv_args
         # public
+        self.connected = False
         self.requests_l = _RequestsList()
-        self.one_shot_q: queue.Queue[_Request] = queue.Queue(maxsize=5)
+        self.shedule_once_q: queue.Queue[_Request] = queue.Queue(maxsize=10)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -169,11 +171,6 @@ class ModbusTCPDevice(Device):
     def __repr__(self):
         return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
                f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_adv_args!r})'
-
-    @property
-    def connected(self):
-        with self.safe_cli as cli:
-            return cli.is_open
 
     def _process_read_request(self, request: _Request) -> None:
         # ignore other requests
@@ -232,24 +229,30 @@ class ModbusTCPDevice(Device):
             # update error flag
             for iter_addr in range(request.address, request.address + request.size):
                 ds[iter_addr].error = not write_ok
+    
+    def _update_device_status(self):
+        # update connected flag
+        with self.safe_cli as cli:
+            self.connected = cli.is_open
 
     def _schedule_once_thread(self):
         """ Process one-shot request. """
         while True:
             # wait next request from queue
-            request = self.one_shot_q.get()
+            request = self.shedule_once_q.get()
             # log it
             logger.debug(f'{threading.current_thread().name} receive {request}')
             # process it
             try:
                 self._process_read_request(request)
                 self._process_write_request(request)
+                self._update_device_status()
             except Exception as e:
                 msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
                 logger.warning(msg)
             # mark queue task as done
-            self.one_shot_q.task_done()
+            self.shedule_once_q.task_done()
 
     def _schedule_thread(self):
         """ Process every scheduled request. """
@@ -260,6 +263,7 @@ class ModbusTCPDevice(Device):
                     if request.scheduled:
                         self._process_read_request(request)
                         self._process_write_request(request)
+                        self._update_device_status()
                 except Exception as e:
                     msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                           f'({request.__class__.__name__}): {e}'
