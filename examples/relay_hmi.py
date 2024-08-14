@@ -14,14 +14,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 
 
 class Devices:
-    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_adv_args=dict(debug=False))
-    plc_r_reg512 = plc.add_read_bits_request(512, size=4, scheduled=True)
-    plc_w_reg512 = plc.add_write_bits_request(512, single_func=True)
-    plc_w_reg513 = plc.add_write_bits_request(513, single_func=True)
-    plc_w_reg514 = plc.add_write_bits_request(514, single_func=True)
-    plc_w_reg515 = plc.add_write_bits_request(515, single_func=True)
+    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=True))
+    plc_r_reg512 = plc.add_read_bits_request(512, size=4, run_cyclic=True)
+    plc_w_reg512 = plc.add_write_bits_request(512, single_func=True, run_on_set=True)
+    plc_w_reg513 = plc.add_write_bits_request(513, single_func=True, run_on_set=True)
+    plc_w_reg514 = plc.add_write_bits_request(514, single_func=True, run_on_set=True)
+    plc_w_reg515 = plc.add_write_bits_request(515, single_func=True, run_on_set=True)
     # immediate refresh on startup
-    plc_r_reg512.schedule_now()
+    plc_r_reg512.run()
 
 
 class Tags:
@@ -29,10 +29,10 @@ class Tags:
     R_REL_1 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 513))
     R_REL_2 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 514))
     R_REL_3 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 515))
-    W_REL_0 = Tag(False, src=ModbusBool(Devices.plc_w_reg512, 512, sched_on_write=True))
-    W_REL_1 = Tag(False, src=ModbusBool(Devices.plc_w_reg513, 513, sched_on_write=True))
-    W_REL_2 = Tag(False, src=ModbusBool(Devices.plc_w_reg514, 514, sched_on_write=True))
-    W_REL_3 = Tag(False, src=ModbusBool(Devices.plc_w_reg515, 515, sched_on_write=True))
+    W_REL_0 = Tag(False, src=ModbusBool(Devices.plc_w_reg512, 512))
+    W_REL_1 = Tag(False, src=ModbusBool(Devices.plc_w_reg513, 513))
+    W_REL_2 = Tag(False, src=ModbusBool(Devices.plc_w_reg514, 514))
+    W_REL_3 = Tag(False, src=ModbusBool(Devices.plc_w_reg515, 515))
 
     @classmethod
     def update_tags(cls):
@@ -93,7 +93,7 @@ class TabMisc(HMITab):
         for idx, item in enumerate(self.cmd_list.items):
             item.tk_but.configure(width=10, bg=btn_colors_t[idx % 2])
         self.cmd_list.build().pack()
-    
+
     def _set_all(self, value: bool):
         Tags.W_REL_0.set(value)
         Tags.W_REL_1.set(value)

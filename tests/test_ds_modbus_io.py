@@ -27,7 +27,7 @@ def test_read_modbus_bool_src(modbus_srv):
         # init client
         mb_device = ModbusTCPDevice(port=5020)
         request = mb_device.add_read_bits_request(addr, size, d_inputs=d_inputs)
-        request.schedule_now()
+        request.run()
         src_l = [ModbusBool(request, address=addr+i) for i in range(size)]
         # allows time for receive the dataset
         time.sleep(0.1)
@@ -52,7 +52,7 @@ def test_read_modbus_int_src(modbus_srv):
         # init datasource
         nb_reg = len(srv_int_l) * to_reg_length(bit_length)
         request = ModbusTCPDevice(port=5020).add_read_regs_request(addr, nb_reg, i_regs=i_regs)
-        request.schedule_now()
+        request.run()
         ds_args = {'bit_length': bit_length, 'signed': signed}
         src_l = [ModbusInt(request, addr+off, **ds_args) for off in range(0, nb_reg, to_reg_length(bit_length))]
         # allows time for receive the dataset
@@ -82,7 +82,7 @@ def test_read_modbus_float_src(modbus_srv):
         # init datasource
         device = ModbusTCPDevice(port=5020)
         request = device.add_read_regs_request(addr, size * to_reg_length(bit_length), i_regs=i_regs)
-        request.schedule_now()
+        request.run()
         src_l = []
         for off in range(0, size * to_reg_length(bit_length), to_reg_length(bit_length)):
             src_l.append(ModbusFloat(request, addr+off, bit_length=bit_length))
@@ -106,7 +106,7 @@ def test_write_modbus_bool_src(modbus_srv):
     # write on ds
     for offset, value in enumerate(ds_bool_l):
         ModbusBool(request, address=addr+offset).set(value)
-    request.schedule_now()
+    request.run()
     # allows time for receive the dataset
     time.sleep(0.1)
     # init server
@@ -127,7 +127,7 @@ def test_write_modbus_int_src(modbus_srv):
         for offset, value in enumerate(ds_int_l):
             offset *= to_reg_length(bit_length)
             ModbusInt(request, addr+offset, bit_length=bit_length, signed=signed).set(value)
-        request.schedule_now()
+        request.run()
         # allows time for receive the dataset
         time.sleep(0.1)
         # init server
@@ -153,7 +153,7 @@ def test_write_modbus_float_src(modbus_srv):
         request = ModbusTCPDevice(port=5020).add_write_regs_request(addr, size * to_reg_length(bit_length))
         for i, value in enumerate(ds_float_l):
             ModbusFloat(request, addr+i*to_reg_length(bit_length), bit_length=bit_length).set(value)
-        request.schedule_now()
+        request.run()
         # allows time for receive the dataset
         time.sleep(0.1)
         # read with server

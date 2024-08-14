@@ -1,4 +1,4 @@
-from enum import Enum, unique
+from enum import Enum, auto
 import queue
 import struct
 import threading
@@ -9,22 +9,6 @@ from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
 from .Misc import SafeObject, swap_bytes, swap_words, bytes2word_list
-
-
-# some consts
-@unique
-class _RequestType(Enum):
-    READ_COILS = 1
-    READ_D_INPUTS = 2
-    READ_H_REGS = 3
-    READ_I_REGS = 4
-    WRITE_COILS = 5
-    WRITE_H_REGS = 6
-
-
-_READ_REQUESTS = (_RequestType.READ_COILS, _RequestType.READ_D_INPUTS,
-                  _RequestType.READ_H_REGS, _RequestType.READ_I_REGS)
-_WRITE_REQUESTS = (_RequestType.WRITE_COILS, _RequestType.WRITE_H_REGS)
 
 
 # some functions
@@ -39,23 +23,29 @@ def _auto_repr(self: object, export_t: Optional[tuple] = None) -> str:
 
 
 # some class
-class _DataSpace:
-    class Data:
-        def __init__(self, value: Any, error: bool) -> None:
-            # args
-            self.value = value
-            self.error = error
+class _RequestType(Enum):
+    READ_COILS = auto()
+    READ_D_INPUTS = auto()
+    READ_H_REGS = auto()
+    READ_I_REGS = auto()
+    WRITE_COILS = auto()
+    WRITE_H_REGS = auto()
 
-        def __repr__(self) -> str:
-            return _auto_repr(self)
 
+class _RequestGroup:
+    READ = [_RequestType.READ_COILS, _RequestType.READ_D_INPUTS,
+            _RequestType.READ_H_REGS, _RequestType.READ_I_REGS]
+    WRITE = [_RequestType.WRITE_COILS, _RequestType.WRITE_H_REGS]
+
+
+class _Data:
     def __init__(self, address: int, size: int, default_value: Any) -> None:
         # private
         self._lock = threading.Lock()
-        self._data_d: Dict[int, _DataSpace.Data] = dict()
+        self._data_d: Dict[int, Any] = dict()
         # populate data dict
         for iter_addr in range(address, address + size):
-            self._data_d[iter_addr] = _DataSpace.Data(value=default_value, error=True)
+            self._data_d[iter_addr] = default_value
 
     def __repr__(self) -> str:
         return _auto_repr(self, export_t=('_data_d', ))
@@ -67,17 +57,10 @@ class _DataSpace:
     def __exit__(self, *args):
         self._lock.release()
 
-    def is_init(self, at_address: int, size: int = 1) -> bool:
-        with self._lock:
-            for offset in range(size):
-                if not at_address + offset in self._data_d:
-                    return False
-        return True
-
 
 class _Request:
     def __init__(self, device: "ModbusTCPDevice", type: _RequestType, address: int, size: int,
-                 default_value: Any, scheduled: bool, single_func: bool = False) -> None:
+                 default_value: Any, run_cyclic: bool, run_on_set: bool = False, single_func: bool = False) -> None:
         # check single queries
         if single_func and size != 1:
             raise ValueError('single modbus function requires size=1')
@@ -104,32 +87,75 @@ class _Request:
         self.address = address
         self.size = size
         self.default_value = default_value
-        self.scheduled = scheduled
+        self.run_cyclic = run_cyclic
+        self.run_on_set = run_on_set
         self.single_func = single_func
         # public
-        self.data_space = _DataSpace(address=address, size=size, default_value=self.default_value)
+        self.error = True
+        # private
+        self._data = _Data(address=address, size=size, default_value=self.default_value)
+        self._single_run_expire = 0.0
         # reference request at device level
         self.device.requests_l.append(self)
 
     def __repr__(self) -> str:
         return _auto_repr(self, export_t=('type', 'address', 'size'))
 
-    def schedule_now(self) -> bool:
-        """ Try an immediate execution of this request by the schedule-once thread.
+    @property
+    def _single_run_expired(self) -> bool:
+        return time.monotonic() > self._single_run_expire
 
-        Return true if the request is accepted.
+    @property
+    def single_run_ready(self) -> bool:
+        # single-run thread process fresh modbus request exclusively
+        return not self._single_run_expired
+
+    def _get_data(self, address: int, size: int = 1) -> list:
+        regs_l = []
+        with self._data as data:
+            for i in range(size):
+                regs_l.append(data[address + i])
+        return regs_l
+
+    def _set_data(self, address: int, registers_l: list, by_thread: bool = False):
+        # apply it to write address space
+        with self._data as data:
+            for i, value in enumerate(registers_l):
+                data[address + i] = int(value)
+        # skip others process if call by a thread
+        if by_thread:
+            return
+        # request executed on set
+        if self.run_on_set:
+            self.run()
+
+    def is_valid(self, at_address: int, for_size: int = 1) -> bool:
+        """ Indicate request validity for this address and size. """
+        with self._data as data:
+            for offset in range(for_size):
+                if not at_address + offset in data:
+                    return False
+        return True
+
+    def run(self) -> bool:
+        """ Attempt immediate execution of the request using the single run thread.
+
+        Any pending execution will be canceled after the delay specified at device level in
+        run_cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the request is queued.
         """
-        # accept this request when device is actually connected or if the schedule-once queue is empty
-        if self.device.connected or (self.device.shedule_once_q.qsize() == 0):
+        # accept this request when device is actually connected or if the single-run queue is empty
+        if self.device.connected or (self.device.single_run_req_q.qsize() == 0):
+            # set an expiration stamp (avoid single-run thread process outdated request)
+            self._single_run_expire = time.monotonic() + self.device.run_cancel_delay
             try:
-                self.device.shedule_once_q.put_nowait(self)
+                self.device.single_run_req_q.put_nowait(self)
                 return True
             except queue.Full:
-                logger.warning(f'schedule_once queue full drop {self.type.name} at @{self.address}')
-        # error reporting on data space
-        with self.data_space as ds:
-            for v in ds.values():
-                v.error = True
+                logger.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
+        # error reporting
+        self.error = True
         return False
 
 
@@ -153,37 +179,38 @@ class _RequestsList:
 
 
 class ModbusTCPDevice(Device):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0,
-                 client_adv_args: Optional[dict] = None):
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, run_cancel_delay=5.0,
+                 client_args: Optional[dict] = None):
         # args
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
-        self.client_adv_args = client_adv_args
+        self.client_args = client_args
         # public
         self.connected = False
+        self.run_cancel_delay = run_cancel_delay
         self.requests_l = _RequestsList()
-        self.shedule_once_q: queue.Queue[_Request] = queue.Queue(maxsize=8)
+        self.single_run_req_q: queue.Queue[_Request] = queue.Queue(maxsize=100)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
-        args_d = {} if self.client_adv_args is None else self.client_adv_args
+        args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                                 timeout=self.timeout, auto_open=True, **args_d))
         # privates
-        self._schedule_once_th = threading.Thread(target=self._schedule_once_thread, daemon=True)
-        self._schedule_th = threading.Thread(target=self._schedule_thread, daemon=True)
+        self._single_run_th = threading.Thread(target=self._single_run_thread, daemon=True)
+        self._cyclic_th = threading.Thread(target=self._cyclic_thread, daemon=True)
         # start threads
-        self._schedule_once_th.start()
-        self._schedule_th.start()
+        self._single_run_th.start()
+        self._cyclic_th.start()
 
     def __repr__(self):
         return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
-               f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_adv_args!r})'
+               f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_args!r})'
 
     def _process_read_request(self, request: _Request) -> None:
         # ignore other requests
-        if request.type not in _READ_REQUESTS:
+        if request.type not in _RequestGroup.READ:
             return
         # do request
         if request.type is _RequestType.READ_COILS:
@@ -201,25 +228,18 @@ class ModbusTCPDevice(Device):
         # process result
         if reg_list:
             # on success
-            with request.data_space as ds:
-                for offset, reg in enumerate(reg_list):
-                    ds[request.address+offset].value = reg
-                    ds[request.address+offset].error = False
+            request._set_data(address=request.address, registers_l=reg_list, by_thread=True)
+            request.error = False
         else:
             # on error
-            with request.data_space as ds:
-                for iter_addr in range(request.address, request.address + request.size):
-                    ds[iter_addr].error = True
+            request.error = True
 
     def _process_write_request(self, request: _Request) -> None:
         # ignore other requests
-        if request.type not in _WRITE_REQUESTS:
+        if request.type not in _RequestGroup.WRITE:
             return
         # get values for write(s)
-        values_l = []
-        with request.data_space as ds:
-            for iter_addr in range(request.address, request.address + request.size):
-                values_l.append(ds[iter_addr].value)
+        values_l = request._get_data(address=request.address, size=request.size)
         # do request
         if request.type is _RequestType.WRITE_COILS:
             with self.safe_cli as cli:
@@ -233,43 +253,41 @@ class ModbusTCPDevice(Device):
                     write_ok = cli.write_single_register(request.address, values_l[0])
                 else:
                     write_ok = cli.write_multiple_registers(request.address, values_l)
-        # process result
-        with request.data_space as ds:
-            # update error flag
-            for iter_addr in range(request.address, request.address + request.size):
-                ds[iter_addr].error = not write_ok
+        # result
+        request.error = not write_ok
 
     def _update_device_status(self):
         # update connected flag
         with self.safe_cli as cli:
             self.connected = cli.is_open
 
-    def _schedule_once_thread(self):
-        """ Process one-shot request. """
+    def _single_run_thread(self):
+        """ This thread executes all requests put to the single-run queue. """
         while True:
             # wait next request from queue
-            request = self.shedule_once_q.get()
+            request = self.single_run_req_q.get()
             # log it
             logger.debug(f'{threading.current_thread().name} receive {request}')
             # process it
             try:
-                self._process_read_request(request)
-                self._process_write_request(request)
-                self._update_device_status()
+                if request.single_run_ready:
+                    self._process_read_request(request)
+                    self._process_write_request(request)
+                    self._update_device_status()
             except Exception as e:
                 msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
                 logger.warning(msg)
             # mark queue task as done
-            self.shedule_once_q.task_done()
+            self.single_run_req_q.task_done()
 
-    def _schedule_thread(self):
-        """ Process every scheduled request. """
+    def _cyclic_thread(self):
+        """ This thread executes cyclic requests. """
         while True:
             # iterate over all requests
             for request in self.requests_l.copy():
                 try:
-                    if request.scheduled:
+                    if request.run_cyclic:
                         self._process_read_request(request)
                         self._process_write_request(request)
                         self._update_device_status()
@@ -280,35 +298,34 @@ class ModbusTCPDevice(Device):
             # wait before next refresh
             time.sleep(self.refresh)
 
-    def add_read_bits_request(self, address: int, size: int = 1, scheduled: bool = False, d_inputs: bool = False):
+    def add_read_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, d_inputs: bool = False):
         req_type = _RequestType.READ_D_INPUTS if d_inputs else _RequestType.READ_COILS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, scheduled=scheduled)
+        return _Request(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
 
-    def add_write_bits_request(self, address: int, size: int = 1, scheduled: bool = False,
+    def add_write_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
                                default_value: bool = False, single_func: bool = False):
-        return _Request(self, type=_RequestType.WRITE_COILS, address=address, size=size,
-                        default_value=default_value, scheduled=scheduled, single_func=single_func)
+        return _Request(self, type=_RequestType.WRITE_COILS, address=address, size=size, default_value=default_value,
+                        run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
 
-    def add_read_regs_request(self, address: int, size: int = 1, scheduled: bool = False, i_regs: bool = False):
+    def add_read_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, i_regs: bool = False):
         req_type = _RequestType.READ_I_REGS if i_regs else _RequestType.READ_H_REGS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, scheduled=scheduled)
+        return _Request(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
 
-    def add_write_regs_request(self, address: int, size: int = 1, scheduled: bool = False, default_value: int = 0,
-                               single_func: bool = False):
-        return _Request(self, type=_RequestType.WRITE_H_REGS, address=address, size=size,
-                        default_value=default_value, scheduled=scheduled, single_func=single_func)
+    def add_write_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
+                               default_value: int = 0, single_func: bool = False):
+        return _Request(self, type=_RequestType.WRITE_H_REGS, address=address, size=size, default_value=default_value,
+                        run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
 
 
 class ModbusBool(DataSource):
-    def __init__(self, request: _Request, address: int, sched_on_write: bool = False) -> None:
+    def __init__(self, request: _Request, address: int) -> None:
         # args
         self.request = request
         self.address = address
-        self.sched_on_write = sched_on_write
         # some check on request
         if request.type not in (_RequestType.READ_COILS, _RequestType.READ_D_INPUTS, _RequestType.WRITE_COILS):
             raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
-        if not request.data_space.is_init(at_address=self.address):
+        if not request.is_valid(at_address=self.address):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
@@ -320,9 +337,7 @@ class ModbusBool(DataSource):
             raise TypeError('first_value must be a bool')
 
     def get(self) -> Optional[bool]:
-        # read from request data space
-        with self.request.data_space as ds:
-            return ds[self.address].value
+        return self.request._get_data(address=self.address)[0]
 
     def set(self, value: bool) -> None:
         # check write status
@@ -332,29 +347,22 @@ class ModbusBool(DataSource):
         if not isinstance(value, bool):
             raise TypeError(f'unsupported type for value (not a bool)')
         # apply value to request data space
-        with self.request.data_space as ds:
-            ds[self.address].value = value
-        # request executed immediately if value is written
-        if self.sched_on_write:
-            self.request.schedule_now()
+        self.request._set_data(address=self.address, registers_l=[int(value)])
 
     def error(self) -> bool:
-        with self.request.data_space as ds:
-            return ds[self.address].error
+        return self.request.error
 
 
 class ModbusInt(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, sched_on_write: bool = False,
-                 bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
+    def __init__(self, request: _Request, address: int, bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
                  signed: bool = False, swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._byte_order: ModbusInt.BYTE_ORDER_TYPE = 'big'
         # args
         self.request = request
         self.address = address
-        self.sched_on_write = sched_on_write
         self.bit_length = bit_length
         self.byte_order = byte_order
         self.signed = signed
@@ -363,14 +371,14 @@ class ModbusInt(DataSource):
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
             raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
-        if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
+        if not request.is_valid(at_address=self.address, for_size=self.reg_length):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
         return _auto_repr(self)
 
     @property
-    def reg_nb(self):
+    def reg_length(self):
         return self.bit_length//16 + (1 if self.bit_length % 16 else 0)
 
     @property
@@ -391,10 +399,7 @@ class ModbusInt(DataSource):
 
     def get(self) -> Optional[int]:
         # read register(s)
-        regs_l: List[int] = []
-        with self.request.data_space as ds:
-            for offest in range(self.reg_nb):
-                regs_l.append(ds[self.address + offest].value)
+        regs_l = self.request._get_data(address=self.address, size=self.reg_length)
         # skip decoding for uninitialized variables (usually at startup)
         if None in regs_l:
             return
@@ -421,7 +426,7 @@ class ModbusInt(DataSource):
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
         try:
-            value_b = value.to_bytes(2*self.reg_nb, byteorder=self.byte_order, signed=self.signed)
+            value_b = value.to_bytes(2*self.reg_length, byteorder=self.byte_order, signed=self.signed)
         except OverflowError as e:
             raise ValueError(f'cannot set this int ({e})')
         # apply swaps
@@ -431,24 +436,17 @@ class ModbusInt(DataSource):
             value_b = swap_words(value_b)
         # build a list of register values
         regs_l = bytes2word_list(value_b)
-        # apply it to request address space
-        for offset, reg_value in enumerate(regs_l):
-            with self.request.data_space as ds:
-                ds[self.address + offset].value = reg_value
-        # request executed immediately if value is written
-        if self.sched_on_write:
-            self.request.schedule_now()
+        # apply value to request data space
+        self.request._set_data(address=self.address, registers_l=regs_l)
 
     def error(self) -> bool:
-        with self.request.data_space as ds:
-            return ds[self.address].error
+        return self.request.error
 
 
 class ModbusFloat(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, sched_on_write: bool = False,
-                 bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
+    def __init__(self, request: _Request, address: int, bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
                  swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._bit_length = 32
@@ -456,7 +454,6 @@ class ModbusFloat(DataSource):
         # args
         self.request = request
         self.address = address
-        self.sched_on_write = sched_on_write
         self.bit_length = bit_length
         self.byte_order = byte_order
         self.swap_bytes = swap_bytes
@@ -464,14 +461,14 @@ class ModbusFloat(DataSource):
         # some check on request
         if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
             raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
-        if not request.data_space.is_init(at_address=self.address, size=self.reg_nb):
+        if not request.is_valid(at_address=self.address, for_size=self.reg_length):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
         return _auto_repr(self)
 
     @property
-    def reg_nb(self):
+    def reg_length(self):
         return self.bit_length//16 + (1 if self.bit_length % 16 else 0)
 
     @property
@@ -503,10 +500,7 @@ class ModbusFloat(DataSource):
 
     def get(self) -> Optional[float]:
         # read register(s)
-        regs_l: List[int] = []
-        with self.request.data_space as ds:
-            for offest in range(self.reg_nb):
-                regs_l.append(ds[self.address + offest].value)
+        regs_l = self.request._get_data(address=self.address, size=self.reg_length)
         # skip decoding for uninitialized variables (usually at startup)
         if None in regs_l:
             return
@@ -529,8 +523,8 @@ class ModbusFloat(DataSource):
         if self.request.type is not _RequestType.WRITE_H_REGS:
             raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
         # check value type
-        if not isinstance(value, float):
-            raise TypeError(f'unsupported type for value (not a float)')
+        if not isinstance(value, (int, float)):
+            raise TypeError(f'unsupported type for value (not an int or a float)')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
@@ -547,14 +541,8 @@ class ModbusFloat(DataSource):
             value_b = swap_words(value_b)
         # build a list of register values
         regs_l = bytes2word_list(value_b)
-        # apply it to write address space
-        with self.request.data_space as ds:
-            for offset, reg_value in enumerate(regs_l):
-                ds[self.address + offset].value = reg_value
-        # request executed immediately if value is written
-        if self.sched_on_write:
-            self.request.schedule_now()
+        # apply value to request data space
+        self.request._set_data(address=self.address, registers_l=regs_l)
 
     def error(self) -> bool:
-        with self.request.data_space as ds:
-            return ds[self.address].error
+        return self.request.error

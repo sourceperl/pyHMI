@@ -7,8 +7,8 @@ import time
 
 # Device PLC
 md = ModbusTCPDevice('localhost')
-md_r_req = md.add_read_bits_request(1, 2, scheduled=True)
-md_w_req = md.add_write_bits_request(0, 1, scheduled=True)
+md_r_req = md.add_read_bits_request(1, 2, run_cyclic=True)
+md_w_req = md.add_write_bits_request(0, 1, run_cyclic=True)
 
 # Tags
 W_BIT_0 = Tag(False, src=ModbusBool(md_w_req, 0))

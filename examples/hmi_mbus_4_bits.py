@@ -11,11 +11,11 @@ from tkinter import ttk
 
 class Devices:
     md = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=0.2)
-    md_r_req = md.add_read_bits_request(0, 4, scheduled=True)
-    md_w_coil_0_req = md.add_write_bits_request(0, single_func=True)
-    md_w_coil_1_req = md.add_write_bits_request(1, single_func=True)
-    md_w_coil_2_req = md.add_write_bits_request(2, single_func=True)
-    md_w_coil_3_req = md.add_write_bits_request(3, single_func=True)
+    md_r_req = md.add_read_bits_request(0, 4, run_cyclic=True)
+    md_w_coil_0_req = md.add_write_bits_request(0, run_on_set=True, single_func=True)
+    md_w_coil_1_req = md.add_write_bits_request(1, run_on_set=True, single_func=True)
+    md_w_coil_2_req = md.add_write_bits_request(2, run_on_set=True, single_func=True)
+    md_w_coil_3_req = md.add_write_bits_request(3, run_on_set=True, single_func=True)
 
 
 class Tags:
@@ -23,10 +23,10 @@ class Tags:
     BIT_1 = Tag(False, src=ModbusBool(Devices.md_r_req, 1))
     BIT_2 = Tag(False, src=ModbusBool(Devices.md_r_req, 2))
     BIT_3 = Tag(False, src=ModbusBool(Devices.md_r_req, 3))
-    W_BIT_0 = Tag(False, src=ModbusBool(Devices.md_w_coil_0_req, 0, sched_on_write=True))
-    W_BIT_1 = Tag(False, src=ModbusBool(Devices.md_w_coil_1_req, 1, sched_on_write=True))
-    W_BIT_2 = Tag(False, src=ModbusBool(Devices.md_w_coil_2_req, 2, sched_on_write=True))
-    W_BIT_3 = Tag(False, src=ModbusBool(Devices.md_w_coil_3_req, 3, sched_on_write=True))
+    W_BIT_0 = Tag(False, src=ModbusBool(Devices.md_w_coil_0_req, 0))
+    W_BIT_1 = Tag(False, src=ModbusBool(Devices.md_w_coil_1_req, 1))
+    W_BIT_2 = Tag(False, src=ModbusBool(Devices.md_w_coil_2_req, 2))
+    W_BIT_3 = Tag(False, src=ModbusBool(Devices.md_w_coil_3_req, 3))
 
     @classmethod
     def update_tags(cls):
