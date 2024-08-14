@@ -98,7 +98,9 @@ class ValveESDDialog(tk.Toplevel):
 
 
 class SetStrValueDialog(tk.Toplevel):
-    def __init__(self, master=None, title: str = '', text: str = '', valid_command=None, **kwargs):
+    def __init__(self, master=None, title: str = 'SetStrValueDialog', text: str = 'Set a string',
+                 valid_txt: str = 'Ok', cancel_txt: str = 'Cancel',
+                 valid_command=None, **kwargs):
         super().__init__(master, **kwargs)
         # args
         self.dialog_title = title
@@ -113,14 +115,14 @@ class SetStrValueDialog(tk.Toplevel):
         # design the dialog box
         self.tk_txt_lbl = tk.Label(self, text=text, bg=self.cget('bg'))
         self.tk_entry = tk.Entry(self, textvariable=self.value)
-        self.tk_btn_valid = tk.Button(self, text='Validation', command=self.ok)
-        self.tk_btn_abort = tk.Button(self, text='Annulation', command=self.cancel)
+        self.tk_btn_valid = tk.Button(self, text=valid_txt, command=self.ok)
+        self.tk_btn_cancel = tk.Button(self, text=cancel_txt, command=self.cancel)
         self.tk_txt_lbl.grid(row=0, column=0, columnspan=2, padx=20, pady=20)
         self.tk_entry.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
         self.tk_btn_valid.grid(row=2, column=0, padx=10, pady=10)
-        self.tk_btn_abort.grid(row=2, column=1, padx=10, pady=10)
+        self.tk_btn_cancel.grid(row=2, column=1, padx=10, pady=10)
         # default focus
-        self.tk_btn_abort.focus_set()
+        self.tk_btn_cancel.focus_set()
         # destroy this dialog box on Escape press or after a 45s timeout
         self.bind('<Escape>', lambda evt: self.destroy())
         self.after(ms=45_000, func=self.destroy)

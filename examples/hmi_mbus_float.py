@@ -13,9 +13,9 @@ from pyHMI.UI import UIAnalogListFrame, UIButtonListFrame
 class Devices(object):
     # init datasource
     # PLC TBox
-    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=1.0, client_args=dict(debug=False))
-    plc_r_reg0_req = plc.add_read_regs_request(20800, size=8, run_cyclic=True)
-    plc_w_reg0_req = plc.add_write_regs_request(20800, size=16, run_cyclic=True)
+    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=False))
+    plc_r_reg0_req = plc.add_read_regs_request(20800, size=2, run_cyclic=True)
+    plc_w_reg0_req = plc.add_write_regs_request(20800, size=2, run_on_set=True)
     plc_r_reg0_req.run()
 
 
@@ -25,21 +25,12 @@ class Tags(object):
     R_FLOAT_0 = Tag(0.0, src=ModbusFloat(Devices.plc_r_reg0_req, 20800), chg_cmd=lambda x: round(x, 3))
     # to PLC
     W_FLOAT_0 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20800))
-    W_FLOAT_1 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20802))
-    W_FLOAT_2 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20804))
-    W_FLOAT_3 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20806))
-    W_FLOAT_4 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20808))
-    W_FLOAT_5 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20810))
 
     @classmethod
     def update_tags(cls):
         # update tags
-        cls.W_FLOAT_0.val = time.time() - 1723653334
-        cls.W_FLOAT_1.val = cls.W_FLOAT_0.val * 10
-        cls.W_FLOAT_2.val = cls.W_FLOAT_1.val * 10
-        cls.W_FLOAT_3.val = cls.W_FLOAT_2.val * 10
-        cls.W_FLOAT_4.val = cls.W_FLOAT_3.val * 10
-        cls.W_FLOAT_5.val = cls.W_FLOAT_4.val * 10
+        pass
+
 
 class HMITab(tk.Frame):
     def __init__(self, notebook, update_ms=500, *args, **kwargs):
@@ -74,11 +65,11 @@ class TabMisc(HMITab):
         for idx, item in enumerate(self.longs_list.items):
             item.tk_lbl_value.configure(width=15)
         self.longs_list.build().pack()
-        self.frmCmd = tk.LabelFrame(self, text='Set/Reset', padx=10, pady=10)
+        self.frmCmd = tk.LabelFrame(self, text='Set', padx=10, pady=10)
         self.frmCmd.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.cmd_list = UIButtonListFrame(self.frmCmd, n_cols=2)
-        self.cmd_list.add('@0 = 0xffff', cmd=lambda: Tags.W_FLOAT_0.set(0xffff))
-        self.cmd_list.add('@0 = 0x0000', cmd=lambda: Tags.W_FLOAT_0.set(0x0))
+        self.cmd_list.add('999.99', cmd=lambda: Tags.W_FLOAT_0.set(999.99))
+        self.cmd_list.add('0.0', cmd=lambda: Tags.W_FLOAT_0.set(0.0))
         # apply custom design and build
         btn_colors_t = ('light salmon', 'OliveDrab1')
         for idx, item in enumerate(self.cmd_list.items):
@@ -87,15 +78,14 @@ class TabMisc(HMITab):
         # frame "set value of word"
         self.frmEntry = tk.LabelFrame(self, text='Set value', padx=10, pady=10)
         self.frmEntry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.NSEW)
-        self.button1 = tk.Button(self.frmEntry, text='Write @0',
-                                 command=self.show_value_dialog)
+        self.button1 = tk.Button(self.frmEntry, text='Write', command=self.show_value_dialog)
         self.button1.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
 
     def tab_update(self):
         pass
 
     def show_value_dialog(self):
-        SetStrValueDialog(self, title='Saisie', text='Valeur du float', valid_command=self.valid_value)
+        SetStrValueDialog(self, title='Write', text='Set a float value', valid_command=self.valid_value)
 
     def valid_value(self, value: str):
         try:
@@ -133,9 +123,9 @@ class HMIApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         # configure main window
-        self.wm_title('HMI nano test')
+        self.wm_title('My HMI')
         # self.attributes('-fullscreen', True)
-        self.geometry("800x600")
+        self.geometry('600x300')
         # periodic tags update
         self.do_every(Tags.update_tags, every_ms=500)
         # build a notebook with tabs
