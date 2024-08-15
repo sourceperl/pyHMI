@@ -6,7 +6,7 @@ import threading
 
 
 def swap_bytes(value: Union[bytes, bytearray]) -> bytearray:
-    """Swapped bytes in the input bytearray (b'\x01\x02\x03\x04' -> b'\x02\x01\x04\x03')"""
+    """Swapped bytes in the input bytearray (b'1234' -> b'2143')"""
     sw_value = bytearray(len(value))
     for i in range(0, len(value), 2):
         sw_value[i] = value[i+1]
@@ -15,7 +15,7 @@ def swap_bytes(value: Union[bytes, bytearray]) -> bytearray:
 
 
 def swap_words(value: Union[bytes, bytearray]) -> bytearray:
-    """Swapped words in the input bytearray (b'\xde\xad\xbe\xef' -> b'\xbe\xef\xde\xad')"""
+    """Swapped words in the input bytearray (b'1234' -> b'3412')"""
     sw_value = bytearray(len(value))
     for i in range(0, len(value), 4):
         sw_value[i:i+2] = value[i+2:i+4]

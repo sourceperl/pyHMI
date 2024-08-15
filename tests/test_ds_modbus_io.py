@@ -137,7 +137,7 @@ def test_write_modbus_int_src(modbus_srv):
         # convert raw_bytes to list of well encoded integer
         srv_int_l = []
         for block in cut_bytes(raw_b, block_size=to_byte_length(bit_length)):
-            srv_int_l.append(int.from_bytes(block, signed=signed))
+            srv_int_l.append(int.from_bytes(block, byteorder='big', signed=signed))
         # check data match
         assert ds_int_l == srv_int_l
 
@@ -164,8 +164,8 @@ def test_write_modbus_float_src(modbus_srv):
         srv_float_l = []
         for block in cut_bytes(raw_b, block_size=to_byte_length(bit_length)):
             if bit_length == 32:
-                srv_float_l.append(int_to_single_float(int.from_bytes(block)))
+                srv_float_l.append(int_to_single_float(int.from_bytes(block, byteorder='big')))
             else:
-                srv_float_l.append(int_to_double_float(int.from_bytes(block)))
+                srv_float_l.append(int_to_double_float(int.from_bytes(block, byteorder='big')))
         # check data match
         assert ds_float_l == pytest.approx(srv_float_l, abs=1e-6, nan_ok=True)
