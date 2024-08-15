@@ -23,12 +23,14 @@ def swap_words(value: Union[bytes, bytearray]) -> bytearray:
     return sw_value
 
 
-def bytes2word_list(value: Union[bytes, bytearray]) -> List[int]:
-    """Convert a bytearray to a list of word value"""
-    ret_l = []
-    for i in range(0, len(value), 2):
-        ret_l.append(int.from_bytes(value[i:i+2], byteorder='big'))
-    return ret_l
+def cut_bytes(value: Union[bytes, bytearray], block_size: int) -> Union[List[bytes], List[bytearray]]:
+    """Cut a bytes/bytearray as blocks of block_size byte length"""
+    return [value[i:i+block_size] for i in range(0, len(value), block_size)]
+
+
+def cut_bytes_to_regs(value: Union[bytes, bytearray]) -> List[int]:
+    """Convert a bytes/bytearray to a list of modbus registers (16-bit big-endian int)"""
+    return [int.from_bytes(x, byteorder='big') for x in cut_bytes(value, block_size=2)]
 
 
 def speed_ms(flow_nm3h: float, p_bara: float, dn_mm: int) -> float:

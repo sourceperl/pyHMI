@@ -8,7 +8,7 @@ from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
-from .Misc import SafeObject, swap_bytes, swap_words, bytes2word_list
+from .Misc import SafeObject, swap_bytes, swap_words, cut_bytes_to_regs
 
 
 # some functions
@@ -426,18 +426,16 @@ class ModbusInt(DataSource):
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
         try:
-            value_b = value.to_bytes(2*self.reg_length, byteorder=self.byte_order, signed=self.signed)
+            value_as_b = value.to_bytes(2*self.reg_length, byteorder=self.byte_order, signed=self.signed)
         except OverflowError as e:
             raise ValueError(f'cannot set this int ({e})')
         # apply swaps
         if self.swap_bytes:
-            value_b = swap_bytes(value_b)
+            value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
-            value_b = swap_words(value_b)
-        # build a list of register values
-        regs_l = bytes2word_list(value_b)
+            value_as_b = swap_words(value_as_b)
         # apply value to request data space
-        self.request._set_data(address=self.address, registers_l=regs_l)
+        self.request._set_data(address=self.address, registers_l=cut_bytes_to_regs(value_as_b))
 
     def error(self) -> bool:
         return self.request.error
@@ -531,18 +529,16 @@ class ModbusFloat(DataSource):
         try:
             fmt = '>' if self.byte_order == 'big' else '<'
             fmt += 'f' if self.bit_length == 32 else 'd'
-            value_b = struct.pack(fmt, value)
+            value_as_b = struct.pack(fmt, value)
         except (struct.error, OverflowError) as e:
             raise ValueError(f'cannot set this float ({e})')
         # apply swaps
         if self.swap_bytes:
-            value_b = swap_bytes(value_b)
+            value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
-            value_b = swap_words(value_b)
-        # build a list of register values
-        regs_l = bytes2word_list(value_b)
+            value_as_b = swap_words(value_as_b)
         # apply value to request data space
-        self.request._set_data(address=self.address, registers_l=regs_l)
+        self.request._set_data(address=self.address, registers_l=cut_bytes_to_regs(value_as_b))
 
     def error(self) -> bool:
         return self.request.error
