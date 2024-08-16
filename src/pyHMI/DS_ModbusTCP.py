@@ -192,7 +192,7 @@ class ModbusTCPDevice(Device):
         self.connected = False
         self.run_cancel_delay = run_cancel_delay
         self.requests_l = _RequestsList()
-        self.single_run_req_q: queue.Queue[_Request] = queue.Queue(maxsize=100)
+        self.single_run_req_q: queue.Queue[_Request] = queue.Queue(maxsize=255)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -345,7 +345,7 @@ class ModbusBool(DataSource):
             raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
         # check value type
         if not isinstance(value, bool):
-            raise TypeError(f'unsupported type for value (not a bool)')
+            raise TypeError('unsupported type for value (not a bool)')
         # apply value to request data space
         self.request._set_data(address=self.address, registers_l=[int(value)])
 
@@ -421,7 +421,7 @@ class ModbusInt(DataSource):
             raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
         # check value type
         if not isinstance(value, int):
-            raise TypeError(f'unsupported type for value (not an int)')
+            raise TypeError('unsupported type for value (not an int)')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
@@ -477,7 +477,7 @@ class ModbusFloat(DataSource):
     def bit_length(self, value: int):
         # runtime literal check
         if value not in [32, 64]:
-            raise ValueError(f'bit_length must be either 32 or 64')
+            raise ValueError('bit_length must be either 32 or 64')
         self._bit_length = value
 
     @property
@@ -522,7 +522,7 @@ class ModbusFloat(DataSource):
             raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
         # check value type
         if not isinstance(value, (int, float)):
-            raise TypeError(f'unsupported type for value (not an int or a float)')
+            raise TypeError('unsupported type for value (not an int or a float)')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
@@ -594,7 +594,10 @@ class ModbusTboxStr(DataSource):
             raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
         # check value type
         if not isinstance(value, str):
-            raise TypeError(f'unsupported type for value (not a str)')
+            raise TypeError('unsupported type for value (not a str)')
+        # ckeck string length
+        if len(value) > self.str_length:
+            raise ValueError(f'cannot set this str (too long: declared size is {self.str_length} char(s))')
         # convert to bytes:
         # - check strange value status (negative for an unsigned, ...)
         # - apply 2's complement if requested
