@@ -111,11 +111,11 @@ class _Request:
         return not self._single_run_expired
 
     def _get_data(self, address: int, size: int = 1) -> list:
-        regs_l = []
+        registers_l = []
         with self._data as data:
             for i in range(size):
-                regs_l.append(data[address + i])
-        return regs_l
+                registers_l.append(data[address + i])
+        return registers_l
 
     def _set_data(self, address: int, registers_l: list, by_thread: bool = False):
         # apply it to write address space
@@ -215,20 +215,20 @@ class ModbusTCPDevice(Device):
         # do request
         if request.type is _RequestType.READ_COILS:
             with self.safe_cli as cli:
-                reg_list = cli.read_coils(request.address, request.size)
+                registers_l = cli.read_coils(request.address, request.size)
         elif request.type == _RequestType.READ_D_INPUTS:
             with self.safe_cli as cli:
-                reg_list = cli.read_discrete_inputs(request.address, request.size)
+                registers_l = cli.read_discrete_inputs(request.address, request.size)
         elif request.type == _RequestType.READ_H_REGS:
             with self.safe_cli as cli:
-                reg_list = cli.read_holding_registers(request.address, request.size)
+                registers_l = cli.read_holding_registers(request.address, request.size)
         elif request.type == _RequestType.READ_I_REGS:
             with self.safe_cli as cli:
-                reg_list = cli.read_input_registers(request.address, request.size)
+                registers_l = cli.read_input_registers(request.address, request.size)
         # process result
-        if reg_list:
+        if registers_l:
             # on success
-            request._set_data(address=request.address, registers_l=reg_list, by_thread=True)
+            request._set_data(address=request.address, registers_l=registers_l, by_thread=True)
             request.error = False
         else:
             # on error
@@ -239,20 +239,20 @@ class ModbusTCPDevice(Device):
         if request.type not in _RequestGroup.WRITE:
             return
         # get values for write(s)
-        values_l = request._get_data(address=request.address, size=request.size)
+        registers_l = request._get_data(address=request.address, size=request.size)
         # do request
         if request.type is _RequestType.WRITE_COILS:
             with self.safe_cli as cli:
                 if request.single_func:
-                    write_ok = cli.write_single_coil(request.address, values_l[0])
+                    write_ok = cli.write_single_coil(request.address, registers_l[0])
                 else:
-                    write_ok = cli.write_multiple_coils(request.address, values_l)
+                    write_ok = cli.write_multiple_coils(request.address, registers_l)
         elif request.type is _RequestType.WRITE_H_REGS:
             with self.safe_cli as cli:
                 if request.single_func:
-                    write_ok = cli.write_single_register(request.address, values_l[0])
+                    write_ok = cli.write_single_register(request.address, registers_l[0])
                 else:
-                    write_ok = cli.write_multiple_registers(request.address, values_l)
+                    write_ok = cli.write_multiple_registers(request.address, registers_l)
         # result
         request.error = not write_ok
 
@@ -399,21 +399,21 @@ class ModbusInt(DataSource):
 
     def get(self) -> Optional[int]:
         # read register(s)
-        regs_l = self.request._get_data(address=self.address, size=self.reg_length)
+        registers_l = self.request._get_data(address=self.address, size=self.reg_length)
         # skip decoding for uninitialized variables (usually at startup)
-        if None in regs_l:
+        if None in registers_l:
             return
-        # list of regs (int) -> bytes
+        # list of registers (int) -> bytes
         value_as_b = bytes()
-        for reg in regs_l:
-            value_as_b += reg.to_bytes(2, byteorder='big')
+        for register in registers_l:
+            value_as_b += register.to_bytes(2, byteorder='big')
         # apply swaps
         if self.swap_bytes:
             value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
             value_as_b = swap_words(value_as_b)
         # format raw
-        return int.from_bytes(value_as_b, byteorder=self._byte_order, signed=self.signed)
+        return int.from_bytes(value_as_b, byteorder=self.byte_order, signed=self.signed)
 
     def set(self, value: int) -> None:
         # check write status
@@ -498,14 +498,14 @@ class ModbusFloat(DataSource):
 
     def get(self) -> Optional[float]:
         # read register(s)
-        regs_l = self.request._get_data(address=self.address, size=self.reg_length)
+        registers_l = self.request._get_data(address=self.address, size=self.reg_length)
         # skip decoding for uninitialized variables (usually at startup)
-        if None in regs_l:
+        if None in registers_l:
             return
-        # list of regs (int) -> bytes
+        # list of registers (int) -> bytes
         value_as_b = bytes()
-        for reg in regs_l:
-            value_as_b += reg.to_bytes(2, byteorder='big')
+        for register in registers_l:
+            value_as_b += register.to_bytes(2, byteorder='big')
         # apply swaps
         if self.swap_bytes:
             value_as_b = swap_bytes(value_as_b)
@@ -537,6 +537,73 @@ class ModbusFloat(DataSource):
             value_as_b = swap_bytes(value_as_b)
         if self.swap_word:
             value_as_b = swap_words(value_as_b)
+        # apply value to request data space
+        self.request._set_data(address=self.address, registers_l=cut_bytes_to_regs(value_as_b))
+
+    def error(self) -> bool:
+        return self.request.error
+
+
+class ModbusTboxStr(DataSource):
+    def __init__(self, request: _Request, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:
+        # args
+        self.request = request
+        self.address = address
+        self.str_length = str_length
+        self.encoding = encoding
+        # some check on request
+        if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS, _RequestType.WRITE_H_REGS):
+            raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
+        if not request.is_valid(at_address=self.address, for_size=self.reg_length):
+            raise ValueError(f'@{self.address} is not available in the data space of this request')
+
+    def __repr__(self) -> str:
+        return _auto_repr(self)
+
+    @property
+    def reg_length(self):
+        return self.str_length//2 + (1 if self.str_length % 2 else 0)
+
+    def add_tag(self, tag: Tag) -> None:
+        # warn user of type mismatch between initial tag value and this datasource
+        if type(tag.first_value) is not str:
+            raise TypeError('first_value must be a str')
+
+    def get(self) -> Optional[str]:
+        # read register(s)
+        registers_l = self.request._get_data(address=self.address, size=self.reg_length)
+        # skip decoding for uninitialized variables (usually at startup)
+        if None in registers_l:
+            return
+        # list of registers (int) -> bytes
+        value_as_b = bytes()
+        for register in registers_l:
+            value_as_b += register.to_bytes(2, byteorder='big')
+        # remove the final padding
+        value_as_b = value_as_b.rstrip(b'\x00')
+        # format raw
+        try:
+            return value_as_b.decode(self.encoding)
+        except UnicodeDecodeError as e:
+            logger.warning(f'unable to decode this str ({e})')
+            return None
+
+    def set(self, value: str) -> None:
+        # check write status
+        if self.request.type is not _RequestType.WRITE_H_REGS:
+            raise TypeError(f'cannot write to this data source (bad request type {self.request.type.name})')
+        # check value type
+        if not isinstance(value, str):
+            raise TypeError(f'unsupported type for value (not a str)')
+        # convert to bytes:
+        # - check strange value status (negative for an unsigned, ...)
+        # - apply 2's complement if requested
+        try:
+            value_as_b = value.encode(self.encoding)
+        except UnicodeEncodeError as e:
+            raise ValueError(f'cannot set this str ({e})')
+        # finalize with b'\x00' padding
+        value_as_b = value_as_b.ljust(self.reg_length, b'\x00')
         # apply value to request data space
         self.request._set_data(address=self.address, registers_l=cut_bytes_to_regs(value_as_b))
 
