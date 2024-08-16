@@ -1,2 +1,2 @@
-pyModbusTCP >= 0.2.0
-redis >= 2.10.5
+pyModbusTCP >= 0.2.2
+redis >= 5.0.8
