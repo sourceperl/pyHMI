@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 import operator
 from typing import Any, Callable, Optional, Union
 
@@ -35,8 +34,8 @@ class DataSource:
 
 
 class Tag:
-    def __init__(self, first_value: Any, src: Optional[DataSource] = None,
-                 get_cmd: Optional[Callable] = None, chg_cmd: Optional[Callable] = None):
+    def __init__(self, first_value: Any, src: Optional[DataSource] = None, get_cmd: Optional[Callable] = None, 
+                 chg_cmd: Optional[Callable] = None) -> None:
         """Constructor
 
         Abstract access to project tags.
@@ -54,40 +53,26 @@ class Tag:
         self.get_cmd = get_cmd
         self.chg_cmd = chg_cmd
         # public
-        self.dt_created = datetime.now(timezone.utc)
-        self.dt_last_change = self.dt_created
-        # set on tag change, must be reset by user
-        self.updated = False
         # private
-        self._value = first_value
+        self._value = self.first_value
         self._error = False
         # notify tag creation to external source
         if isinstance(self.src, DataSource):
             self.src.add_tag(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'tag.val={self.val!r} tag.e_val={self.e_val!r} tag.err={self.err!r}'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'Tag({self.first_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
 
-    def _set_value(self, value):
-        # update value if change command if defined
-        if callable(self.chg_cmd):
+    def _set_value(self, value: Any) -> None:
+        # alter or transform value with the change command
+        if self.chg_cmd:
             value = self.chg_cmd(value)
-        # on change
-        if value != self._value:
-            self._value = value
-            # set flags and call event for user
-            self.dt_last_change = datetime.now(timezone.utc)
-            self.updated = True
-            self.on_value_change()
+        self._value = value
 
-    def on_value_change(self):
-        """ Event call when value of tag change (for user purpose). """
-        pass
-
-    def set(self, value: Any):
+    def set(self, value: Any) -> None:
         """ An helper to let user set the val property in lambda usage context. """
         self.val = value
 
@@ -104,7 +89,7 @@ class Tag:
                 self._set_value(src_get_ret)
             return self._value
         # read tag value from get command
-        elif callable(self.get_cmd):
+        elif self.get_cmd:
             # call external command (return last good value on run error)
             try:
                 get_value = self.get_cmd()
@@ -122,7 +107,7 @@ class Tag:
             return self._value
 
     @val.setter
-    def val(self, value) -> None:
+    def val(self, value: Any) -> None:
         """Set value of tag.
 
         :param value: value of tag
