@@ -149,33 +149,6 @@ class Tag:
         self.val = value
 
 
-class TagsBank:
-    """Generic Tags enumeration
-
-    Derive from this class to define Tags enumerations in your project.
-    """
-
-    @classmethod
-    def to_dict(cls):
-        """
-        Retrieve Tags as a dict with tag name as key and tag as value.
-
-        :return: Tags dict with {tag name: tag object, ...} format.
-        :rtype: dict
-        """
-        return {k: v for k, v in cls.__dict__.items() if not k.startswith('__') and isinstance(v, Tag)}
-
-    @classmethod
-    def items(cls):
-        """
-        Retrieve Tags as a list of tuple for easy iteration with for loop.
-
-        :return: List of Tags as tuple [(tag name, tag object), (...), ...].
-        :rtype: list
-        """
-        return [(k, v) for k, v in cls.__dict__.items() if not k.startswith('__') and isinstance(v, Tag)]
-
-
 def tag_op(a: Union[Tag, bool, float, int], operator, b: Union[Tag, bool, float, int, None] = None):
     # handle Tag args
     a_val, a_err = (a.val, a.err) if isinstance(a, Tag) else (a, False)
