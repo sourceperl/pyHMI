@@ -110,7 +110,7 @@ class _Request:
         # apply it to write address space
         with self._data as data:
             for i, value in enumerate(registers_l):
-                data[address + i] = int(value)
+                data[address + i] = value
         # skip others process if call by a thread
         if by_thread:
             return
@@ -336,7 +336,7 @@ class ModbusBool(DataSource):
         if not isinstance(value, bool):
             raise TypeError('unsupported type for value (not a bool)')
         # apply value to request data space
-        self.request._set_data(address=self.address, registers_l=[int(value)])
+        self.request._set_data(address=self.address, registers_l=[value])
 
     def error(self) -> bool:
         return self.request.error
