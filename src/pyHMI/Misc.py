@@ -1,8 +1,19 @@
 """Misc resources."""
 
-from typing import List, Union
+from typing import List, Union, Optional
 import math
 import threading
+
+
+def auto_repr(self: object, export_t: Optional[tuple] = None) -> str:
+    """Auto build obj.__repr__ str"""
+    args_str = ''
+    for k, v in self.__dict__.items():
+        if (export_t and k in export_t) or not export_t:
+            if args_str:
+                args_str += ', '
+            args_str += f'{k}={repr(v)}'
+    return f'{self.__class__.__name__}({args_str})'
 
 
 def swap_bytes(value: Union[bytes, bytearray]) -> bytearray:

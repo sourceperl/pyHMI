@@ -8,18 +8,7 @@ from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
 from . import logger
 from .Tag import DataSource, Device
-from .Misc import SafeObject, swap_bytes, swap_words, cut_bytes_to_regs
-
-
-# some functions
-def _auto_repr(self: object, export_t: Optional[tuple] = None) -> str:
-    args_str = ''
-    for k, v in self.__dict__.items():
-        if (export_t and k in export_t) or not export_t:
-            if args_str:
-                args_str += ', '
-            args_str += f'{k}={repr(v)}'
-    return f'{self.__class__.__name__}({args_str})'
+from .Misc import SafeObject, auto_repr, swap_bytes, swap_words, cut_bytes_to_regs
 
 
 # some class
@@ -48,7 +37,7 @@ class _Data:
             self._data_d[iter_addr] = default_value
 
     def __repr__(self) -> str:
-        return _auto_repr(self, export_t=('_data_d', ))
+        return auto_repr(self, export_t=('_data_d', ))
 
     def __enter__(self):
         self._lock.acquire()
@@ -99,7 +88,7 @@ class _Request:
         self.device.requests_l.append(self)
 
     def __repr__(self) -> str:
-        return _auto_repr(self, export_t=('type', 'address', 'size'))
+        return auto_repr(self, export_t=('type', 'address', 'size'))
 
     @property
     def _single_run_expired(self) -> bool:
@@ -329,7 +318,7 @@ class ModbusBool(DataSource):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return auto_repr(self)
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -375,7 +364,7 @@ class ModbusInt(DataSource):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return auto_repr(self)
 
     @property
     def reg_length(self):
@@ -463,7 +452,7 @@ class ModbusFloat(DataSource):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return auto_repr(self)
 
     @property
     def reg_length(self):
@@ -558,7 +547,7 @@ class ModbusTboxStr(DataSource):
             raise ValueError(f'@{self.address} is not available in the data space of this request')
 
     def __repr__(self) -> str:
-        return _auto_repr(self)
+        return auto_repr(self)
 
     @property
     def reg_length(self):

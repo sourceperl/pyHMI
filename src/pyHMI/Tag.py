@@ -1,5 +1,6 @@
 import operator
-from typing import Any, Callable, Optional, Union
+from typing import Callable, Optional, Union, get_args
+from . import logger
 
 
 class Device:
@@ -34,7 +35,9 @@ class DataSource:
 
 
 class Tag:
-    def __init__(self, first_value: Any, src: Optional[DataSource] = None, get_cmd: Optional[Callable] = None, 
+    TAG_TYPE = Union[bool, int, float, str, bytes]
+
+    def __init__(self, first_value: TAG_TYPE, src: Optional[DataSource] = None,
                  chg_cmd: Optional[Callable] = None) -> None:
         """Constructor
 
@@ -42,17 +45,15 @@ class Tag:
 
         :param first_value: initial value of the tag
         :param src: an external data source like RedisKey
-        :param get_cmd: a callback to read value/error status of the tag
         :param chg_cmd: a method to change tag value (scale, limit value...)
-
-        :rtype Tag
         """
+        # runtime type check
+        if not isinstance(first_value, Tag.TAG_TYPE):
+            raise TypeError(f'first_value type must be in {get_args(Tag.TAG_TYPE)}')
         # args
         self.first_value = first_value
         self.src = src
-        self.get_cmd = get_cmd
         self.chg_cmd = chg_cmd
-        # public
         # private
         self._value = self.first_value
         self._error = False
@@ -64,66 +65,65 @@ class Tag:
         return f'tag.val={self.val!r} tag.e_val={self.e_val!r} tag.err={self.err!r}'
 
     def __repr__(self) -> str:
-        return f'Tag({self.first_value!r}, src={self.src!r}, get_cmd={self.get_cmd})'
+        return f'Tag({self.first_value!r}, src={self.src!r}, chg_cmd={self.chg_cmd})'
 
-    def _set_value(self, value: Any) -> None:
-        # alter or transform value with the change command
+    def _set_src(self, value: TAG_TYPE) -> None:
+        if isinstance(self.src, DataSource):
+            chg_value = self._apply_chg_cmd(value)
+            if chg_value is not None:
+                self.src.set(chg_value)
+
+    def _get_src(self) -> Optional[TAG_TYPE]:
+        if isinstance(self.src, DataSource):
+            return self._apply_chg_cmd(self.src.get())
+
+    def _apply_chg_cmd(self, value: Optional[TAG_TYPE]) -> Optional[TAG_TYPE]:
+        # if a change command is set
         if self.chg_cmd:
-            value = self.chg_cmd(value)
-        self._value = value
+            # try to alter or transform value with it
+            try:
+                return self.chg_cmd(value)
+            except Exception as e:
+                logger.warning(f'chg_cmd processing failed (except "{e}") in {self!r}')
+                return
+        else:
+            # pass through if chg_cmd is unset
+            return value
 
-    def set(self, value: Any) -> None:
-        """ An helper to let user set the val property in lambda usage context. """
-        self.val = value
+    def _set_value(self, value: Optional[TAG_TYPE]) -> None:
+        # on None value keep internal value unchange and set error flag
+        if value is None:
+            self._error = True
+        else:
+            self._error = False
+            self._value = value
 
     @property
-    def val(self) -> Any:
-        """Return current tag value from any way (ext sourced tag, get command tag or internal value).
+    def val(self) -> TAG_TYPE:
+        """Return current tag value from any way (ext sourced tag or internal value).
 
         :return: tag value
         """
-        # read tag value from external source
-        if isinstance(self.src, DataSource):
-            src_get_ret = self.src.get()
-            if src_get_ret is not None:
-                self._set_value(src_get_ret)
-            return self._value
-        # read tag value from get command
-        elif self.get_cmd:
-            # call external command (return last good value on run error)
-            try:
-                get_value = self.get_cmd()
-                if get_value is None:
-                    raise RuntimeError
-            except Exception:
-                self._error = True
-                return self._value
-            # on success
-            self._error = False
-            self._set_value(get_value)
-            return get_value
-        # read tag value from internal
-        else:
-            return self._value
+        # get tag value from external source if available
+        if self.src:
+            self._set_value(self._get_src())
+        # return internal tag value
+        return self._value
 
     @val.setter
-    def val(self, value: Any) -> None:
+    def val(self, value: Optional[TAG_TYPE]) -> None:
         """Set value of tag.
 
         :param value: value of tag
         """
-        if value is None:
-            self._error = True
-        else:
-            # !!! keep this order: _set_value() can change self._value with chg_cmd()
-            self._error = False
-            self._set_value(value)
-            # notify external source
-            if isinstance(self.src, DataSource):
-                self.src.set(self._value)
+        # set internal value
+        self._set_value(value)
+        # notify external source if available
+        if self.src:
+            self._set_src(self._value)
 
     @property
-    def e_val(self) -> Union[bool, int, float, str, bytes, None]:
+    def e_val(self) -> Optional[TAG_TYPE]:
         """Return tag value or None if tag error status is set.
 
         :return: tag value or None
@@ -139,18 +139,14 @@ class Tag:
         """
         # read error status from external source
         if isinstance(self.src, DataSource):
-            return self.src.error()
+            return self._error or self.src.error()
         # read error status from internal store
         else:
             return self._error
 
-    @err.setter
-    def err(self, value: bool) -> None:
-        """Set the error status of tag (useless for externally sourced or tag with get_cmd set).
-
-        :param value: error status
-        """
-        self._error = value
+    def set(self, value: Optional[TAG_TYPE]) -> None:
+        """ An helper to let user set the val property in lambda usage context. """
+        self.val = value
 
 
 class TagsBank:
