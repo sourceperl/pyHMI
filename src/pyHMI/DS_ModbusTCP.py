@@ -47,7 +47,7 @@ class _Data:
         self._lock.release()
 
 
-class _Request:
+class ModbusRequest:
     def __init__(self, device: "ModbusTCPDevice", type: _RequestType, address: int, size: int,
                  default_value: Any, run_cyclic: bool, run_on_set: bool = False, single_func: bool = False) -> None:
         # check single queries
@@ -81,6 +81,7 @@ class _Request:
         self.single_func = single_func
         # public
         self.error = True
+        self.run_done_evt = threading.Event()
         # private
         self._data = _Data(address=address, size=size, default_value=self.default_value)
         self._single_run_expire = 0.0
@@ -140,6 +141,7 @@ class _Request:
             self._single_run_expire = time.monotonic() + self.device.run_cancel_delay
             try:
                 self.device.single_run_req_q.put_nowait(self)
+                self.run_done_evt.clear()
                 return True
             except queue.Full:
                 logger.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
@@ -151,17 +153,17 @@ class _RequestsList:
     def __init__(self) -> None:
         # private
         self._lock = threading.Lock()
-        self._requests_l: List[_Request] = list()
+        self._requests_l: List[ModbusRequest] = list()
 
     def __len__(self) -> int:
         with self._lock:
             return len(self._requests_l)
 
-    def copy(self) -> List[_Request]:
+    def copy(self) -> List[ModbusRequest]:
         with self._lock:
             return self._requests_l.copy()
 
-    def append(self, request: _Request) -> None:
+    def append(self, request: ModbusRequest) -> None:
         with self._lock:
             self._requests_l.append(request)
 
@@ -180,7 +182,7 @@ class ModbusTCPDevice(Device):
         self.connected = False
         self.run_cancel_delay = run_cancel_delay
         self.requests_l = _RequestsList()
-        self.single_run_req_q: queue.Queue[_Request] = queue.Queue(maxsize=255)
+        self.single_run_req_q: queue.Queue[ModbusRequest] = queue.Queue(maxsize=255)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -196,10 +198,7 @@ class ModbusTCPDevice(Device):
         return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
                f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_args!r})'
 
-    def _process_read_request(self, request: _Request) -> None:
-        # ignore other requests
-        if request.type not in _RequestGroup.READ:
-            return
+    def _process_read_request(self, request: ModbusRequest) -> None:
         # do request
         if request.type is _RequestType.READ_COILS:
             with self.safe_cli as cli:
@@ -213,6 +212,9 @@ class ModbusTCPDevice(Device):
         elif request.type == _RequestType.READ_I_REGS:
             with self.safe_cli as cli:
                 registers_l = cli.read_input_registers(request.address, request.size)
+        else:
+            # ignore other requests
+            return
         # process result
         if registers_l:
             # on success
@@ -221,28 +223,32 @@ class ModbusTCPDevice(Device):
         else:
             # on error
             request.error = True
+        # mark request run as done
+        request.run_done_evt.set()
 
-    def _process_write_request(self, request: _Request) -> None:
-        # ignore other requests
-        if request.type not in _RequestGroup.WRITE:
-            return
-        # get values for write(s)
-        registers_l = request._get_data(address=request.address, size=request.size)
+    def _process_write_request(self, request: ModbusRequest) -> None:
         # do request
         if request.type is _RequestType.WRITE_COILS:
+            registers_l = request._get_data(address=request.address, size=request.size)
             with self.safe_cli as cli:
                 if request.single_func:
                     write_ok = cli.write_single_coil(request.address, registers_l[0])
                 else:
                     write_ok = cli.write_multiple_coils(request.address, registers_l)
         elif request.type is _RequestType.WRITE_H_REGS:
+            registers_l = request._get_data(address=request.address, size=request.size)
             with self.safe_cli as cli:
                 if request.single_func:
                     write_ok = cli.write_single_register(request.address, registers_l[0])
                 else:
                     write_ok = cli.write_multiple_registers(request.address, registers_l)
+        else:
+            # ignore other requests
+            return
         # result
         request.error = not write_ok
+        # mark request run as done
+        request.run_done_evt.set()
 
     def _update_device_status(self):
         # update connected flag
@@ -288,25 +294,25 @@ class ModbusTCPDevice(Device):
 
     def add_read_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, d_inputs: bool = False):
         req_type = _RequestType.READ_D_INPUTS if d_inputs else _RequestType.READ_COILS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
+        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
 
     def add_write_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
                                default_value: bool = False, single_func: bool = False):
-        return _Request(self, type=_RequestType.WRITE_COILS, address=address, size=size, default_value=default_value,
-                        run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
+        return ModbusRequest(self, type=_RequestType.WRITE_COILS, address=address, size=size, default_value=default_value,
+                             run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
 
     def add_read_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, i_regs: bool = False):
         req_type = _RequestType.READ_I_REGS if i_regs else _RequestType.READ_H_REGS
-        return _Request(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
+        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
 
     def add_write_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
                                default_value: int = 0, single_func: bool = False):
-        return _Request(self, type=_RequestType.WRITE_H_REGS, address=address, size=size, default_value=default_value,
-                        run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
+        return ModbusRequest(self, type=_RequestType.WRITE_H_REGS, address=address, size=size, default_value=default_value,
+                             run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
 
 
 class ModbusBool(DataSource):
-    def __init__(self, request: _Request, address: int) -> None:
+    def __init__(self, request: ModbusRequest, address: int) -> None:
         # args
         self.request = request
         self.address = address
@@ -344,7 +350,7 @@ class ModbusBool(DataSource):
 class ModbusInt(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
+    def __init__(self, request: ModbusRequest, address: int, bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
                  signed: bool = False, swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._byte_order: ModbusInt.BYTE_ORDER_TYPE = 'big'
@@ -432,7 +438,7 @@ class ModbusInt(DataSource):
 class ModbusFloat(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
-    def __init__(self, request: _Request, address: int, bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
+    def __init__(self, request: ModbusRequest, address: int, bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
                  swap_bytes: bool = False, swap_word: bool = False) -> None:
         # used by property
         self._bit_length = 32
@@ -533,7 +539,7 @@ class ModbusFloat(DataSource):
 
 
 class ModbusTboxStr(DataSource):
-    def __init__(self, request: _Request, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:
+    def __init__(self, request: ModbusRequest, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:
         # args
         self.request = request
         self.address = address

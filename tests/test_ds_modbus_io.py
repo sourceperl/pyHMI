@@ -3,12 +3,22 @@
 import pytest
 import itertools
 import random
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
+from pyHMI.DS_ModbusTCP import ModbusRequest, ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
 # keep pytest fixtures here despite Pylance unused warnings
 from .fixtures import modbus_srv
 from .utils import to_byte_length, to_reg_length, to_16b_list, cut_bytes, regs_to_bytes, \
     single_float_to_int, int_to_single_float, double_float_to_int, int_to_double_float, \
     build_bool_data_l, build_int_data_l, build_float_data_l
+
+
+def run_and_wait_ok(request: ModbusRequest):
+    """ Run request and wait for a valid result """
+    if not request.run():
+        raise RuntimeError('unable to run request')
+    if not request.run_done_evt.wait(timeout=5.0):
+        raise RuntimeError('request not processed')
+    if request.error:
+        raise RuntimeError('request processing error')
 
 
 def test_read_modbus_bool_src(modbus_srv):
@@ -25,10 +35,9 @@ def test_read_modbus_bool_src(modbus_srv):
             modbus_srv.data_bank.set_coils(addr, srv_bool_l)
         # init client
         request = ModbusTCPDevice(port=5020).add_read_bits_request(addr, size, d_inputs=d_inputs)
-        request.run()
         src_l = [ModbusBool(request, address=addr+i) for i in range(size)]
-        # ensure device has processed each pending request
-        request.device.single_run_req_q.join()
+        # run request
+        run_and_wait_ok(request)
         # read dataset
         ds_bool_l = [src.get() for src in src_l]
         # check data match
@@ -50,11 +59,10 @@ def test_read_modbus_int_src(modbus_srv):
         # init datasource
         nb_reg = len(srv_int_l) * to_reg_length(bit_length)
         request = ModbusTCPDevice(port=5020).add_read_regs_request(addr, nb_reg, i_regs=i_regs)
-        request.run()
         ds_args = {'bit_length': bit_length, 'signed': signed}
         src_l = [ModbusInt(request, addr+off, **ds_args) for off in range(0, nb_reg, to_reg_length(bit_length))]
-        # ensure device has processed each pending request
-        request.device.single_run_req_q.join()
+        # run request
+        run_and_wait_ok(request)
         # read dataset
         ds_int_l = [src.get() for src in src_l]
         # check data match
@@ -80,12 +88,11 @@ def test_read_modbus_float_src(modbus_srv):
         # init datasource
         device = ModbusTCPDevice(port=5020)
         request = device.add_read_regs_request(addr, size * to_reg_length(bit_length), i_regs=i_regs)
-        request.run()
         src_l = []
         for off in range(0, size * to_reg_length(bit_length), to_reg_length(bit_length)):
             src_l.append(ModbusFloat(request, addr+off, bit_length=bit_length))
-        # ensure device has processed each pending request
-        request.device.single_run_req_q.join()
+        # run request
+        run_and_wait_ok(request)
         # read dataset
         ds_float_l = [src.get() for src in src_l]
         # check data match
@@ -104,9 +111,8 @@ def test_write_modbus_bool_src(modbus_srv):
     # write on ds
     for offset, value in enumerate(ds_bool_l):
         ModbusBool(request, address=addr+offset).set(value)
-    request.run()
-    # ensure device has processed each pending request
-    request.device.single_run_req_q.join()
+    # run request
+    run_and_wait_ok(request)
     # init server
     srv_bool_l = modbus_srv.data_bank.get_coils(addr, size)
     # check data match
@@ -125,9 +131,8 @@ def test_write_modbus_int_src(modbus_srv):
         for offset, value in enumerate(ds_int_l):
             offset *= to_reg_length(bit_length)
             ModbusInt(request, addr+offset, bit_length=bit_length, signed=signed).set(value)
-        request.run()
-        # ensure device has processed each pending request
-        request.device.single_run_req_q.join()
+        # run request
+        run_and_wait_ok(request)
         # init server
         srv_16b_l = modbus_srv.data_bank.get_holding_registers(addr, size * to_reg_length(bit_length))
         # [list of 16 bits regs] -> raw_bytes
@@ -151,9 +156,8 @@ def test_write_modbus_float_src(modbus_srv):
         request = ModbusTCPDevice(port=5020).add_write_regs_request(addr, size * to_reg_length(bit_length))
         for i, value in enumerate(ds_float_l):
             ModbusFloat(request, addr+i*to_reg_length(bit_length), bit_length=bit_length).set(value)
-        request.run()
-        # ensure device has processed each pending request
-        request.device.single_run_req_q.join()
+        # run request
+        run_and_wait_ok(request)
         # read with server
         srv_16b_l = modbus_srv.data_bank.get_holding_registers(addr, size * to_reg_length(bit_length))
         # list of regs (16 bits) -> raw_bytes
