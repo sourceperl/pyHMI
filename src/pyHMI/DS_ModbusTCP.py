@@ -144,7 +144,6 @@ class _Request:
             except queue.Full:
                 logger.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
         # error reporting
-        self.error = True
         return False
 
 
