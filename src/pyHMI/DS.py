@@ -20,20 +20,23 @@ def no_error(tag: Tag) -> Tag:
 class GetCmd(DataSource):
     """ A basic data source to get data from a python function. """
 
-    def __init__(self, command: Callable) -> None:
+    def __init__(self, command: Callable, error_on_none: bool = False) -> None:
         # args
         self.command = command
+        self.error_on_none = error_on_none
         # private
         self._error = False
 
     def __repr__(self):
-        return auto_repr(self, export_t=('command',))
+        return auto_repr(self, export_t=('command', 'error_on_none', ))
 
     def get(self) -> Optional[Tag.TAG_TYPE]:
         try:
-            cmd_value = self.command()
+            cmd_return = self.command()
+            if cmd_return is None and self.error_on_none:
+                raise TagError
             self._error = False
-            return cmd_value
+            return cmd_return
         except TagError:
             self._error = True
             return
