@@ -13,7 +13,7 @@ class TagError(Exception):
 def no_error(tag: Tag) -> Tag:
     """ Raise TagError for erroneous tag. """
     if tag.error:
-        raise TagError
+        raise TagError('tag.error is set')
     return tag
 
 
@@ -63,6 +63,8 @@ class TagOp(DataSource):
         self.a = a
         self.operator = operator
         self.b = b
+        # private
+        self._error = False
 
     @property
     def _a_value(self) -> Tag.TAG_TYPE:
@@ -81,14 +83,23 @@ class TagOp(DataSource):
         return self.b.error if isinstance(self.b, Tag) else False
 
     def get(self) -> Union[bool, int, float, str, bytes, None]:
-        # single arg (a) or dual args (a, b) operation
-        if self._b_value is None:
-            return self.operator(self._a_value)
-        else:
-            return self.operator(self._a_value, self._b_value)
+        try:
+            # single operator(a) or dual operator(a, b) 
+            if self._b_value is None:
+                op_return = self.operator(self._a_value) 
+            else:
+                op_return =self.operator(self._a_value, self._b_value)
+            self._error = False
+            return op_return
+        except Exception as e:
+            tb_obj = sys.exc_info()[2]
+            filename, line_number, _function_name, _text = traceback.extract_tb(tb_obj)[-1]
+            logger.warning(f'TagOp failed (except "{e}") at {filename}:{line_number}')
+            self._error = True
+            return
 
     def set(self, _value: Tag.TAG_TYPE) -> None:
         raise ValueError(f'cannot write on read-only Tag')
 
     def error(self) -> bool:
-        return self._a_error or self._b_error
+        return self._error or self._a_error or self._b_error

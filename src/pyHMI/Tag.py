@@ -1,3 +1,5 @@
+import sys
+import traceback
 from typing import Any, Callable, Optional, Union, get_args
 from . import logger
 
@@ -57,6 +59,7 @@ class Tag:
         # private
         self._value = self.init_value
         self._error = self.init_error
+        self._chg_cmd_error = False
         # notify tag creation to external source
         if isinstance(self.src, DataSource):
             self.src.add_tag(self)
@@ -82,21 +85,18 @@ class Tag:
         if self.chg_cmd:
             # try to alter or transform value with it
             try:
-                return self.chg_cmd(value)
+                chg_cmd_return = self.chg_cmd(value)
+                self._chg_cmd_error = False
+                return chg_cmd_return
             except Exception as e:
-                logger.warning(f'chg_cmd processing failed (except "{e}") in {self!r}')
+                tb_obj = sys.exc_info()[2]
+                filename, line_number, _function_name, _text = traceback.extract_tb(tb_obj)[-1]
+                logger.warning(f'change command failed (except "{e}") at {filename}:{line_number}')
+                self._chg_cmd_error = True
                 return
         else:
             # pass through if chg_cmd is unset
             return value
-
-    def _set_value(self, value: Optional[TAG_TYPE]) -> None:
-        # on None value keep internal value unchange and set error flag
-        if value is None:
-            self._error = True
-        else:
-            self._error = False
-            self._value = value
 
     @property
     def value(self) -> Any:
@@ -104,9 +104,12 @@ class Tag:
 
         :return: tag value
         """
-        # get tag value from external source if available
+        # get tag value from a data source if set
         if self.src:
-            self._set_value(self._get_src())
+            get_src_return = self._get_src()
+            # keep internal value unchange if data source return None
+            if get_src_return is not None:
+                self._value = get_src_return
         # return internal tag value
         return self._value
 
@@ -117,8 +120,9 @@ class Tag:
         :param value: value of tag
         """
         # set internal value
-        self._set_value(value)
-        # notify external source if available
+        if value is not None:
+            self._value = value
+        # notify external source if set
         if self.src:
             self._set_src(self._value)
 
@@ -127,7 +131,7 @@ class Tag:
         """ Return True is Tag have error status set. """
         # read error status from external source
         if isinstance(self.src, DataSource):
-            return self.src.error()
+            return self.src.error() or self._chg_cmd_error
         # read error status from internal store
         else:
             return self._error
