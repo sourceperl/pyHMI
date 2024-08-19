@@ -336,14 +336,14 @@ class SynValue(SynWidget):
         if self.id_txt:
             # format tag value
             try:
-                value = f'{self.tag.val:{self.fmt}}'
+                value = f'{self.tag.value:{self.fmt}}'
                 # replace default thousands separator ("2_000" -> "2 000")
-                if isinstance(self.tag.val, (int, float)):
+                if isinstance(self.tag.value, (int, float)):
                     value = value.replace('_', ' ')
             except ValueError:
                 value = 'fmt error'
             # apply to tk canvas
-            color = self.synoptic.colors.error if self.tag.err else self.synoptic.colors.value_label
+            color = self.synoptic.colors.error if self.tag.error else self.synoptic.colors.value_label
             self.tk_canvas.itemconfig(self.id_txt, text=f'{self.prefix} {value} {self.suffix}', fill=color)
 
 

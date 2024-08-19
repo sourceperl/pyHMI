@@ -18,5 +18,5 @@ R_BIT_2 = Tag(False, src=ModbusBool(md_r_req, 2))
 
 # Main loop
 while True:
-    W_BIT_0.val = R_BIT_1.val or R_BIT_2.val
+    W_BIT_0.value = R_BIT_1.value or R_BIT_2.value
     time.sleep(1.0)

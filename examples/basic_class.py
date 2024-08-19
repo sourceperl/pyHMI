@@ -22,7 +22,7 @@ class Tags:
 
     @classmethod
     def update_tags(cls):
-        cls.W_BIT_0.val = cls.R_BIT_1.val and cls.R_BIT_2.val
+        cls.W_BIT_0.value = cls.R_BIT_1.value and cls.R_BIT_2.value
 
 
 class Job(object):

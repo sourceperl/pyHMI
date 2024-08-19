@@ -327,7 +327,7 @@ class ModbusBool(DataSource):
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not bool:
+        if type(tag.init_value) is not bool:
             raise TypeError('first_value must be a bool')
 
     def get(self) -> Optional[bool]:
@@ -388,7 +388,7 @@ class ModbusInt(DataSource):
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not int:
+        if type(tag.init_value) is not int:
             raise TypeError('first_value must be an int')
 
     def get(self) -> Optional[int]:
@@ -487,7 +487,7 @@ class ModbusFloat(DataSource):
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not float:
+        if type(tag.init_value) is not float:
             raise TypeError('first_value must be a float')
 
     def get(self) -> Optional[float]:
@@ -560,7 +560,7 @@ class ModbusTboxStr(DataSource):
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
-        if type(tag.first_value) is not str:
+        if type(tag.init_value) is not str:
             raise TypeError('first_value must be a str')
 
     def get(self) -> Optional[str]:

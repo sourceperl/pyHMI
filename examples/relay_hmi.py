@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 
 
 class Devices:
-    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=True))
+    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=False))
     plc_r_reg512 = plc.add_read_bits_request(512, size=4, run_cyclic=True)
     plc_w_reg512 = plc.add_write_bits_request(512, single_func=True, run_on_set=True)
     plc_w_reg513 = plc.add_write_bits_request(513, single_func=True, run_on_set=True)

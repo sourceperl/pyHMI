@@ -41,7 +41,7 @@ def main():
         for tag_name, tag in vars(tags).items():
             if isinstance(tag, eTag):
                 if tag.db.export:
-                    graphite_msg = f'{tag.db.metric} {tag.val}'
+                    graphite_msg = f'{tag.db.metric} {tag.value}'
                     print(f'export {tag_name} graphite message is "{graphite_msg}"')
         time.sleep(1.0)
 

@@ -84,26 +84,26 @@ class SynColors:
         tag_close = tag_close if tag_close else Tag(False)
         tag_default = tag_default if tag_default else Tag(False)
         # return error color if any tag have error flag set
-        if tag_open.err or tag_close.err or tag_default.err:
+        if tag_open.error or tag_close.error or tag_default.error:
             return self.error
         else:
-            return self.valve(tag_open.val, tag_close.val, tag_default.val)
+            return self.valve(tag_open.value, tag_close.value, tag_default.value)
 
 
 # older stuff, keep here for compatibility issues
 def color_tag_state(tag: Tag):
-    return STATE_COLOR[not tag.err and tag.val + 1]
+    return STATE_COLOR[not tag.error and tag.value + 1]
 
 
 def color_tag_alarm(tag: Tag):
-    return ALARM_COLOR[not tag.err and tag.val + 1]
+    return ALARM_COLOR[not tag.error and tag.value + 1]
 
 
 def color_tags_valve(tag_open: Optional[Tag] = None, tag_close: Optional[Tag] = None):
     # unset tag default value is False
     tag_open = tag_open if tag_open else Tag(False)
     tag_close = tag_close if tag_close else Tag(False)
-    return VALVE_COLOR[not (tag_open.err or tag_close.err) and (tag_open.val + tag_close.val * 2 + 1)]
+    return VALVE_COLOR[not (tag_open.error or tag_close.error) and (tag_open.value + tag_close.value * 2 + 1)]
 
 
 def color_valve(open: Optional[bool] = None, close: Optional[bool] = None):
@@ -112,7 +112,7 @@ def color_valve(open: Optional[bool] = None, close: Optional[bool] = None):
 
 
 def color_label(tk_label: tk.Label, tag: Tag, fmt: str = '%s'):
-    tk_label.configure(text=fmt % tag.val, background=PINK if tag.err else WHITE)
+    tk_label.configure(text=fmt % tag.value, background=PINK if tag.error else WHITE)
 
 
 class HMIBoolList(object):

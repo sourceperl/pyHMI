@@ -60,14 +60,14 @@ class UIBoolItem:
         if self.tag:
             # set label background color if tag value is True (GREEN for "state" item and RED for "alarm" item)
             bg_color = self.b_list.ctx.colors.bg_item_blank
-            if self.tag.val:
+            if self.tag.value:
                 bg_color = self.b_list.ctx.colors.bg_item_alarm if self.alarm else self.b_list.ctx.colors.bg_item_state
             self.tk_lbl_value.configure(background=bg_color)
             # if label_1 is in use, update text widget resource
             if self.label_1:
-                self.tk_lbl_value.configure(text=self.label_1 if self.tag.val else self.label_0)
+                self.tk_lbl_value.configure(text=self.label_1 if self.tag.value else self.label_0)
             # update label foreground color if tag error flag is set
-            f_color = self.b_list.ctx.colors.txt_com_error if self.tag.err else self.b_list.ctx.colors.txt_com_valid
+            f_color = self.b_list.ctx.colors.txt_com_error if self.tag.error else self.b_list.ctx.colors.txt_com_valid
             self.tk_lbl_value.configure(foreground=f_color)
 
 
@@ -132,14 +132,14 @@ class UIAnalogItem:
     def update(self) -> None:
         # format tag value
         try:
-            value = f'{self.tag.val:{self.fmt}}'
+            value = f'{self.tag.value:{self.fmt}}'
             # replace default thousand separator ("2_000" -> "2 000")
-            if isinstance(self.tag.val, (int, float)):
+            if isinstance(self.tag.value, (int, float)):
                 value = value.replace('_', ' ')
         except ValueError:
             value = 'fmt error'
         # apply to tk label
-        fg_color = self.a_list.ctx.colors.txt_com_error if self.tag.err else self.a_list.ctx.colors.txt_com_valid
+        fg_color = self.a_list.ctx.colors.txt_com_error if self.tag.error else self.a_list.ctx.colors.txt_com_valid
         self.tk_lbl_value.configure(text=value, foreground=fg_color)
 
 
@@ -189,7 +189,7 @@ class UIButtonItem:
 
     def update(self) -> None:
         if self.tag_valid:
-            if self.tag_valid.val:
+            if self.tag_valid.value:
                 self.tk_but.configure(state='normal')
             else:
                 self.tk_but.configure(state='disabled')
