@@ -26,7 +26,7 @@ class DataSource:
         """ Method call by Tag class to retrieve value from datasource. """
         pass
 
-    def set(self, value: Union[bool, int, float, str, bytes]) -> None:
+    def set(self, value: Any) -> None:
         """ Method call by Tag class to set value in datasource. """
         pass
 
