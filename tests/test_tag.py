@@ -2,7 +2,7 @@ import operator as op
 import pytest
 from typing import Any, Optional
 from pyHMI.Tag import Tag
-from pyHMI.DS import GetCmd, TagOp
+from pyHMI.DS import GetCmd, TagOp, no_error
 
 
 def tag_expect(tag: Tag, value: Any, error: bool):
@@ -45,6 +45,7 @@ def test_src_tag_op():
 
 
 def test_src_get_cmd():
+    # some test with history context
     class GetCmdTest:
         def __init__(self, default: int) -> None:
             self._tag = Tag(default, src=GetCmd(self.get_cmd))
@@ -52,14 +53,13 @@ def test_src_get_cmd():
 
         def get_cmd(self):
             if self._ret == 0xdead:
-                raise RuntimeError
+                raise RuntimeError('get is dead')
             return self._ret
 
         def expect(self, for_ret: Optional[int], val: int, err: bool):
             self._ret = for_ret
             tag_expect(self._tag, value=val, error=err)
 
-    # some test with history context
     get_cmd_test = GetCmdTest(default=0xdef)
     # get_cmd return None after init -> get default tag value
     get_cmd_test.expect(for_ret=None, val=0xdef, err=False)
@@ -71,6 +71,24 @@ def test_src_get_cmd():
     get_cmd_test.expect(for_ret=0xdead, val=0xfeed, err=True)
     # get_cmd return 0xc0ffee -> tag set to 0xc0ffee (no error)
     get_cmd_test.expect(for_ret=0xc0ffee, val=0xc0ffee, err=False)
+
+    # some tests with error handling
+    tag_1 = Tag(init_value='O', init_error=False)
+    tag_2 = Tag(init_value='K', init_error=False)
+    # no error
+    tag_expect(Tag('last', src=GetCmd(lambda: no_error(tag_1).value + no_error(tag_2).value)),
+               value='OK', error=False)
+    tag_expect(Tag('last', src=GetCmd(lambda: tag_1.value + tag_2.value, error_cmd=lambda: tag_1.error or tag_2.error)),
+               value='OK', error=False)
+    # with an error
+    tag_1.error = True
+    tag_expect(Tag('last', src=GetCmd(lambda: no_error(tag_1).value + no_error(tag_2).value)),
+               value='last', error=True)
+    tag_expect(Tag('last', src=GetCmd(lambda: tag_1.value + tag_2.value, error_cmd=lambda: tag_1.error or tag_2.error)),
+               value='OK', error=True)
+    # test "error_on_none" arg: keep last value and set error flag if get_cmd return None
+    tag_expect(Tag('last', src=GetCmd(lambda: None, error_on_none=True)),
+               value='last', error=True)
 
 
 def test_chg_cmd():

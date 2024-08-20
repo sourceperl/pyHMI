@@ -20,10 +20,11 @@ def no_error(tag: Tag) -> Tag:
 class GetCmd(DataSource):
     """ A basic data source to get data from a python function. """
 
-    def __init__(self, command: Callable, error_on_none: bool = False) -> None:
+    def __init__(self, get_cmd: Callable, error_on_none: bool = False, error_cmd: Optional[Callable] = None) -> None:
         # args
-        self.command = command
+        self.get_cmd = get_cmd
         self.error_on_none = error_on_none
+        self.error_cmd = error_cmd
         # private
         self._error = False
 
@@ -32,10 +33,8 @@ class GetCmd(DataSource):
 
     def get(self) -> Optional[Tag.TAG_TYPE]:
         try:
-            cmd_return = self.command()
-            if cmd_return is None and self.error_on_none:
-                raise TagError
-            self._error = False
+            cmd_return = self.get_cmd()
+            self._error = cmd_return is None and self.error_on_none
             return cmd_return
         except TagError:
             self._error = True
@@ -51,7 +50,10 @@ class GetCmd(DataSource):
         raise ValueError(f'cannot write on read-only Tag')
 
     def error(self) -> bool:
-        return self._error
+        if self.error_cmd:
+            return self.error_cmd()
+        else:
+            return self._error
 
 
 class TagOp(DataSource):
