@@ -14,29 +14,39 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 
 
 class Devices:
-    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=False))
-    plc_r_reg512 = plc.add_read_bits_request(512, size=4, run_cyclic=True)
-    plc_w_reg512 = plc.add_write_bits_request(512, single_func=True, run_on_set=True)
-    plc_w_reg513 = plc.add_write_bits_request(513, single_func=True, run_on_set=True)
-    plc_w_reg514 = plc.add_write_bits_request(514, single_func=True, run_on_set=True)
-    plc_w_reg515 = plc.add_write_bits_request(515, single_func=True, run_on_set=True)
-    # immediate refresh on startup
-    plc_r_reg512.run()
+    def __init__(self) -> None:
+        class PLC:
+            def __init__(self) -> None:
+                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0,
+                                              refresh=0.5, client_args=dict(debug=False))
+                self.r_reg512 = self.device.add_read_bits_request(512, size=4, run_cyclic=True)
+                self.w_reg512 = self.device.add_write_bits_request(512, single_func=True, run_on_set=True)
+                self.w_reg513 = self.device.add_write_bits_request(513, single_func=True, run_on_set=True)
+                self.w_reg514 = self.device.add_write_bits_request(514, single_func=True, run_on_set=True)
+                self.w_reg515 = self.device.add_write_bits_request(515, single_func=True, run_on_set=True)
+                # immediate refresh on startup
+                self.r_reg512.run()
+        self.plc = PLC()
 
 
 class Tags:
-    R_REL_0 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 512))
-    R_REL_1 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 513))
-    R_REL_2 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 514))
-    R_REL_3 = Tag(False, src=ModbusBool(Devices.plc_r_reg512, 515))
-    W_REL_0 = Tag(False, src=ModbusBool(Devices.plc_w_reg512, 512))
-    W_REL_1 = Tag(False, src=ModbusBool(Devices.plc_w_reg513, 513))
-    W_REL_2 = Tag(False, src=ModbusBool(Devices.plc_w_reg514, 514))
-    W_REL_3 = Tag(False, src=ModbusBool(Devices.plc_w_reg515, 515))
+    def __init__(self, devices: Devices) -> None:
+        self.R_REL_0 = Tag(False, src=ModbusBool(devices.plc.r_reg512, 512))
+        self.R_REL_1 = Tag(False, src=ModbusBool(devices.plc.r_reg512, 513))
+        self.R_REL_2 = Tag(False, src=ModbusBool(devices.plc.r_reg512, 514))
+        self.R_REL_3 = Tag(False, src=ModbusBool(devices.plc.r_reg512, 515))
+        self.W_REL_0 = Tag(False, src=ModbusBool(devices.plc.w_reg512, 512))
+        self.W_REL_1 = Tag(False, src=ModbusBool(devices.plc.w_reg513, 513))
+        self.W_REL_2 = Tag(False, src=ModbusBool(devices.plc.w_reg514, 514))
+        self.W_REL_3 = Tag(False, src=ModbusBool(devices.plc.w_reg515, 515))
 
-    @classmethod
-    def update_tags(cls):
+    def update(self):
         pass
+
+
+# init tags and datasources
+devices = Devices()
+tags = Tags(devices)
 
 
 class HMITab(tk.Frame):
@@ -67,10 +77,10 @@ class TabMisc(HMITab):
         self.frmState = tk.LabelFrame(self, text='Relay status', padx=10, pady=10)
         self.frmState.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.state_list = UIBoolListFrame(self.frmState)
-        self.state_list.add('PLC relay 0', Tags.R_REL_0, alarm=False)
-        self.state_list.add('PLC relay 1', Tags.R_REL_1, alarm=False)
-        self.state_list.add('PLC relay 2', Tags.R_REL_2, alarm=False)
-        self.state_list.add('PLC relay 3', Tags.R_REL_3, alarm=False)
+        self.state_list.add('PLC relay 0', tags.R_REL_0, alarm=False)
+        self.state_list.add('PLC relay 1', tags.R_REL_1, alarm=False)
+        self.state_list.add('PLC relay 2', tags.R_REL_2, alarm=False)
+        self.state_list.add('PLC relay 3', tags.R_REL_3, alarm=False)
         # apply custom design and build
         for item in self.state_list.items:
             item.tk_lbl_value.configure(width=15)
@@ -80,14 +90,14 @@ class TabMisc(HMITab):
         self.cmd_list = UIButtonListFrame(self.frmCmd, n_cols=2)
         self.cmd_list.add('Set All', cmd=lambda: self._set_all(True))
         self.cmd_list.add('Reset All', cmd=lambda: self._set_all(False))
-        self.cmd_list.add('Set relay 0', cmd=lambda: Tags.W_REL_0.set(True))
-        self.cmd_list.add('Reset relay 0', cmd=lambda: Tags.W_REL_0.set(False))
-        self.cmd_list.add('Set relay 1', cmd=lambda: Tags.W_REL_1.set(True))
-        self.cmd_list.add('Reset relay 1', cmd=lambda: Tags.W_REL_1.set(False))
-        self.cmd_list.add('Set relay 2', cmd=lambda: Tags.W_REL_2.set(True))
-        self.cmd_list.add('Reset relay 2', cmd=lambda: Tags.W_REL_2.set(False))
-        self.cmd_list.add('Set relay 3', cmd=lambda: Tags.W_REL_3.set(True))
-        self.cmd_list.add('Reset relay 3', cmd=lambda: Tags.W_REL_3.set(False))
+        self.cmd_list.add('Set relay 0', cmd=lambda: tags.W_REL_0.set(True))
+        self.cmd_list.add('Reset relay 0', cmd=lambda: tags.W_REL_0.set(False))
+        self.cmd_list.add('Set relay 1', cmd=lambda: tags.W_REL_1.set(True))
+        self.cmd_list.add('Reset relay 1', cmd=lambda: tags.W_REL_1.set(False))
+        self.cmd_list.add('Set relay 2', cmd=lambda: tags.W_REL_2.set(True))
+        self.cmd_list.add('Reset relay 2', cmd=lambda: tags.W_REL_2.set(False))
+        self.cmd_list.add('Set relay 3', cmd=lambda: tags.W_REL_3.set(True))
+        self.cmd_list.add('Reset relay 3', cmd=lambda: tags.W_REL_3.set(False))
         # apply custom design and build
         btn_colors_t = ('light salmon', 'OliveDrab1')
         for idx, item in enumerate(self.cmd_list.items):
@@ -95,10 +105,10 @@ class TabMisc(HMITab):
         self.cmd_list.build().pack()
 
     def _set_all(self, value: bool):
-        Tags.W_REL_0.set(value)
-        Tags.W_REL_1.set(value)
-        Tags.W_REL_2.set(value)
-        Tags.W_REL_3.set(value)
+        tags.W_REL_0.set(value)
+        tags.W_REL_1.set(value)
+        tags.W_REL_2.set(value)
+        tags.W_REL_3.set(value)
 
     def tab_update(self):
         self.state_list.update()
@@ -125,7 +135,7 @@ class HMIToolbar(tk.Frame):
         self.master.after(self.update_ms, self._tab_update)
 
     def tab_update(self):
-        self.butTbox.configure(background=GREEN if Devices.plc.connected else PINK)
+        self.butTbox.configure(background=GREEN if devices.plc.device.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
 
@@ -137,7 +147,7 @@ class HMIApp(tk.Tk):
         # self.attributes('-fullscreen', True)
         self.geometry("800x600")
         # periodic tags update
-        self.do_every(Tags.update_tags, every_ms=500)
+        self.do_every(tags.update, every_ms=500)
         # build a notebook with tabs
         self.note = ttk.Notebook(self)
         self.tab_misc = TabMisc(self.note)

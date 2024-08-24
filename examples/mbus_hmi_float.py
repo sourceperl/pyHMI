@@ -10,26 +10,35 @@ from pyHMI.Dialog import SetStrValueDialog
 from pyHMI.UI import UIAnalogListFrame, UIButtonListFrame
 
 
-class Devices(object):
+class Devices:
     # init datasource
     # PLC TBox
-    plc = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5, client_args=dict(debug=False))
-    plc_r_reg0_req = plc.add_read_regs_request(20800, size=2, run_cyclic=True)
-    plc_w_reg0_req = plc.add_write_regs_request(20800, size=2, run_on_set=True)
-    plc_r_reg0_req.run()
+    def __init__(self) -> None:
+        class PLC:
+            def __init__(self) -> None:
+                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0,
+                                              refresh=0.5, client_args=dict(debug=False))
+                self.r_reg0_req = self.device.add_read_regs_request(20800, size=2, run_cyclic=True)
+                self.w_reg0_req = self.device.add_write_regs_request(20800, size=2, run_on_set=True)
+                self.r_reg0_req.run()
+        self.plc = PLC()
 
 
-class Tags(object):
+class Tags:
     # tags list
-    # from PLC
-    R_FLOAT_0 = Tag(0.0, src=ModbusFloat(Devices.plc_r_reg0_req, 20800), chg_cmd=lambda x: round(x, 3))
-    # to PLC
-    W_FLOAT_0 = Tag(0.0, src=ModbusFloat(Devices.plc_w_reg0_req, 20800))
+    def __init__(self, devices: Devices) -> None:
+        # from PLC
+        self.R_FLOAT_0 = Tag(0.0, src=ModbusFloat(devices.plc.r_reg0_req, 20800), chg_cmd=lambda x: round(x, 3))
+        # to PLC
+        self.W_FLOAT_0 = Tag(0.0, src=ModbusFloat(devices.plc.w_reg0_req, 20800))
 
-    @classmethod
-    def update_tags(cls):
+    def update(self):
         # update tags
         pass
+
+
+devices = Devices()
+tags = Tags(devices)
 
 
 class HMITab(tk.Frame):
@@ -60,7 +69,7 @@ class TabMisc(HMITab):
         self.frmState = tk.LabelFrame(self, text='Long value', padx=10, pady=10)
         self.frmState.grid(row=0, column=0, padx=5, pady=5, sticky=tk.NSEW)
         self.longs_list = UIAnalogListFrame(self.frmState)
-        self.longs_list.add('Long @0', Tags.R_FLOAT_0)
+        self.longs_list.add('Long @0', tags.R_FLOAT_0)
         # apply custom design and build
         for idx, item in enumerate(self.longs_list.items):
             item.tk_lbl_value.configure(width=15)
@@ -68,8 +77,8 @@ class TabMisc(HMITab):
         self.frmCmd = tk.LabelFrame(self, text='Set', padx=10, pady=10)
         self.frmCmd.grid(row=0, column=1, padx=5, pady=5, sticky=tk.NSEW)
         self.cmd_list = UIButtonListFrame(self.frmCmd, n_cols=2)
-        self.cmd_list.add('999.99', cmd=lambda: Tags.W_FLOAT_0.set(999.99))
-        self.cmd_list.add('0.0', cmd=lambda: Tags.W_FLOAT_0.set(0.0))
+        self.cmd_list.add('999.99', cmd=lambda: tags.W_FLOAT_0.set(999.99))
+        self.cmd_list.add('0.0', cmd=lambda: tags.W_FLOAT_0.set(0.0))
         # apply custom design and build
         btn_colors_t = ('light salmon', 'OliveDrab1')
         for idx, item in enumerate(self.cmd_list.items):
@@ -89,7 +98,7 @@ class TabMisc(HMITab):
 
     def valid_value(self, value: str):
         try:
-            Tags.W_FLOAT_0.set(float(value))
+            tags.W_FLOAT_0.set(float(value))
         except ValueError:
             pass
 
@@ -115,7 +124,7 @@ class HMIToolbar(tk.Frame):
         self.master.after(self.update_ms, self._tab_update)
 
     def tab_update(self):
-        self.butTbox.configure(background=GREEN if Devices.plc.connected else PINK)
+        self.butTbox.configure(background=GREEN if devices.plc.device.connected else PINK)
         self.lblDate.configure(text=time.strftime('%H:%M:%S %d/%m/%Y'))
 
 
@@ -127,7 +136,7 @@ class HMIApp(tk.Tk):
         # self.attributes('-fullscreen', True)
         self.geometry('600x300')
         # periodic tags update
-        self.do_every(Tags.update_tags, every_ms=500)
+        self.do_every(tags.update, every_ms=500)
         # build a notebook with tabs
         self.note = ttk.Notebook(self)
         self.tab_misc = TabMisc(self.note)
