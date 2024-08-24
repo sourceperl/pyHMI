@@ -346,6 +346,9 @@ class ModbusBool(DataSource):
     def error(self) -> bool:
         return self.request.error
 
+    def sync(self) -> bool:
+        return self.request.run()
+
 
 class ModbusInt(DataSource):
     BYTE_ORDER_TYPE = Literal['little', 'big']
@@ -433,6 +436,9 @@ class ModbusInt(DataSource):
 
     def error(self) -> bool:
         return self.request.error
+
+    def sync(self) -> bool:
+        return self.request.run()
 
 
 class ModbusFloat(DataSource):
@@ -537,6 +543,9 @@ class ModbusFloat(DataSource):
     def error(self) -> bool:
         return self.request.error
 
+    def sync(self) -> bool:
+        return self.request.run()
+
 
 class ModbusTboxStr(DataSource):
     def __init__(self, request: ModbusRequest, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:
@@ -606,3 +615,6 @@ class ModbusTboxStr(DataSource):
 
     def error(self) -> bool:
         return self.request.error
+
+    def sync(self) -> bool:
+        return self.request.run()

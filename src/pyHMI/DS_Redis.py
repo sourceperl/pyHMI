@@ -8,36 +8,41 @@ from .Tag import Tag, Device, DataSource
 from .Misc import SafeObject
 
 
-class RedisPub(DataSource):
-    class Request:
-        """ A publish request data container for publish io thread queue. """
+PUBLISH_TYPE = Union[str, bytes]
+KEY_TYPE = Union[bool, int, float, str, bytes]
 
-        def __init__(self, redis_pub: "RedisPub", message: Union[str, bytes]) -> None:
-            # args
-            self.redis_pub = redis_pub
-            self.message = message
-            # public
-            self.expire = time.monotonic() + self.redis_pub.device.request_cancel_delay
-            # clear event
-            self.redis_pub.request_done_evt.clear()
 
-        @property
-        def is_expired(self) -> bool:
-            return time.monotonic() > self.expire
+class _PublishRequest:
+    """ A publish request data container for publish io thread queue. """
 
-        @property
-        def is_ready(self) -> bool:
-            # thread process fresh request exclusively
-            return not self.is_expired
+    def __init__(self, redis_pub: "RedisPublish", message: PUBLISH_TYPE) -> None:
+        # args
+        self.redis_pub = redis_pub
+        self.message = message
+        # public
+        self.done_evt = threading.Event()
+        self.msg_delivery_count = 0
+        # private
+        self._run_expire = time.monotonic() + self.redis_pub.device.run_cancel_delay
 
+    @property
+    def is_expired(self) -> bool:
+        return time.monotonic() > self._run_expire
+
+    @property
+    def is_ready(self) -> bool:
+        # thread process fresh request exclusively
+        return not self.is_expired
+
+
+class RedisPublish(DataSource):
     def __init__(self, device: "RedisDevice", channel: str) -> None:
         # args
         self.device = device
         self.channel = channel
-        # error flags
+        # public
+        self.last_request: Optional[_PublishRequest] = None
         self.io_error = False
-        # event
-        self.request_done_evt = threading.Event()
 
     def __repr__(self):
         return f'RedisPub(device={self.device!r}, channel={self.channel!r})'
@@ -47,61 +52,122 @@ class RedisPub(DataSource):
 
     def set(self, value: Union[str, bytes]) -> None:
         try:
-            self.device.publish_request_q.put(RedisPub.Request(self, value), block=False)
+            pub_request = _PublishRequest(self, value)
+            self.device.publish_request_q.put_nowait(pub_request)
+            self.last_request = pub_request
         except queue.Full:
             self.io_error = True
+            self.last_request = None
 
     def error(self) -> bool:
         return self.io_error
 
 
-class RedisKey(DataSource):
-    KEY_TYPE = Union[bool, int, float, str, bytes]
+class _KeyRequest:
+    """ A get/set request data container for io thread queue. """
 
-    class Request:
-        """ A get/set request data container for io thread queue. """
+    def __init__(self, redis_key: Union["RedisGetKey", "RedisSetKey"], is_cyclic: bool,
+                 is_on_set: bool = False) -> None:
+        # args
+        self.redis_key = redis_key
+        self.is_cyclic = is_cyclic
+        self.is_on_set = is_on_set
+        # public
+        self.done_evt = threading.Event()
+        # private
+        self._run_expire = 0.0
 
-        def __init__(self, redis_key: "RedisKey") -> None:
-            # args
-            self.redis_key = redis_key
-            # public
-            self.expire = time.monotonic() + self.redis_key.device.request_cancel_delay
-            # clear event
-            self.redis_key.request_done_evt.clear()
+    @property
+    def is_expired(self) -> bool:
+        return time.monotonic() > self._run_expire
 
-        @property
-        def is_expired(self) -> bool:
-            return time.monotonic() > self.expire
+    @property
+    def is_ready(self) -> bool:
+        # thread process fresh request exclusively
+        return not self.is_expired
 
-        @property
-        def is_ready(self) -> bool:
-            # thread process fresh request exclusively
-            return not self.is_expired
+    def run(self) -> bool:
+        """ Attempt immediate update of the key on redis db using the single-update-key thread.
 
-    def __init__(self, device: "RedisDevice", name: str, type: type[bool | int | float | str | bytes],
-                 write: bool = False, update_cyclic: bool = False, update_on_set: bool = False,
-                 ttl: Optional[float] = None) -> None:
+        Any pending execution will be canceled after the delay specified at device level in
+        request_cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the request is queued.
+        """
+        # accept this request when device is actually connected or if the key-update-queue is empty
+        if self.redis_key.device.connected or (self.redis_key.device.key_request_q.qsize() == 0):
+            # set an expiration stamp (avoid single-update-key thread process outdated request)
+            self._run_expire = time.monotonic() + self.redis_key.device.run_cancel_delay
+            try:
+                self.redis_key.device.key_request_q.put_nowait(self)
+                self.done_evt.clear()
+                return True
+            except queue.Full:
+                io_op = 'set' if isinstance(self.redis_key, RedisGetKey) else 'get'
+                logger.warning(f'redis single-update key queue full, drop a {io_op} on key "{self.redis_key.name}"')
+        # error reporting
+        return False
+
+
+class RedisGetKey(DataSource):
+    def __init__(self, device: "RedisDevice", name: str, type: type[KEY_TYPE],
+                 request_cyclic: bool = False) -> None:
         # args
         self.device = device
         self.name = name
         self.type = type
-        self.write = write
-        self.update_cyclic = update_cyclic
-        self.update_on_set = update_on_set
-        self.ttl = ttl
         # public
+        self.request = _KeyRequest(self, is_cyclic=request_cyclic)
         self.raw_value: Optional[bytes] = None
         self.value: Any = None
         self.io_error = True
         self.fmt_error = False
-        self.request_done_evt = threading.Event()
         # register RedisKey at device level
         with self.device.keys_l as l:
             l.append(self)
 
     def __repr__(self):
-        return f'RedisKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__}, ' \
-               f'ttl={self.ttl}, writable={self.write})'
+        return f'RedisGetKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__})'
+
+    def add_tag(self, tag: Tag) -> None:
+        # warn user of type mismatch between initial tag value and this datasource
+        if not isinstance(tag.init_value, self.type):
+            raise TypeError(f'init_value must be a {self.type.__name__}')
+
+    def get(self) -> Optional[KEY_TYPE]:
+        return self.value
+
+    def set(self, value) -> None:
+        raise ValueError(f'cannot write read-only {self!r}')
+
+    def error(self) -> bool:
+        return self.io_error or self.fmt_error
+
+    def sync(self) -> bool:
+        return self.request.run()
+
+
+class RedisSetKey(DataSource):
+    def __init__(self, device: "RedisDevice", name: str, type: type[KEY_TYPE],
+                 request_cyclic: bool = False, request_on_set: bool = False,
+                 ttl: Optional[float] = None) -> None:
+        # args
+        self.device = device
+        self.name = name
+        self.type = type
+        self.ttl = ttl
+        # public
+        self.request = _KeyRequest(self, is_cyclic=request_cyclic, is_on_set=request_on_set)
+        self.raw_value: Optional[bytes] = None
+        self.value: Any = None
+        self.io_error = True
+        # register RedisKey at device level
+        with self.device.keys_l as l:
+            l.append(self)
+
+    def __repr__(self):
+        return f'RedisSetKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__}, ' \
+               f'ttl={self.ttl})'
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -109,15 +175,9 @@ class RedisKey(DataSource):
             raise TypeError(f'init_value must be a {self.type.__name__}')
 
     def get(self) -> Optional[KEY_TYPE]:
-        # check read-only
-        if self.write:
-            raise ValueError(f'cannot read write-only {self!r}')
-        return self.value
+        raise ValueError(f'cannot read write-only {self!r}')
 
     def set(self, value: KEY_TYPE) -> None:
-        # check write-only
-        if not self.write:
-            raise ValueError(f'cannot write read-only {self!r}')
         # check type
         try:
             # format raw for redis
@@ -129,41 +189,22 @@ class RedisKey(DataSource):
             else:
                 self.raw_value = str(self.type.__call__(value)).encode()
             # write query executed on set
-            if self.update_on_set:
-                self.update()
+            if self.request.is_on_set:
+                self.request.run()
         except (TypeError, ValueError):
             raise ValueError(f'cannot set redis key {self.name!r} of type {self.type.__name__} to {value!r}')
 
     def error(self) -> bool:
-        return self.io_error or self.fmt_error
+        return self.io_error
 
-    def update(self) -> bool:
-        """ Attempt immediate update of the key on redis db using the single-update-key thread.
-
-        Any pending execution will be canceled after the delay specified at device level in
-        request_cancel_delay (defaults to 5.0 seconds).
-
-        Return True if the request is queued.
-        """
-        # accept this request when device is actually connected or if the key-update-queue is empty
-        if self.device.connected or (self.device.key_request_q.qsize() == 0):
-            # set an expiration stamp (avoid single-update-key thread process outdated request)
-            self._update_request_expire = time.monotonic() + self.device.request_cancel_delay
-            try:
-                self.device.key_request_q.put_nowait(RedisKey.Request(self))
-                self.request_done_evt.clear()
-                return True
-            except queue.Full:
-                io_op = 'write' if self.write else 'read'
-                logger.warning(f'redis single-update key queue full, drop {io_op} on key "{self.name}"')
-        # error reporting
-        return False
+    def sync(self) -> bool:
+        return self.request.run()
 
 
 class RedisDevice(Device):
-    class KeyList:
+    class KeysList:
         def __init__(self):
-            self._keys_l: List[RedisKey] = list()
+            self._keys_l: List[Union[RedisGetKey, RedisSetKey]] = list()
             self._lock = threading.Lock()
 
         def __enter__(self):
@@ -182,13 +223,13 @@ class RedisDevice(Device):
         self.port = port
         self.db = db
         self.refresh = refresh
-        self.request_cancel_delay = request_cancel_delay
+        self.run_cancel_delay = request_cancel_delay
         self.timeout = timeout
         self.client_adv_args = client_adv_args
         # privates vars
-        self.keys_l = RedisDevice.KeyList()
-        self.publish_request_q: queue.Queue[RedisPub.Request] = queue.Queue(maxsize=255)
-        self.key_request_q: queue.Queue[RedisKey.Request] = queue.Queue(maxsize=255)
+        self.keys_l = RedisDevice.KeysList()
+        self.key_request_q: queue.Queue[_KeyRequest] = queue.Queue(maxsize=255)
+        self.publish_request_q: queue.Queue[_PublishRequest] = queue.Queue(maxsize=255)
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.safe_cli = SafeObject(redis.Redis(host=self.host, port=self.port, db=self.db,
@@ -211,9 +252,9 @@ class RedisDevice(Device):
     def connected(self):
         return self._connected
 
-    def _get_key(self, key: RedisKey) -> None:
-        # skip write key
-        if key.write:
+    def _get_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
+        # skip other keys
+        if not isinstance(key, RedisGetKey):
             return
         # redis I/O
         with self.safe_cli as cli:
@@ -241,11 +282,11 @@ class RedisDevice(Device):
                 except:
                     key.fmt_error = True
         # mark request update as done
-        key.request_done_evt.set()
+        key.request.done_evt.set()
 
-    def _set_key(self, key: RedisKey) -> None:
-        # skip read key
-        if not key.write:
+    def _set_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
+        # skip other keys
+        if not isinstance(key, RedisSetKey):
             return
         # redis I/O
         if key.raw_value is not None:
@@ -253,7 +294,7 @@ class RedisDevice(Device):
                 set_ret = cli.set(key.name, key.raw_value, ex=key.ttl)
             key.io_error = set_ret is True
         # mark request update as done
-        key.request_done_evt.set()
+        key.request.done_evt.set()
 
     def _cyclic_update_key_thread(self):
         """ Process every I/O for keys on redis DB. """
@@ -263,7 +304,7 @@ class RedisDevice(Device):
                 keys_l = l.copy()
             # redis i/o keys part
             for key in keys_l:
-                if key.update_cyclic:
+                if key.request.is_cyclic:
                     try:
                         self._set_key(key)
                         self._get_key(key)
@@ -299,15 +340,17 @@ class RedisDevice(Device):
         """ Process every I/O for publish on redis DB. """
         while True:
             # get next publish request from publish io thread queue
-            pub_request = self.publish_request_q.get()
+            pub_req = self.publish_request_q.get()
+            # log it
+            logger.debug(f'{threading.current_thread().name} receive {pub_req}')
             # publish it on redis
-            if pub_request.is_ready:
+            if pub_req.is_ready:
                 try:
                     with self.safe_cli as cli:
-                        cli.publish(pub_request.redis_pub.channel, pub_request.message)
-                    pub_request.redis_pub.io_error = False
-                    pub_request.redis_pub.request_done_evt.set()
+                        pub_req.msg_delivery_count = cli.publish(pub_req.redis_pub.channel, pub_req.message)
+                    pub_req.redis_pub.io_error = False
+                    pub_req.done_evt.set()
                 except redis.RedisError:
-                    pub_request.redis_pub.io_error = True
+                    pub_req.redis_pub.io_error = True
             # mark as done
             self.publish_request_q.task_done()

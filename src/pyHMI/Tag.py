@@ -34,6 +34,10 @@ class DataSource:
         """ Method call by Tag class to retrieve error status from datasource. """
         return False
 
+    def sync(self) -> bool:
+        """ Try to synchronize the data source with its target. (e.g. trigger an immediate write to a DB). """
+        raise NotImplemented('this method is not implemented in this data source')
+
 
 class Tag:
     TAG_TYPE = Union[bool, int, float, str, bytes]
