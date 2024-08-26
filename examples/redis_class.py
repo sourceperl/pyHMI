@@ -28,5 +28,5 @@ while True:
         tags.FOO_KEY_WRITE.value = f'{i=}'
         tags.PUB_PUB_CHANNEL.value = f'{i=}'
         print(f'FOO_KEY_READ: {tags.FOO_KEY_READ!s}')
-        print(f'SUB_MY_CHANNEL: {tags.SUB_PUB_CHANNEL!s}')
+        print(f'SUB_PUB_CHANNEL: {tags.SUB_PUB_CHANNEL!s}')
         time.sleep(1.0)

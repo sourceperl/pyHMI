@@ -51,7 +51,7 @@ class _PublishRequest:
         self.done_evt = threading.Event()
         self.msg_delivery_count = 0
         # private
-        self._run_expire = time.monotonic() + self.redis_pub.device.run_cancel_delay
+        self._run_expire = 0.0
 
     @property
     def is_expired(self) -> bool:
@@ -61,6 +61,27 @@ class _PublishRequest:
     def is_ready(self) -> bool:
         # thread process fresh request exclusively
         return not self.is_expired
+
+    def run(self) -> bool:
+        """ Attempt immediate update of the key on redis db using the single-update-key thread.
+
+        Any pending execution will be canceled after the delay specified at device level in
+        request_cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the request is queued.
+        """
+        # accept this request when device is actually connected or if the queue is empty
+        if self.redis_pub.device.connected or (self.redis_pub.device.publish_request_q.qsize() == 0):
+            # set an expiration stamp (avoid thread process outdated request)
+            self._run_expire = time.monotonic() + self.redis_pub.device.run_cancel_delay
+            try:
+                self.redis_pub.device.publish_request_q.put_nowait(self)
+                self.done_evt.clear()
+                return True
+            except queue.Full:
+                logger.warning(f'redis publish queue full, drop a publish on channel "{self.redis_pub.channel}"')
+        # error reporting
+        return False
 
 
 class RedisPublish(DataSource):
@@ -88,13 +109,13 @@ class RedisPublish(DataSource):
         try:
             value = _encode_redis_value(value, type=self.type)
             pub_request = _PublishRequest(self, value)
-            self.device.publish_request_q.put_nowait(pub_request)
-            self.last_request = pub_request
+            if pub_request.run():
+                self.last_request = pub_request
+            else:
+                self.last_request = None
+                self.io_error = True
         except TypeError:
             raise TypeError(f'unsupported type for value {self!r}')
-        except queue.Full:
-            self.io_error = True
-            self.last_request = None
 
     def error(self) -> bool:
         return self.io_error
@@ -112,8 +133,11 @@ class RedisSubscribe(DataSource):
         self.io_error = False
         self.fmt_error = False
         # register RedisSubscribe at device level
-        with self.device.subs_d as d:
-            d[channel] = self
+        self.device.subscribes_add_q.put_nowait(self)
+
+    def __del__(self):
+        # unregister RedisSubscribe at device level
+        self.device.subscribes_remove_q.put_nowait(self)
 
     def __repr__(self):
         return f'RedisSubscribe(device={self.device!r}, channel={self.channel!r}, type={self.type.__name__})'
@@ -123,9 +147,8 @@ class RedisSubscribe(DataSource):
         if not isinstance(tag.init_value, self.type):
             raise TypeError(f'init_value must be a {self.type.__name__}')
 
-    def get(self) -> Optional[str]:
-        with self.device.subs_d as d:
-            return d[self.channel].value
+    def get(self) -> Optional[KEY_TYPE]:
+        return self.value
 
     def set(self, value) -> None:
         raise ValueError(f'cannot write on read-only {self!r}')
@@ -166,11 +189,11 @@ class _KeyRequest:
         Return True if the request is queued.
         """
         # accept this request when device is actually connected or if the key-update-queue is empty
-        if self.redis_key.device.connected or (self.redis_key.device.key_request_q.qsize() == 0):
+        if self.redis_key.device.connected or (self.redis_key.device.key_single_request_q.qsize() == 0):
             # set an expiration stamp (avoid single-update-key thread process outdated request)
             self._run_expire = time.monotonic() + self.redis_key.device.run_cancel_delay
             try:
-                self.redis_key.device.key_request_q.put_nowait(self)
+                self.redis_key.device.key_single_request_q.put_nowait(self)
                 self.done_evt.clear()
                 return True
             except queue.Full:
@@ -305,9 +328,10 @@ class RedisDevice(Device):
         self.client_adv_args = client_adv_args
         # privates vars
         self.keys_l = RedisDevice.KeysList()
-        self.key_request_q: queue.Queue[_KeyRequest] = queue.Queue(maxsize=255)
+        self.key_single_request_q: queue.Queue[_KeyRequest] = queue.Queue(maxsize=255)
         self.publish_request_q: queue.Queue[_PublishRequest] = queue.Queue(maxsize=255)
-        self.subs_d = RedisDevice.SubsDict()
+        self.subscribes_add_q: queue.Queue[RedisSubscribe] = queue.Queue()
+        self.subscribes_remove_q: queue.Queue[RedisSubscribe] = queue.Queue()
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.cli = redis.Redis(host=self.host, port=self.port, db=self.db,
@@ -387,9 +411,7 @@ class RedisDevice(Device):
         """ This thread executes all keys get/set from the single-update queue. """
         while True:
             # wait next request from queue
-            key_request = self.key_request_q.get()
-            # log it
-            logger.debug(f'{threading.current_thread().name} receive {key_request}')
+            key_request = self.key_single_request_q.get()
             # process it
             if key_request.is_ready:
                 try:
@@ -398,15 +420,13 @@ class RedisDevice(Device):
                 except redis.RedisError:
                     key_request.redis_key.io_error = True
             # mark queue task as done
-            self.key_request_q.task_done()
+            self.key_single_request_q.task_done()
 
     def _publish_thread(self):
         """ Process every I/O for publish on redis DB. """
         while True:
             # get next publish request from publish io thread queue
             pub_req = self.publish_request_q.get()
-            # log it
-            logger.debug(f'{threading.current_thread().name} receive {pub_req}')
             # publish it on redis
             if pub_req.is_ready:
                 try:
@@ -420,23 +440,40 @@ class RedisDevice(Device):
 
     def _subscribe_thread(self):
         """ Process every I/O for subscribe on redis DB. """
+        # init thread vars
+        subscribe_l: List[str] = []
+        unsubscribe_l: List[str] = []
+        redis_subscribe_d: Dict[str, RedisSubscribe] = {}
         # create a PubSub object to subscribe to channel(s)
         pubsub = self.cli.pubsub()
         # main loop
         while True:
-            # copy SubsDict
-            with self.subs_d as d:
-                subs_d = d.copy()
-            # redis error try
+            # process subscription request
             try:
-                # unsubscribe
-                for sub_channel in pubsub.channels:
-                    if sub_channel not in subs_d:
-                        pubsub.unsubscribe(sub_channel)
+                redis_subscribe = self.subscribes_add_q.get_nowait()
+                redis_subscribe_d[redis_subscribe.channel] = redis_subscribe
+                subscribe_l.append(redis_subscribe.channel)
+                self.subscribes_add_q.task_done()
+            except queue.Empty:
+                pass
+            # process unsubscription request
+            try:
+                redis_subscribe = self.subscribes_remove_q.get_nowait()
+                del redis_subscribe_d[redis_subscribe.channel]
+                unsubscribe_l.append(redis_subscribe.channel)
+                self.subscribes_remove_q.task_done()
+            except queue.Empty:
+                pass
+            # redis I/O error try
+            try:
                 # subscribe
-                for channel in subs_d:
-                    if channel not in pubsub.channels:
-                        pubsub.subscribe(channel)
+                for channel in subscribe_l:
+                    pubsub.subscribe(channel)
+                    subscribe_l.remove(channel)
+                # unsubscribe
+                for channel in unsubscribe_l:
+                    pubsub.unsubscribe(channel)
+                    unsubscribe_l.remove(channel)
                 # get_message loop
                 while True:
                     msg_d = pubsub.get_message()
@@ -444,7 +481,7 @@ class RedisDevice(Device):
                         break
                     if msg_d['type'] == 'message':
                         try:
-                            redis_subscribe = subs_d[msg_d['channel'].decode()]
+                            redis_subscribe = redis_subscribe_d[msg_d['channel'].decode()]
                             redis_subscribe.io_error = False
                             try:
                                 redis_subscribe.value = _decode_redis_raw(msg_d['data'], type=redis_subscribe.type)
@@ -453,12 +490,10 @@ class RedisDevice(Device):
                                 redis_subscribe.fmt_error = True
                         except (KeyError, UnicodeDecodeError):
                             pass
-                # wait next main loop
-                time.sleep(0.2)
-            except redis.RedisError:
+                time.sleep(0.5)
+            except redis.RedisError as e:
                 # set error flag
-                with self.subs_d as d:
-                    for _, redis_subscribe in d.items():
-                        redis_subscribe.io_error = True
+                for _, redis_subscribe in redis_subscribe_d.items():
+                    redis_subscribe.io_error = True
                 # wait before reconnect
                 time.sleep(1.0)
