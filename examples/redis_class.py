@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import time
 from pyHMI.DS_Redis import RedisDevice, RedisPublish, RedisSubscribe, RedisGetKey, RedisSetKey
 from pyHMI.Tag import Tag
-import time
 
 
 class Devices:

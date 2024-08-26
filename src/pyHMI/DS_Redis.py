@@ -5,12 +5,17 @@ from typing import Any, Dict, List, Optional, Union
 import redis
 from . import logger
 from .Tag import Tag, Device, DataSource
+from .Misc import SafeObject
 
 
 KEY_TYPE = Union[bool, int, float, str, bytes]
 
 
-def _decode_redis_raw(raw_data: bytes, type: type[KEY_TYPE]) -> KEY_TYPE:
+def _normalized_for_redis(value: Union[bytes, str]) -> bytes:
+    return value.encode() if isinstance(value, str) else value
+
+
+def _decode_from_redis(raw_data: bytes, type: type[KEY_TYPE]) -> KEY_TYPE:
     try:
         if type is bool:
             return {b'False': False, b'True': True}[raw_data]
@@ -24,7 +29,7 @@ def _decode_redis_raw(raw_data: bytes, type: type[KEY_TYPE]) -> KEY_TYPE:
         raise TypeError
 
 
-def _encode_redis_value(data: KEY_TYPE, type: type[KEY_TYPE]) -> bytes:
+def _encode_to_redis(data: KEY_TYPE, type: type[KEY_TYPE]) -> bytes:
     if type is bool and isinstance(data, (bool, int)):
         return {False: b'False', True: b'True'}[bool(data)]
     elif type is int and isinstance(data, int):
@@ -73,7 +78,7 @@ class _PublishRequest:
         # accept this request when device is actually connected or if the queue is empty
         if self.redis_pub.device.connected or (self.redis_pub.device.publish_request_q.qsize() == 0):
             # set an expiration stamp (avoid thread process outdated request)
-            self._run_expire = time.monotonic() + self.redis_pub.device.run_cancel_delay
+            self._run_expire = time.monotonic() + self.redis_pub.device.request_cancel_delay
             try:
                 self.redis_pub.device.publish_request_q.put_nowait(self)
                 self.done_evt.clear()
@@ -85,10 +90,10 @@ class _PublishRequest:
 
 
 class RedisPublish(DataSource):
-    def __init__(self, device: "RedisDevice", channel: str, type: type[KEY_TYPE]) -> None:
+    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: type[KEY_TYPE]) -> None:
         # args
         self.device = device
-        self.channel = channel
+        self.channel = _normalized_for_redis(channel)
         self.type = type
         # public
         self.last_request: Optional[_PublishRequest] = None
@@ -107,7 +112,7 @@ class RedisPublish(DataSource):
 
     def set(self, value: KEY_TYPE) -> None:
         try:
-            value = _encode_redis_value(value, type=self.type)
+            value = _encode_to_redis(value, type=self.type)
             pub_request = _PublishRequest(self, value)
             if pub_request.run():
                 self.last_request = pub_request
@@ -122,10 +127,10 @@ class RedisPublish(DataSource):
 
 
 class RedisSubscribe(DataSource):
-    def __init__(self, device: "RedisDevice", channel: str, type: type[KEY_TYPE]) -> None:
+    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: type[KEY_TYPE]) -> None:
         # args
         self.device = device
-        self.channel = channel
+        self.channel = _normalized_for_redis(channel)
         self.type = type
         # public
         self.value: Any = None
@@ -133,14 +138,25 @@ class RedisSubscribe(DataSource):
         self.io_error = False
         self.fmt_error = False
         # register RedisSubscribe at device level
-        self.device.subscribes_add_q.put_nowait(self)
-
-    def __del__(self):
-        # unregister RedisSubscribe at device level
-        self.device.subscribes_remove_q.put_nowait(self)
+        self.subscribe()
 
     def __repr__(self):
         return f'RedisSubscribe(device={self.device!r}, channel={self.channel!r}, type={self.type.__name__})'
+
+    @property
+    def is_subscribe(self) -> bool:
+        with self.device.safe_subs_d as subs_d:
+            return self.channel in subs_d
+
+    def subscribe(self) -> None:
+        # register at device level
+        with self.device.safe_subs_d as subs_d:
+            subs_d[self.channel] = self
+
+    def unsubscribe(self) -> None:
+        # unregister at device level
+        with self.device.safe_subs_d as subs_d:
+            del subs_d[self.channel]
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -191,7 +207,7 @@ class _KeyRequest:
         # accept this request when device is actually connected or if the key-update-queue is empty
         if self.redis_key.device.connected or (self.redis_key.device.key_single_request_q.qsize() == 0):
             # set an expiration stamp (avoid single-update-key thread process outdated request)
-            self._run_expire = time.monotonic() + self.redis_key.device.run_cancel_delay
+            self._run_expire = time.monotonic() + self.redis_key.device.request_cancel_delay
             try:
                 self.redis_key.device.key_single_request_q.put_nowait(self)
                 self.done_evt.clear()
@@ -204,11 +220,11 @@ class _KeyRequest:
 
 
 class RedisGetKey(DataSource):
-    def __init__(self, device: "RedisDevice", name: str, type: type[KEY_TYPE],
+    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: type[KEY_TYPE],
                  request_cyclic: bool = False) -> None:
         # args
         self.device = device
-        self.name = name
+        self.name = _normalized_for_redis(name)
         self.type = type
         # public
         self.request = _KeyRequest(self, is_cyclic=request_cyclic)
@@ -217,7 +233,7 @@ class RedisGetKey(DataSource):
         self.io_error = True
         self.fmt_error = False
         # register RedisKey at device level
-        with self.device.keys_l as l:
+        with self.device.safe_keys_l as l:
             l.append(self)
 
     def __repr__(self):
@@ -242,12 +258,12 @@ class RedisGetKey(DataSource):
 
 
 class RedisSetKey(DataSource):
-    def __init__(self, device: "RedisDevice", name: str, type: type[KEY_TYPE],
+    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: type[KEY_TYPE],
                  request_cyclic: bool = False, request_on_set: bool = False,
                  ttl: Optional[float] = None) -> None:
         # args
         self.device = device
-        self.name = name
+        self.name = _normalized_for_redis(name)
         self.type = type
         self.ttl = ttl
         # public
@@ -256,7 +272,7 @@ class RedisSetKey(DataSource):
         self.value: Any = None
         self.io_error = True
         # register RedisKey at device level
-        with self.device.keys_l as l:
+        with self.device.safe_keys_l as l:
             l.append(self)
 
     def __repr__(self):
@@ -275,7 +291,7 @@ class RedisSetKey(DataSource):
         # check type
         try:
             # format raw for redis
-            self.raw_value = _encode_redis_value(value, type=self.type)
+            self.raw_value = _encode_to_redis(value, type=self.type)
             # write query executed on set
             if self.request.is_on_set:
                 self.request.run()
@@ -290,48 +306,25 @@ class RedisSetKey(DataSource):
 
 
 class RedisDevice(Device):
-    class KeysList:
-        def __init__(self):
-            self._keys_l: List[Union[RedisGetKey, RedisSetKey]] = list()
-            self._lock = threading.Lock()
-
-        def __enter__(self):
-            self._lock.acquire()
-            return self._keys_l
-
-        def __exit__(self, *args):
-            self._lock.release()
-
-    class SubsDict:
-        def __init__(self):
-            self._subs_d: Dict[str, RedisSubscribe] = dict()
-            self._lock = threading.Lock()
-
-        def __enter__(self):
-            self._lock.acquire()
-            return self._subs_d
-
-        def __exit__(self, *args):
-            self._lock.release()
-
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0,
                  refresh: float = 1.0, request_cancel_delay=5.0,
                  timeout: float = 1.0, client_adv_args: Optional[dict] = None):
         super().__init__()
-        # public vars
+        # args
         self.host = host
         self.port = port
         self.db = db
         self.refresh = refresh
-        self.run_cancel_delay = request_cancel_delay
+        self.request_cancel_delay = request_cancel_delay
         self.timeout = timeout
         self.client_adv_args = client_adv_args
-        # privates vars
-        self.keys_l = RedisDevice.KeysList()
+        # public
+        __keys_l: List[Union[RedisGetKey, RedisSetKey]] = list()
+        self.safe_keys_l = SafeObject(__keys_l)
+        __subscribes_d: Dict[bytes, RedisSubscribe] = {}
+        self.safe_subs_d = SafeObject(__subscribes_d)
         self.key_single_request_q: queue.Queue[_KeyRequest] = queue.Queue(maxsize=255)
         self.publish_request_q: queue.Queue[_PublishRequest] = queue.Queue(maxsize=255)
-        self.subscribes_add_q: queue.Queue[RedisSubscribe] = queue.Queue()
-        self.subscribes_remove_q: queue.Queue[RedisSubscribe] = queue.Queue()
         # redis client
         args_d = {} if self.client_adv_args is None else self.client_adv_args
         self.cli = redis.Redis(host=self.host, port=self.port, db=self.db,
@@ -367,7 +360,7 @@ class RedisDevice(Device):
         # decode RAW value
         if key.raw_value is not None:
             try:
-                key.value = _decode_redis_raw(key.raw_value, key.type)
+                key.value = _decode_from_redis(key.raw_value, key.type)
                 key.fmt_error = False
             except TypeError:
                 key.fmt_error = True
@@ -389,7 +382,7 @@ class RedisDevice(Device):
         """ Process every I/O for keys on redis DB. """
         while True:
             # do thread safe copy for this cycle
-            with self.keys_l as l:
+            with self.safe_keys_l as l:
                 keys_l = l.copy()
             # redis i/o keys part
             for key in keys_l:
@@ -440,40 +433,22 @@ class RedisDevice(Device):
 
     def _subscribe_thread(self):
         """ Process every I/O for subscribe on redis DB. """
-        # init thread vars
-        subscribe_l: List[str] = []
-        unsubscribe_l: List[str] = []
-        redis_subscribe_d: Dict[str, RedisSubscribe] = {}
         # create a PubSub object to subscribe to channel(s)
         pubsub = self.cli.pubsub()
         # main loop
         while True:
-            # process subscription request
-            try:
-                redis_subscribe = self.subscribes_add_q.get_nowait()
-                redis_subscribe_d[redis_subscribe.channel] = redis_subscribe
-                subscribe_l.append(redis_subscribe.channel)
-                self.subscribes_add_q.task_done()
-            except queue.Empty:
-                pass
-            # process unsubscription request
-            try:
-                redis_subscribe = self.subscribes_remove_q.get_nowait()
-                del redis_subscribe_d[redis_subscribe.channel]
-                unsubscribe_l.append(redis_subscribe.channel)
-                self.subscribes_remove_q.task_done()
-            except queue.Empty:
-                pass
+            with self.safe_subs_d as subs_d:
+                want_channels_l = list(subs_d)
             # redis I/O error try
             try:
                 # subscribe
-                for channel in subscribe_l:
-                    pubsub.subscribe(channel)
-                    subscribe_l.remove(channel)
+                for want_channel in want_channels_l:
+                    if want_channel not in pubsub.channels:
+                        pubsub.subscribe(want_channel)
                 # unsubscribe
-                for channel in unsubscribe_l:
-                    pubsub.unsubscribe(channel)
-                    unsubscribe_l.remove(channel)
+                for subscribed_channel in pubsub.channels:
+                    if subscribed_channel not in want_channels_l:
+                        pubsub.unsubscribe(subscribed_channel)
                 # get_message loop
                 while True:
                     msg_d = pubsub.get_message()
@@ -481,19 +456,21 @@ class RedisDevice(Device):
                         break
                     if msg_d['type'] == 'message':
                         try:
-                            redis_subscribe = redis_subscribe_d[msg_d['channel'].decode()]
+                            with self.safe_subs_d as subs_d:
+                                redis_subscribe = subs_d[msg_d['channel']]
                             redis_subscribe.io_error = False
                             try:
-                                redis_subscribe.value = _decode_redis_raw(msg_d['data'], type=redis_subscribe.type)
+                                redis_subscribe.value = _decode_from_redis(msg_d['data'], type=redis_subscribe.type)
                                 redis_subscribe.fmt_error = False
                             except TypeError:
                                 redis_subscribe.fmt_error = True
-                        except (KeyError, UnicodeDecodeError):
+                        except KeyError:
                             pass
                 time.sleep(0.5)
-            except redis.RedisError as e:
+            except redis.RedisError:
                 # set error flag
-                for _, redis_subscribe in redis_subscribe_d.items():
-                    redis_subscribe.io_error = True
+                with self.safe_subs_d as subs_d:
+                    for redis_subscribe in subs_d.values():
+                        redis_subscribe.io_error = True
                 # wait before reconnect
                 time.sleep(1.0)
