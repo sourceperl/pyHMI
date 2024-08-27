@@ -108,7 +108,7 @@ class RedisPublish(DataSource):
             raise TypeError(f'init_value must be a {self.type.__name__}')
 
     def get(self) -> None:
-        raise ValueError(f'cannot read write-only {self!r}')
+        return None
 
     def set(self, value: KEY_TYPE) -> None:
         try:
@@ -214,7 +214,7 @@ class _KeyRequest:
                 return True
             except queue.Full:
                 io_op = 'set' if isinstance(self.redis_key, RedisGetKey) else 'get'
-                logger.warning(f'redis single-update key queue full, drop a {io_op} on key "{self.redis_key.name}"')
+                logger.warning(f'redis request key queue full, drop a {io_op} on key "{self.redis_key.name}"')
         # error reporting
         return False
 
@@ -260,12 +260,12 @@ class RedisGetKey(DataSource):
 class RedisSetKey(DataSource):
     def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: type[KEY_TYPE],
                  request_cyclic: bool = False, request_on_set: bool = False,
-                 ttl: Optional[float] = None) -> None:
+                 ex: Optional[int] = None) -> None:
         # args
         self.device = device
         self.name = _normalized_for_redis(name)
         self.type = type
-        self.ttl = ttl
+        self.ex = ex
         # public
         self.request = _KeyRequest(self, is_cyclic=request_cyclic, is_on_set=request_on_set)
         self.raw_value: Optional[bytes] = None
@@ -277,15 +277,15 @@ class RedisSetKey(DataSource):
 
     def __repr__(self):
         return f'RedisSetKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__}, ' \
-               f'ttl={self.ttl})'
+               f'ex={self.ex})'
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
         if type(tag.init_value) is not self.type:
             raise TypeError(f'init_value must be a {self.type.__name__}')
 
-    def get(self) -> Optional[KEY_TYPE]:
-        raise ValueError(f'cannot read write-only {self!r}')
+    def get(self) -> None:
+        return None
 
     def set(self, value: KEY_TYPE) -> None:
         # check type
@@ -329,12 +329,14 @@ class _KeyCyclicThread(Thread):
                     try:
                         self.redis_device._set_key(key)
                         self.redis_device._get_key(key)
-                    except redis.RedisError:
+                    except redis.RedisError as e:
+                        logger.warning(f'redis error: {e}')
                         key.io_error = True
             # set connected flag
             try:
                 self._connected = self.redis_device.redis_cli.ping()
-            except redis.RedisError:
+            except redis.RedisError as e:
+                logger.warning(f'redis error: {e}')
                 self._connected = False
             # wait before next polling (or not if a write trig wait event)
             time.sleep(self.redis_device.refresh)
@@ -361,7 +363,8 @@ class _KeyRequestThread(Thread):
                 try:
                     self.redis_device._get_key(key_request.redis_key)
                     self.redis_device._set_key(key_request.redis_key)
-                except redis.RedisError:
+                except redis.RedisError as e:
+                    logger.warning(f'redis error: {e}')
                     key_request.redis_key.io_error = True
             # mark queue task as done
             self.request_q.task_done()
@@ -389,7 +392,8 @@ class _PublishThread(Thread):
                     pub_req.msg_delivery_count = self._redis_cli.publish(pub_req.redis_pub.channel, pub_req.message)
                     pub_req.redis_pub.io_error = False
                     pub_req.done_evt.set()
-                except redis.RedisError:
+                except redis.RedisError as e:
+                    logger.warning(f'redis error: {e}')
                     pub_req.redis_pub.io_error = True
             # mark as done
             self.request_q.task_done()
@@ -452,8 +456,9 @@ class _SubscribeThread(Thread):
                     self._do_unsubscribe()
                 # get message
                 self._get_msg_loop()
-            except redis.RedisError:
-                # set error flag
+            except redis.RedisError as e:
+                logger.warning(f'redis error: {e}')
+                # set error flags of all RedisSubscribe
                 with self.safe_subs_d as subs_d:
                     for redis_subscribe in subs_d.values():
                         redis_subscribe.io_error = True
@@ -527,7 +532,7 @@ class RedisDevice(Device):
             return
         # redis I/O
         if key.raw_value is not None:
-            set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ttl)
-            key.io_error = set_ret is True
+            set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ex)
+            key.io_error = set_ret is not True
         # mark request update as done
         key.request.done_evt.set()
