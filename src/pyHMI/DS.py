@@ -2,7 +2,7 @@ import sys
 import traceback
 from typing import Callable, Optional, Union
 from . import logger
-from .Tag import DataSource, Tag
+from .Tag import TAG_TYPE, DataSource, Tag
 from .Misc import auto_repr
 
 
@@ -31,7 +31,7 @@ class GetCmd(DataSource):
     def __repr__(self):
         return auto_repr(self, export_t=('command', 'error_on_none', ))
 
-    def get(self) -> Optional[Tag.TAG_TYPE]:
+    def get(self) -> Optional[TAG_TYPE]:
         try:
             cmd_return = self.get_cmd()
             self._error = cmd_return is None and self.error_on_none
@@ -46,7 +46,7 @@ class GetCmd(DataSource):
             self._error = True
             return
 
-    def set(self, value: Tag.TAG_TYPE) -> None:
+    def set(self, value: TAG_TYPE) -> None:
         raise ValueError(f'cannot write on read-only Tag')
 
     def error(self) -> bool:
@@ -59,8 +59,8 @@ class GetCmd(DataSource):
 class TagOp(DataSource):
     """ A basic data source to get data from a python function. """
 
-    def __init__(self, a: Union[Tag, Tag.TAG_TYPE], operator: Callable,
-                 b: Optional[Union[Tag, Tag.TAG_TYPE]] = None) -> None:
+    def __init__(self, a: Union[Tag, TAG_TYPE], operator: Callable,
+                 b: Optional[Union[Tag, TAG_TYPE]] = None) -> None:
         # args
         self.a = a
         self.operator = operator
@@ -69,11 +69,11 @@ class TagOp(DataSource):
         self._error = False
 
     @property
-    def _a_value(self) -> Tag.TAG_TYPE:
+    def _a_value(self) -> TAG_TYPE:
         return self.a.value if isinstance(self.a, Tag) else self.a
 
     @property
-    def _b_value(self) -> Optional[Tag.TAG_TYPE]:
+    def _b_value(self) -> Optional[TAG_TYPE]:
         return self.b.value if isinstance(self.b, Tag) else self.b
 
     @property
@@ -86,11 +86,11 @@ class TagOp(DataSource):
 
     def get(self) -> Union[bool, int, float, str, bytes, None]:
         try:
-            # single operator(a) or dual operator(a, b) 
+            # single operator(a) or dual operator(a, b)
             if self._b_value is None:
-                op_return = self.operator(self._a_value) 
+                op_return = self.operator(self._a_value)
             else:
-                op_return =self.operator(self._a_value, self._b_value)
+                op_return = self.operator(self._a_value, self._b_value)
             self._error = False
             return op_return
         except Exception as e:
@@ -100,7 +100,7 @@ class TagOp(DataSource):
             self._error = True
             return
 
-    def set(self, _value: Tag.TAG_TYPE) -> None:
+    def set(self, _value: TAG_TYPE) -> None:
         raise ValueError(f'cannot write on read-only Tag')
 
     def error(self) -> bool:

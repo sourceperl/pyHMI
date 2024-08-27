@@ -4,6 +4,9 @@ from typing import Any, Callable, Optional, Union, get_args
 from . import logger
 
 
+TAG_TYPE = Union[bool, int, float, str, bytes]
+
+
 class Device:
     """Device class template for externally sourced tags (from Modbus/TCP, database...).
 
@@ -40,8 +43,6 @@ class DataSource:
 
 
 class Tag:
-    TAG_TYPE = Union[bool, int, float, str, bytes]
-
     def __init__(self, init_value: TAG_TYPE, init_error: bool = False,
                  src: Optional[DataSource] = None, chg_cmd: Optional[Callable] = None, ) -> None:
         """Constructor
@@ -53,8 +54,8 @@ class Tag:
         :param chg_cmd: a method to change tag value (scale, limit value...)
         """
         # runtime type check
-        if not isinstance(init_value, Tag.TAG_TYPE):
-            raise TypeError(f'first_value type must be in {get_args(Tag.TAG_TYPE)}')
+        if not isinstance(init_value, get_args(TAG_TYPE)):
+            raise TypeError(f'first_value type must be in {get_args(TAG_TYPE)}')
         # args
         self.init_value = init_value
         self.init_error = init_error
