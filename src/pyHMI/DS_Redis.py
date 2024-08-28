@@ -9,13 +9,14 @@ from .Misc import SafeObject
 
 
 KEY_TYPE = Union[bool, int, float, str, bytes]
+KEY_TYPE_CLASS = Union[type(bool), type(int), type(float), type(str), type(bytes)]
 
 
 def _normalized_for_redis(value: Union[bytes, str]) -> bytes:
     return value.encode() if isinstance(value, str) else value
 
 
-def _decode_from_redis(raw_data: bytes, type: type[KEY_TYPE]) -> KEY_TYPE:
+def _decode_from_redis(raw_data: bytes, type: KEY_TYPE_CLASS) -> KEY_TYPE:
     try:
         if type is bool:
             return {b'False': False, b'True': True}[raw_data]
@@ -29,7 +30,7 @@ def _decode_from_redis(raw_data: bytes, type: type[KEY_TYPE]) -> KEY_TYPE:
         raise TypeError
 
 
-def _encode_to_redis(data: KEY_TYPE, type: type[KEY_TYPE]) -> bytes:
+def _encode_to_redis(data: KEY_TYPE, type: KEY_TYPE_CLASS) -> bytes:
     if type is bool and isinstance(data, (bool, int)):
         return {False: b'False', True: b'True'}[bool(data)]
     elif type is int and isinstance(data, int):
@@ -90,7 +91,7 @@ class _PublishRequest:
 
 
 class RedisPublish(DataSource):
-    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: type[KEY_TYPE]) -> None:
+    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: KEY_TYPE_CLASS) -> None:
         # args
         self.device = device
         self.channel = _normalized_for_redis(channel)
@@ -127,7 +128,7 @@ class RedisPublish(DataSource):
 
 
 class RedisSubscribe(DataSource):
-    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: type[KEY_TYPE]) -> None:
+    def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: KEY_TYPE_CLASS) -> None:
         # args
         self.device = device
         self.channel = _normalized_for_redis(channel)
@@ -220,7 +221,7 @@ class _KeyRequest:
 
 
 class RedisGetKey(DataSource):
-    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: type[KEY_TYPE],
+    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
                  request_cyclic: bool = False) -> None:
         # args
         self.device = device
@@ -258,7 +259,7 @@ class RedisGetKey(DataSource):
 
 
 class RedisSetKey(DataSource):
-    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: type[KEY_TYPE],
+    def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
                  request_cyclic: bool = False, request_on_set: bool = False,
                  ex: Optional[int] = None) -> None:
         # args

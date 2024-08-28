@@ -3,12 +3,22 @@
 import pytest
 import itertools
 import random
+from pyModbusTCP.server import ModbusServer
 from pyHMI.DS_ModbusTCP import ModbusRequest, ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
-# keep pytest fixtures here despite Pylance unused warnings
-from .fixtures import modbus_srv
 from .utils import to_byte_length, to_reg_length, to_16b_list, cut_bytes, regs_to_bytes, \
     single_float_to_int, int_to_single_float, double_float_to_int, int_to_double_float, \
     build_bool_data_l, build_int_data_l, build_float_data_l
+
+
+@pytest.fixture
+def modbus_srv():
+    # setup code
+    srv = ModbusServer(port=5020, no_block=True)
+    srv.start()
+    # pass to test functions
+    yield srv
+    # teardown code
+    srv.stop()
 
 
 def run_and_wait_ok(request: ModbusRequest):
