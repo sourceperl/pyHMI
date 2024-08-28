@@ -54,7 +54,7 @@ class _PublishRequest:
         self.redis_pub = redis_pub
         self.message = message
         # public
-        self.done_evt = Event()
+        self.run_done_evt = Event()
         self.msg_delivery_count = 0
         # private
         self._run_expire = 0.0
@@ -82,7 +82,7 @@ class _PublishRequest:
             self._run_expire = time.monotonic() + self.redis_pub.device.request_cancel_delay
             try:
                 self.redis_pub.device.publish_thread.request_q.put_nowait(self)
-                self.done_evt.clear()
+                self.run_done_evt.clear()
                 return True
             except queue.Full:
                 logger.warning(f'redis publish queue full, drop a publish on channel "{self.redis_pub.channel}"')
@@ -135,7 +135,6 @@ class RedisSubscribe(DataSource):
         self.type = type
         # public
         self.value: Any = None
-        self.last_request: Optional[_PublishRequest] = None
         self.io_error = False
         self.fmt_error = False
         # register RedisSubscribe at device level
@@ -184,7 +183,7 @@ class _KeyRequest:
         self.is_cyclic = is_cyclic
         self.is_on_set = is_on_set
         # public
-        self.done_evt = Event()
+        self.run_done_evt = Event()
         # private
         self._run_expire = 0.0
 
@@ -211,7 +210,7 @@ class _KeyRequest:
             self._run_expire = time.monotonic() + self.redis_key.device.request_cancel_delay
             try:
                 self.redis_key.device.key_request_thread.request_q.put_nowait(self)
-                self.done_evt.clear()
+                self.run_done_evt.clear()
                 return True
             except queue.Full:
                 io_op = 'set' if isinstance(self.redis_key, RedisGetKey) else 'get'
@@ -392,7 +391,7 @@ class _PublishThread(Thread):
                 try:
                     pub_req.msg_delivery_count = self._redis_cli.publish(pub_req.redis_pub.channel, pub_req.message)
                     pub_req.redis_pub.io_error = False
-                    pub_req.done_evt.set()
+                    pub_req.run_done_evt.set()
                 except redis.RedisError as e:
                     logger.warning(f'redis error: {e}')
                     pub_req.redis_pub.io_error = True
@@ -525,7 +524,7 @@ class RedisDevice(Device):
             except TypeError:
                 key.fmt_error = True
         # mark request update as done
-        key.request.done_evt.set()
+        key.request.run_done_evt.set()
 
     def _set_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
         # skip other keys
@@ -536,4 +535,4 @@ class RedisDevice(Device):
             set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ex)
             key.io_error = set_ret is not True
         # mark request update as done
-        key.request.done_evt.set()
+        key.request.run_done_evt.set()
