@@ -1,10 +1,6 @@
 ### docker setup ###
 # sudo apt install docker.io
-# sudo usermod -aG docker $USER
-# sudo reboot
-
-### run test ###
-# docker build -t pytest . && docker run -v $(pwd):/app --rm -it pytest
+# sudo usermod -aG docker $USER && sudo reboot
 
 FROM python:3.8
 
