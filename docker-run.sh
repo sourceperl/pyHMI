@@ -2,7 +2,7 @@
 
 # user defines
 TEST_NAME="pyhmi"
-PYTHON_VERSION="3.10"
+PYTHON_VERSION="3.8"
 REDIS_VERSION="7.0.15"
 
 # internal
