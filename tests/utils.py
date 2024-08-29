@@ -1,6 +1,7 @@
 import random
+import string
 import struct
-from typing import List
+from typing import List, Optional
 
 
 # some functions
@@ -59,6 +60,12 @@ def to_16b_list(int_l: list, bit_length: int) -> List[int]:
 def cut_bytes(value: bytes, block_size: int) -> list:
     """ Cut a bytes as blocks of block_size byte length. """
     return [value[i:i+block_size] for i in range(0, len(value), block_size)]
+
+
+def build_random_str(length: Optional[int] = None) -> str:
+    """ Build a random string. """
+    length = random.randint(1, 255) if length is None else length
+    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 def build_bool_data_l(size: int) -> List[bool]:

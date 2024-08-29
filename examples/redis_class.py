@@ -18,12 +18,12 @@ class Devices:
 
 class Tags:
     def __init__(self, devices: Devices) -> None:
-        self.FOO_KEY_READ = Tag('', src=RedisGetKey(devices.redis, 'foo', type=str, request_cyclic=True))
-        self.FOO_KEY_WRITE = Tag('', src=RedisSetKey(devices.redis, 'foo', type=str, request_on_set=True))
+        self.FOO_KEY_READ = Tag('', src=RedisGetKey(devices.redis, 'foo', type=str, sync_cyclic=True))
+        self.FOO_KEY_WRITE = Tag('', src=RedisSetKey(devices.redis, 'foo', type=str, sync_on_set=True))
         self.PUB_PUB_CHANNEL = Tag('', src=RedisPublish(devices.redis, 'pub', type=str))
         self.SUB_PUB_CHANNEL = Tag('', src=RedisSubscribe(devices.redis, 'pub', type=str))
-        self.TMP_KEY_READ = Tag(0.0, src=RedisGetKey(devices.redis, 'tmp', type=float, request_cyclic=True))
-        self.TMP_KEY_WRITE = Tag(0.0, src=RedisSetKey(devices.redis, 'tmp', type=float, request_cyclic=True, ex=5))
+        self.TMP_KEY_READ = Tag(0.0, src=RedisGetKey(devices.redis, 'tmp', type=float, sync_cyclic=True))
+        self.TMP_KEY_WRITE = Tag(0.0, src=RedisSetKey(devices.redis, 'tmp', type=float, sync_cyclic=True, ex=5))
 
 
 # init tags and datasources

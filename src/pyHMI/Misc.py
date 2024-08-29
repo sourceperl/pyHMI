@@ -1,5 +1,6 @@
 """Misc resources."""
 
+import time
 from typing import List, Union, Optional
 import math
 import threading
@@ -151,3 +152,22 @@ class SafeObject:
 
     def __exit__(self, *args):
         self._lock.release()
+
+
+class TTL:
+    def __init__(self, value: float, reset: bool = True) -> None:
+        # args
+        self.value = value
+        # private
+        self._expire_at = time.monotonic() + self.value if reset else 0.0
+
+    @property
+    def is_expired(self) -> bool:
+        return time.monotonic() > self._expire_at
+
+    @property
+    def is_not_expired(self) -> bool:
+        return not self.is_expired
+
+    def reset(self):
+        self._expire_at = time.monotonic() + self.value

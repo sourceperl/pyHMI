@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 import redis
 from . import logger
 from .Tag import Tag, Device, DataSource
-from .Misc import SafeObject
+from .Misc import SafeObject, TTL
 
 
 KEY_TYPE = Union[bool, int, float, str, bytes]
@@ -46,62 +46,52 @@ def _encode_to_redis(data: KEY_TYPE, type: KEY_TYPE_CLASS) -> bytes:
     raise TypeError
 
 
-class _PublishRequest:
-    """ A publish request data container for publish io thread queue. """
-
-    def __init__(self, redis_pub: "RedisPublish", message: bytes) -> None:
-        # args
-        self.redis_pub = redis_pub
-        self.message = message
-        # public
-        self.run_done_evt = Event()
-        self.msg_delivery_count = 0
-        # private
-        self._run_expire = 0.0
-
-    @property
-    def is_expired(self) -> bool:
-        return time.monotonic() > self._run_expire
-
-    @property
-    def is_ready(self) -> bool:
-        # thread process fresh request exclusively
-        return not self.is_expired
-
-    def run(self) -> bool:
-        """ Attempt immediate update of the key on redis db using the single-update-key thread.
-
-        Any pending execution will be canceled after the delay specified at device level in
-        request_cancel_delay (defaults to 5.0 seconds).
-
-        Return True if the request is queued.
-        """
-        # accept this request when device is actually connected or if the queue is empty
-        if self.redis_pub.device.connected or (self.redis_pub.device.publish_thread.request_q.qsize() == 0):
-            # set an expiration stamp (avoid thread process outdated request)
-            self._run_expire = time.monotonic() + self.redis_pub.device.request_cancel_delay
-            try:
-                self.redis_pub.device.publish_thread.request_q.put_nowait(self)
-                self.run_done_evt.clear()
-                return True
-            except queue.Full:
-                logger.warning(f'redis publish queue full, drop a publish on channel "{self.redis_pub.channel}"')
-        # error reporting
-        return False
-
-
 class RedisPublish(DataSource):
+    class Message:
+        """ A message data container for publish with io thread queue. """
+
+        def __init__(self, redis_pub: "RedisPublish", message: bytes) -> None:
+            # args
+            self.redis_pub = redis_pub
+            self.message = message
+            # public
+            self.ttl = TTL(self.redis_pub.device.cancel_delay)
+            self.send_evt = Event()
+            self.delivery_count = 0
+
     def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: KEY_TYPE_CLASS) -> None:
         # args
         self.device = device
         self.channel = _normalized_for_redis(channel)
         self.type = type
         # public
-        self.last_request: Optional[_PublishRequest] = None
+        self.last_message: Optional[RedisPublish.Message] = None
         self.io_error = False
 
     def __repr__(self):
         return f'RedisPublish(device={self.device!r}, channel={self.channel!r}, type={self.type.__name__})'
+
+    def _send_msg(self, message: bytes) -> bool:
+        """ Attempt to publish message on redis.
+
+        Any pending execution will be canceled after the delay specified at device level in
+        request_cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the query is queued.
+        """
+        # accept this request when device is actually connected or if the queue is empty
+        if self.device.connected or (self.device.publish_thread.msg_q.qsize() == 0):
+            try:
+                pub_message = RedisPublish.Message(self, message)
+                self.device.publish_thread.msg_q.put_nowait(pub_message)
+                self.last_message = pub_message
+                return True
+            except queue.Full:
+                logger.warning(f'redis message queue full, drop a publish on channel "{self.channel}"')
+        self.last_message = None
+        self.io_error = True
+        # error reporting
+        return False
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -113,13 +103,7 @@ class RedisPublish(DataSource):
 
     def set(self, value: KEY_TYPE) -> None:
         try:
-            value = _encode_to_redis(value, type=self.type)
-            pub_request = _PublishRequest(self, value)
-            if pub_request.run():
-                self.last_request = pub_request
-            else:
-                self.last_request = None
-                self.io_error = True
+            self._send_msg(_encode_to_redis(value, type=self.type))
         except TypeError:
             raise TypeError(f'unsupported type for value {self!r}')
 
@@ -173,61 +157,25 @@ class RedisSubscribe(DataSource):
         return self.io_error or self.fmt_error
 
 
-class _KeyRequest:
-    """ A get/set request data container for io thread queue. """
-
-    def __init__(self, redis_key: Union["RedisGetKey", "RedisSetKey"], is_cyclic: bool,
-                 is_on_set: bool = False) -> None:
-        # args
-        self.redis_key = redis_key
-        self.is_cyclic = is_cyclic
-        self.is_on_set = is_on_set
-        # public
-        self.run_done_evt = Event()
-        # private
-        self._run_expire = 0.0
-
-    @property
-    def is_expired(self) -> bool:
-        return time.monotonic() > self._run_expire
-
-    @property
-    def is_ready(self) -> bool:
-        # thread process fresh request exclusively
-        return not self.is_expired
-
-    def run(self) -> bool:
-        """ Attempt immediate update of the key on redis db using the single-update-key thread.
-
-        Any pending execution will be canceled after the delay specified at device level in
-        request_cancel_delay (defaults to 5.0 seconds).
-
-        Return True if the request is queued.
-        """
-        # accept this request when device is actually connected or if the key-update-queue is empty
-        if self.redis_key.device.connected or (self.redis_key.device.key_request_thread.request_q.qsize() == 0):
-            # set an expiration stamp (avoid single-update-key thread process outdated request)
-            self._run_expire = time.monotonic() + self.redis_key.device.request_cancel_delay
-            try:
-                self.redis_key.device.key_request_thread.request_q.put_nowait(self)
-                self.run_done_evt.clear()
-                return True
-            except queue.Full:
-                io_op = 'set' if isinstance(self.redis_key, RedisGetKey) else 'get'
-                logger.warning(f'redis request key queue full, drop a {io_op} on key "{self.redis_key.name}"')
-        # error reporting
-        return False
-
-
 class RedisGetKey(DataSource):
+    class SyncReq:
+        """ A get request data container for io thread queue. """
+
+        def __init__(self, redis_key: "RedisGetKey") -> None:
+            # args
+            self.redis_key = redis_key
+            # public
+            self.ttl = TTL(self.redis_key.device.cancel_delay)
+
     def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
-                 request_cyclic: bool = False) -> None:
+                 sync_cyclic: bool = False) -> None:
         # args
         self.device = device
         self.name = _normalized_for_redis(name)
         self.type = type
+        self.sync_cyclic = sync_cyclic
         # public
-        self.request = _KeyRequest(self, is_cyclic=request_cyclic)
+        self.sync_evt = Event()
         self.raw_value: Optional[bytes] = None
         self.value: Any = None
         self.io_error = True
@@ -254,20 +202,48 @@ class RedisGetKey(DataSource):
         return self.io_error or self.fmt_error
 
     def sync(self) -> bool:
-        return self.request.run()
+        """ Try to sync key value with redis.
+
+        Any pending execution will be canceled after the delay specified at device level in
+        cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the sync request is queued.
+        """
+        # accept this request when device is actually connected or if the key-update-queue is empty
+        if self.device.connected or (self.device.key_sync_thread.sync_req_q.qsize() == 0):
+            # set an expiration stamp (avoid single-update-key thread process outdated request)
+            try:
+                self.device.key_sync_thread.sync_req_q.put_nowait(RedisGetKey.SyncReq(self))
+                self.sync_evt.clear()
+                return True
+            except queue.Full:
+                logger.warning(f'redis sync request key queue full, drop a get on key "{self.name}"')
+        # error reporting
+        return False
 
 
 class RedisSetKey(DataSource):
+    class SyncReq:
+        """ A set request data container for io thread queue. """
+
+        def __init__(self, redis_key: "RedisSetKey") -> None:
+            # args
+            self.redis_key = redis_key
+            # public
+            self.ttl = TTL(self.redis_key.device.cancel_delay)
+
     def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
-                 request_cyclic: bool = False, request_on_set: bool = False,
+                 sync_cyclic: bool = False, sync_on_set: bool = False,
                  ex: Optional[int] = None) -> None:
         # args
         self.device = device
         self.name = _normalized_for_redis(name)
         self.type = type
+        self.sync_cyclic = sync_cyclic
+        self.sync_on_set = sync_on_set
         self.ex = ex
         # public
-        self.request = _KeyRequest(self, is_cyclic=request_cyclic, is_on_set=request_on_set)
+        self.sync_evt = Event()
         self.raw_value: Optional[bytes] = None
         self.value: Any = None
         self.io_error = True
@@ -285,6 +261,7 @@ class RedisSetKey(DataSource):
             raise TypeError(f'init_value must be a {self.type.__name__}')
 
     def get(self) -> None:
+        # the tag will return the last valid value
         return None
 
     def set(self, value: KEY_TYPE) -> None:
@@ -293,8 +270,8 @@ class RedisSetKey(DataSource):
             # format raw for redis
             self.raw_value = _encode_to_redis(value, type=self.type)
             # write query executed on set
-            if self.request.is_on_set:
-                self.request.run()
+            if self.sync_on_set:
+                self.sync()
         except (TypeError, ValueError):
             raise ValueError(f'cannot set redis key {self.name!r} of type {self.type.__name__} to {value!r}')
 
@@ -302,7 +279,23 @@ class RedisSetKey(DataSource):
         return self.io_error
 
     def sync(self) -> bool:
-        return self.request.run()
+        """ Attempt immediate update of the key on redis db using the request key thread.
+
+        Any pending execution will be canceled after the delay specified at device level in
+        request_cancel_delay (defaults to 5.0 seconds).
+
+        Return True if the request is queued.
+        """
+        # accept this request when device is actually connected or if the key-update-queue is empty
+        if self.device.connected or (self.device.key_sync_thread.sync_req_q.qsize() == 0):
+            try:
+                self.device.key_sync_thread.sync_req_q.put_nowait(RedisSetKey.SyncReq(self))
+                self.sync_evt.clear()
+                return True
+            except queue.Full:
+                logger.warning(f'redis request key queue full, drop a set on key "{self.name}"')
+        # error reporting
+        return False
 
 
 class _KeyCyclicThread(Thread):
@@ -325,7 +318,7 @@ class _KeyCyclicThread(Thread):
                 keys_l = l.copy()
             # redis i/o keys part
             for key in keys_l:
-                if key.request.is_cyclic:
+                if key.sync_cyclic:
                     try:
                         self.redis_device._set_key(key)
                         self.redis_device._get_key(key)
@@ -342,32 +335,36 @@ class _KeyCyclicThread(Thread):
             time.sleep(self.redis_device.refresh)
 
 
-class _KeyRequestThread(Thread):
-    """ This thread executes all keys get/set from the request queue. """
+class _KeySyncReqThread(Thread):
+    """ This thread executes all keys get/set from the sync request queue. """
 
     def __init__(self, redis_device: "RedisDevice") -> None:
         super().__init__(daemon=True)
         # args
         self.redis_device = redis_device
         # public
-        self.request_q: queue.Queue[_KeyRequest] = queue.Queue(maxsize=255)
+        self.sync_req_q: queue.Queue[Union[RedisGetKey.SyncReq, RedisSetKey.SyncReq]] = queue.Queue(maxsize=255)
         # private
         self._redis_cli = self.redis_device.redis_cli
 
     def run(self):
         while True:
             # wait next request from queue
-            key_request = self.request_q.get()
-            # process it
-            if key_request.is_ready:
+            sync_req = self.sync_req_q.get()
+            # process it (reject an outdated request)
+            if sync_req.ttl.is_not_expired:
                 try:
-                    self.redis_device._get_key(key_request.redis_key)
-                    self.redis_device._set_key(key_request.redis_key)
+                    self.redis_device._get_key(sync_req.redis_key)
+                    self.redis_device._set_key(sync_req.redis_key)
                 except redis.RedisError as e:
                     logger.warning(f'redis error: {e}')
-                    key_request.redis_key.io_error = True
+                    sync_req.redis_key.io_error = True
+            else:
+                sync_req.redis_key.io_error = True
+            # mark sync as done
+            sync_req.redis_key.sync_evt.set()
             # mark queue task as done
-            self.request_q.task_done()
+            self.sync_req_q.task_done()
 
 
 class _PublishThread(Thread):
@@ -378,25 +375,25 @@ class _PublishThread(Thread):
         # args
         self.redis_device = redis_device
         # public
-        self.request_q: queue.Queue[_PublishRequest] = queue.Queue(maxsize=255)
+        self.msg_q: queue.Queue[RedisPublish.Message] = queue.Queue(maxsize=255)
         # private
         self._redis_cli = self.redis_device.redis_cli
 
     def run(self):
         while True:
             # get next publish request from publish io thread queue
-            pub_req = self.request_q.get()
+            msg = self.msg_q.get()
             # publish it on redis
-            if pub_req.is_ready:
+            if not msg.ttl.is_expired:
                 try:
-                    pub_req.msg_delivery_count = self._redis_cli.publish(pub_req.redis_pub.channel, pub_req.message)
-                    pub_req.redis_pub.io_error = False
-                    pub_req.run_done_evt.set()
+                    msg.delivery_count = self._redis_cli.publish(msg.redis_pub.channel, msg.message)
+                    msg.redis_pub.io_error = False
+                    msg.send_evt.set()
                 except redis.RedisError as e:
                     logger.warning(f'redis error: {e}')
-                    pub_req.redis_pub.io_error = True
+                    msg.redis_pub.io_error = True
             # mark as done
-            self.request_q.task_done()
+            self.msg_q.task_done()
 
 
 class _SubscribeThread(Thread):
@@ -468,7 +465,7 @@ class _SubscribeThread(Thread):
 
 class RedisDevice(Device):
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0,
-                 refresh: float = 1.0, request_cancel_delay=5.0,
+                 refresh: float = 1.0, cancel_delay=5.0,
                  timeout: float = 1.0, client_adv_args: Optional[dict] = None):
         super().__init__()
         # args
@@ -476,7 +473,7 @@ class RedisDevice(Device):
         self.port = port
         self.db = db
         self.refresh = refresh
-        self.request_cancel_delay = request_cancel_delay
+        self.cancel_delay = cancel_delay
         self.timeout = timeout
         self.client_adv_args = client_adv_args
         # private
@@ -491,8 +488,8 @@ class RedisDevice(Device):
         self.key_cyclic_thread = _KeyCyclicThread(self)
         self.key_cyclic_thread.start()
         # keys I/O (request)
-        self.key_request_thread = _KeyRequestThread(self)
-        self.key_request_thread.start()
+        self.key_sync_thread = _KeySyncReqThread(self)
+        self.key_sync_thread.start()
         # publish I/O
         self.publish_thread = _PublishThread(self)
         self.publish_thread.start()
@@ -523,8 +520,6 @@ class RedisDevice(Device):
                 key.fmt_error = False
             except TypeError:
                 key.fmt_error = True
-        # mark request update as done
-        key.request.run_done_evt.set()
 
     def _set_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
         # skip other keys
@@ -534,5 +529,3 @@ class RedisDevice(Device):
         if key.raw_value is not None:
             set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ex)
             key.io_error = set_ret is not True
-        # mark request update as done
-        key.request.run_done_evt.set()
