@@ -121,16 +121,12 @@ class RedisSubscribe(DataSource):
         self.value: Any = None
         self.io_error = False
         self.fmt_error = False
+        self.subscribe_evt = Event()
         # register RedisSubscribe at device level
         self.subscribe()
 
     def __repr__(self):
         return f'RedisSubscribe(device={self.device!r}, channel={self.channel!r}, type={self.type.__name__})'
-
-    @property
-    def is_subscribe(self) -> bool:
-        with self.device.subscribe_thread.safe_subs_d as subs_d:
-            return self.channel in subs_d
 
     def subscribe(self) -> None:
         # register at device level
@@ -432,11 +428,19 @@ class _SubscribeThread(Thread):
     def _do_subscribe(self):
         for want_channel in self.want_channels_l:
             if want_channel not in self._pubsub.channels:
+                # send subscribe to redis server
                 self._pubsub.subscribe(want_channel)
+                # notify RedisSubscribe
+                try:
+                    with self.safe_subs_d as subs_d:
+                        subs_d[want_channel].subscribe_evt.set()
+                except KeyError:
+                    pass
 
     def _do_unsubscribe(self):
         for subscribed_channel in self._pubsub.channels:
             if subscribed_channel not in self.want_channels_l:
+                # send unsubscribe to redis server
                 self._pubsub.unsubscribe(subscribed_channel)
 
     def run(self):

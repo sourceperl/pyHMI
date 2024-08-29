@@ -1,11 +1,11 @@
 """ Test of every DS_Redis DataSource subclass """
 
-from typing import List, Union
+from typing import Any, List, Optional, Union
 import os
 import random
 import pytest
 import redis
-from pyHMI.DS_Redis import RedisDevice, RedisGetKey, RedisSetKey, RedisPublish, RedisSubscribe
+from pyHMI.DS_Redis import KEY_TYPE, RedisDevice, RedisGetKey, RedisSetKey, RedisPublish, RedisSubscribe
 from .utils import build_random_str
 
 
@@ -13,57 +13,111 @@ REDIS_HOST = 'pyhmi_redis'
 
 
 @pytest.fixture
-def redis_cli():
+def cli():
     # setup code
-    redis_cli = redis.Redis(host=REDIS_HOST, decode_responses=False)
+    cli = redis.Redis(host=REDIS_HOST, decode_responses=False)
     # pass to test functions
-    yield redis_cli
+    yield cli
     # teardown code
-    # redis_cli.flushall()
-    redis_cli.close()
+    cli.flushall()
+    cli.close()
 
 
-def test_redis_up(redis_cli):
-    redis_cli.ping()
+@pytest.fixture
+def dev():
+    # setup code
+    dev = RedisDevice(host=REDIS_HOST)
+    # pass to test functions
+    yield dev
+    # teardown code
+    pass
 
 
-def test_redis_key(redis_cli):
+def test_redis_up(cli):
+    cli.ping()
+
+
+def test_redis_key(cli, dev):
     # some functions
-    def sync_key_wait_ok(redis_key: Union[RedisGetKey, RedisSetKey]):
+    def sync_key(redis_key: Union[RedisGetKey, RedisSetKey],
+                 assert_error: Optional[bool] = None, 
+                 assert_get: Any = None, get_none: bool = False):
         """ Run request and wait for a valid result """
         if not redis_key.sync():
             raise RuntimeError('unable to request a sync')
-        if not redis_key.sync_evt.wait(timeout=5.0):
+        if not redis_key.sync_evt.wait(timeout=1.0):
             raise RuntimeError('sync request not processed')
-        if redis_key.error():
-            raise RuntimeError('request processing error')
+        if assert_error is not None:
+            assert redis_key.error() == assert_error, 'bad error() value'
+        if assert_get is not None:
+            assert redis_key.get() == assert_get, 'bad get() value'
+        if get_none:
+            assert redis_key.get() == None, 'get() should return None'
 
-    # init device
-    redis_device = RedisDevice(host=REDIS_HOST)
-    
     # test the transfer of all supported data types
-    # build test pattern list and run it
-    test_pat_l: List[tuple] = []
+    # build test model list and run it
+    model_l: List[tuple] = []
     for _ in range(10):
         # bool, int, float (with special values), str and bytes
-        test_pat_l.extend([(False, bool), (True, bool)])
-        test_pat_l.append((random.randint(-0xffff_ffff_ffff_ffff, 0xffff_ffff_fff_fff), int))
-        test_pat_l.append((float('+inf'), float))
-        test_pat_l.append((float('-inf'), float))
-        test_pat_l.append((float('nan'), float))
-        test_pat_l.append((1_000_000 * random.random() - 500_000, float))
-        test_pat_l.append((build_random_str(), str))
-        test_pat_l.append((os.urandom(random.randint(1, 255)), bytes))
+        model_l.extend([(False, bool), (True, bool)])
+        model_l.append((random.randint(-0xffff_ffff_ffff_ffff, 0xffff_ffff_fff_fff), int))
+        model_l.append((float('+inf'), float))
+        model_l.append((float('-inf'), float))
+        model_l.append((float('nan'), float))
+        model_l.append((1_000_000 * random.random() - 500_000, float))
+        model_l.append((build_random_str(), str))
+        model_l.append((os.urandom(random.randint(1, 255)), bytes))
     # run it
-    for value, _type in test_pat_l:
+    for value, _type in model_l:
         # set value
-        foo_set_key = RedisSetKey(redis_device, 'foo', type=_type)
-        foo_set_key.set(value)
-        sync_key_wait_ok(foo_set_key)
+        set_key = RedisSetKey(dev, 'foo', type=_type)
+        set_key.set(value)
+        sync_key(set_key)
         # get value
-        foo_get_key = RedisGetKey(redis_device, 'foo', type=_type)
-        sync_key_wait_ok(foo_get_key)
+        get_key = RedisGetKey(dev, 'foo', type=_type)
+        sync_key(get_key)
         # check transfer ok
-        assert foo_get_key.get() == pytest.approx(value, nan_ok=True)
+        assert get_key.get() == pytest.approx(value, nan_ok=True)
 
-    RedisSetKey
+    # deal with abnormal value
+    # bool
+    cli.set('foo', b'True')
+    sync_key(RedisGetKey(dev, 'foo', type=bool), assert_error=False, assert_get=True)
+    cli.set('foo', b'true')
+    sync_key(RedisGetKey(dev, 'foo', type=bool), assert_error=True, get_none=True)
+    # int
+    cli.set('foo', b'12')
+    sync_key(RedisGetKey(dev, 'foo', type=int), assert_error=False, assert_get=12)
+    cli.set('foo', b'12.22')
+    sync_key(RedisGetKey(dev, 'foo', type=int), assert_error=True, get_none=True)
+    # int
+    cli.set('foo', b'12')
+    sync_key(RedisGetKey(dev, 'foo', type=float), assert_error=False, assert_get=12.0)
+    cli.set('foo', b'12..22')
+    sync_key(RedisGetKey(dev, 'foo', type=float), assert_error=True, get_none=True)
+    # str
+    cli.set('foo', b'ok')
+    sync_key(RedisGetKey(dev, 'foo', type=str), assert_error=False, assert_get='ok')
+    cli.set('foo', b'\xff\xff')
+    sync_key(RedisGetKey(dev, 'foo', type=str), assert_error=True, get_none=True)
+    # bytes
+    cli.set('foo', b'ok')
+    sync_key(RedisGetKey(dev, 'foo', type=bytes), assert_error=False, assert_get=b'ok')
+
+def test_pubsub(cli, dev):
+    # subscribe
+    pubsub = cli.pubsub()
+    pubsub.subscribe('my_channel')
+    # subscribe
+    red_sub = RedisSubscribe(dev, 'my_channel', type=int)
+    red_sub.subscribe_evt.wait(timeout=2.0)
+
+    # publish
+    red_pub = RedisPublish(dev, 'my_channel', type=int)
+    red_pub.set(22)
+
+    
+    if red_pub.last_message:
+        red_pub.last_message.send_evt.wait(timeout=2.0)
+
+
