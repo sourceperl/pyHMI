@@ -197,6 +197,9 @@ class ModbusTCPDevice(Device):
         self._single_run_th.start()
         self._cyclic_th.start()
 
+    def __str__(self) -> str:
+        return f'{self.host}:{self.port}:{self.unit_id}'
+
     def __repr__(self):
         return f'{self.__class__.__name__}(host={self.host!r}, port={self.port}, unit_id={self.unit_id}, ' \
                f'timeout={self.timeout:.1f}, refresh={self.refresh:.1f}, client_adv_args={self.client_args!r})'
@@ -218,8 +221,6 @@ class ModbusTCPDevice(Device):
         else:
             # ignore other requests
             return
-        # log
-        logger.debug(f'run {request} return {registers_l}')
         # process result
         if registers_l:
             # on success
@@ -230,6 +231,10 @@ class ModbusTCPDevice(Device):
             request.error = True
         # mark request run as done
         request.run_done_evt.set()
+        # debug message
+        msg = f'{request.type.name.lower()} size={request.size} at @{request.address} return {registers_l} ' \
+              f'from device {request.device}'
+        logger.debug(msg)
 
     def _process_write_request(self, request: ModbusRequest) -> None:
         # do request
@@ -250,12 +255,14 @@ class ModbusTCPDevice(Device):
         else:
             # ignore other requests
             return
-        # log
-        logger.debug(f'run {request} return {write_ok}')
         # result
         request.error = not write_ok
         # mark request run as done
         request.run_done_evt.set()
+        # debug message
+        msg = f'{request.type.name.lower()} {registers_l} at @{request.address} return {write_ok} ' \
+              f'on device {request.device}'
+        logger.debug(msg)
 
     def _update_device_status(self):
         # update connected flag

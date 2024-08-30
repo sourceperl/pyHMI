@@ -2,6 +2,7 @@
 
 import logging
 import time
+import pyHMI.DS_ModbusTCP
 from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
 from pyHMI.Tag import Tag
 from pyHMI.Colors import GREEN, PINK
@@ -10,7 +11,8 @@ import tkinter as tk
 from tkinter import ttk
 
 # global logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)-8s - %(module)s - %(message)s')
+pyHMI.DS_ModbusTCP.logger.setLevel(logging.DEBUG)
 
 
 class Devices:
