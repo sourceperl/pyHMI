@@ -40,7 +40,7 @@ def test_redis_up(cli):
 def test_redis_key(cli, dev):
     # some functions
     def sync_key(redis_key: Union[RedisGetKey, RedisSetKey],
-                 assert_error: Optional[bool] = None, 
+                 assert_error: Optional[bool] = None,
                  assert_get: Any = None, get_none: bool = False):
         """ Run request and wait for a valid result """
         if not redis_key.sync():
@@ -104,20 +104,14 @@ def test_redis_key(cli, dev):
     cli.set('foo', b'ok')
     sync_key(RedisGetKey(dev, 'foo', type=bytes), assert_error=False, assert_get=b'ok')
 
-def test_pubsub(cli, dev):
-    # subscribe
-    pubsub = cli.pubsub()
-    pubsub.subscribe('my_channel')
+
+def test_pubsub(dev):
     # subscribe
     red_sub = RedisSubscribe(dev, 'my_channel', type=int)
-    red_sub.subscribe_evt.wait(timeout=2.0)
+    red_sub.subscribe_evt.wait(timeout=0.2)
 
     # publish
     red_pub = RedisPublish(dev, 'my_channel', type=int)
     red_pub.set(22)
-
-    
-    if red_pub.last_message:
-        red_pub.last_message.send_evt.wait(timeout=2.0)
 
 

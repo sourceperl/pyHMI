@@ -1,7 +1,8 @@
 import queue
 from threading import Event, Thread
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Set, Union
+from weakref import WeakValueDictionary
 import redis
 from . import logger
 from .Tag import Tag, Device, DataSource
@@ -122,21 +123,18 @@ class RedisSubscribe(DataSource):
         self.io_error = False
         self.fmt_error = False
         self.subscribe_evt = Event()
-        # register RedisSubscribe at device level
-        self.subscribe()
+        # reference this in I/O thread
+        with self.device.subscribe_thread.safe_subs_d as subs_d:
+            subs_d[self.channel] = self
+        # notify thread
+        self.device.subscribe_thread.reload_evt.set()
 
     def __repr__(self):
         return f'RedisSubscribe(device={self.device!r}, channel={self.channel!r}, type={self.type.__name__})'
 
-    def subscribe(self) -> None:
-        # register at device level
-        with self.device.subscribe_thread.safe_subs_d as subs_d:
-            subs_d[self.channel] = self
-
-    def unsubscribe(self) -> None:
-        # unregister at device level
-        with self.device.subscribe_thread.safe_subs_d as subs_d:
-            del subs_d[self.channel]
+    def __del__(self):
+        # notify thread
+        self.device.subscribe_thread.reload_evt.set()
 
     def add_tag(self, tag: Tag) -> None:
         # warn user of type mismatch between initial tag value and this datasource
@@ -400,23 +398,30 @@ class _SubscribeThread(Thread):
         # args
         self.redis_device = redis_device
         # public
-        __subscribes_d: Dict[bytes, RedisSubscribe] = {}
+        self.reload_evt = Event()
+        __subscribes_d: WeakValueDictionary[bytes, RedisSubscribe] = WeakValueDictionary()
         self.safe_subs_d = SafeObject(__subscribes_d)
         # private
         self._redis_cli = self.redis_device.redis_cli
         self._pubsub = self._redis_cli.pubsub()
-        self._want_channels_l = []
+        self._want_channels_s: Set[bytes] = set()
 
-    def _get_msg_loop(self):
+    def _process_all_pending_msg(self) -> None:
         while True:
             msg_d = self._pubsub.get_message()
+            # skip when inbox is clear
             if not msg_d:
-                break
+                return
+            # process new message
             if msg_d['type'] == 'message':
+                # debug
+                logger.debug(f'rx pub message: {msg_d}')
+                # update RedisSubcribe with new rx data
                 try:
                     with self.safe_subs_d as subs_d:
                         redis_subscribe = subs_d[msg_d['channel']]
                     redis_subscribe.io_error = False
+                    # decode payload
                     try:
                         redis_subscribe.value = _decode_from_redis(msg_d['data'], type=redis_subscribe.type)
                         redis_subscribe.fmt_error = False
@@ -425,46 +430,49 @@ class _SubscribeThread(Thread):
                 except KeyError:
                     pass
 
-    def _do_subscribe(self):
-        for want_channel in self.want_channels_l:
-            if want_channel not in self._pubsub.channels:
-                # send subscribe to redis server
-                self._pubsub.subscribe(want_channel)
-                # notify RedisSubscribe
-                try:
-                    with self.safe_subs_d as subs_d:
-                        subs_d[want_channel].subscribe_evt.set()
-                except KeyError:
-                    pass
+    def _do_subscribe(self, channel: bytes) -> None:
+        # debug
+        logger.debug(f'subscribe to {channel}')
+        # send subscribe to redis server
+        self._pubsub.subscribe(channel)
+        # notify RedisSubscribe
+        try:
+            with self.safe_subs_d as subs_d:
+                subs_d[channel].subscribe_evt.set()
+        except KeyError:
+            pass
 
-    def _do_unsubscribe(self):
-        for subscribed_channel in self._pubsub.channels:
-            if subscribed_channel not in self.want_channels_l:
-                # send unsubscribe to redis server
-                self._pubsub.unsubscribe(subscribed_channel)
+    def _do_unsubscribe(self, channel: bytes) -> None:
+        # debug
+        logger.debug(f'unsubscribe from {channel}')
+        # send unsubscribe to redis server
+        self._pubsub.unsubscribe(channel)
 
     def run(self):
         # main loop
         while True:
-            # load channels list
-            with self.safe_subs_d as subs_d:
-                self.want_channels_l = subs_d.keys()
-            # redis I/O error try
+            # wait 0.5s for a reload event
+            if self.reload_evt.wait(timeout=0.5):
+                # on reload: reset event and load the new wanted channels set
+                self.reload_evt.clear()
+                with self.safe_subs_d as subs_d:
+                    self._want_channels_s = set(subs_d.keys())
+            # redis I/O
             try:
-                # renew the subscriptions if necessary
-                if set(self.want_channels_l) != set(self._pubsub.channels):
-                    self._do_subscribe()
-                    self._do_unsubscribe()
-                # get message
-                self._get_msg_loop()
+                # subscribe/unsubscribe
+                sub_channels_s = set(self._pubsub.channels)
+                for channel in self._want_channels_s.difference(sub_channels_s):
+                    self._do_subscribe(channel)
+                for channel in sub_channels_s.difference(self._want_channels_s):
+                    self._do_unsubscribe(channel)
+                # process message(s)
+                self._process_all_pending_msg()
             except redis.RedisError as e:
                 logger.warning(f'redis error: {e}')
                 # set error flags of all RedisSubscribe
                 with self.safe_subs_d as subs_d:
                     for redis_subscribe in subs_d.values():
                         redis_subscribe.io_error = True
-            # wait next loop
-            time.sleep(0.5)
 
 
 class RedisDevice(Device):
