@@ -11,5 +11,3 @@ __version__ = '0.1.0.dev0'
 
 logger = logging.getLogger('pyHMI')
 logger.setLevel(logging.WARNING)
-logger_modbus = logging.getLogger('pyHMI.DS_ModbusTCP')
-logger_redis = logging.getLogger('pyHMI.DS_Redis')

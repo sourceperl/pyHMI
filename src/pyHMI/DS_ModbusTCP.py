@@ -1,3 +1,4 @@
+import logging
 from enum import Enum, auto
 import queue
 import struct
@@ -6,9 +7,11 @@ import time
 from typing import Any, Dict, List, Literal, Optional, get_args
 from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
-from . import logger_modbus
 from .Tag import DataSource, Device
 from .Misc import SafeObject, auto_repr, swap_bytes, swap_words, cut_bytes_to_regs
+
+# define a logger for this datasource
+logger = logging.getLogger('pyHMI.DS_ModbusTCP')
 
 
 # some class
@@ -144,7 +147,7 @@ class ModbusRequest:
                 self.run_done_evt.clear()
                 return True
             except queue.Full:
-                logger_modbus.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
+                logger.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
         # error reporting
         return False
 
@@ -215,6 +218,8 @@ class ModbusTCPDevice(Device):
         else:
             # ignore other requests
             return
+        # log
+        logger.debug(f'run {request} return {registers_l}')
         # process result
         if registers_l:
             # on success
@@ -245,6 +250,8 @@ class ModbusTCPDevice(Device):
         else:
             # ignore other requests
             return
+        # log
+        logger.debug(f'run {request} return {write_ok}')
         # result
         request.error = not write_ok
         # mark request run as done
@@ -269,7 +276,7 @@ class ModbusTCPDevice(Device):
             except Exception as e:
                 msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
-                logger_modbus.warning(msg)
+                logger.warning(msg)
             # mark queue task as done
             self.single_run_req_q.task_done()
 
@@ -286,7 +293,7 @@ class ModbusTCPDevice(Device):
                 except Exception as e:
                     msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                           f'({request.__class__.__name__}): {e}'
-                    logger_modbus.warning(msg)
+                    logger.warning(msg)
             # wait before next refresh
             time.sleep(self.refresh)
 
@@ -588,7 +595,7 @@ class ModbusTboxStr(DataSource):
         try:
             return value_as_b.decode(self.encoding)
         except UnicodeDecodeError as e:
-            logger_modbus.warning(f'unable to decode this str ({e})')
+            logger.warning(f'unable to decode this str ({e})')
             return None
 
     def set(self, value: str) -> None:
