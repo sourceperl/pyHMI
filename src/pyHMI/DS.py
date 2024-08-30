@@ -1,7 +1,7 @@
 import sys
 import traceback
 from typing import Callable, Optional, Union
-from . import logger
+from . import log
 from .Tag import TAG_TYPE, DataSource, Tag
 from .Misc import auto_repr
 
@@ -42,7 +42,7 @@ class GetCmd(DataSource):
         except Exception as e:
             tb_obj = sys.exc_info()[2]
             filename, line_number, _function_name, _text = traceback.extract_tb(tb_obj)[-1]
-            logger.warning(f'get command failed (except "{e}") at {filename}:{line_number}')
+            log.warning(f'get command failed (except "{e}") at {filename}:{line_number}')
             self._error = True
             return
 
@@ -96,7 +96,7 @@ class TagOp(DataSource):
         except Exception as e:
             tb_obj = sys.exc_info()[2]
             filename, line_number, _function_name, _text = traceback.extract_tb(tb_obj)[-1]
-            logger.warning(f'TagOp failed (except "{e}") at {filename}:{line_number}')
+            log.warning(f'TagOp failed (except "{e}") at {filename}:{line_number}')
             self._error = True
             return
 

@@ -45,7 +45,7 @@ def test_redis_key(cli, dev):
         """ Run request and wait for a valid result """
         if not redis_key.sync():
             raise RuntimeError('unable to request a sync')
-        if not redis_key.sync_evt.wait(timeout=1.0):
+        if not redis_key.is_sync_evt.wait(timeout=1.0):
             raise RuntimeError('sync request not processed')
         if assert_error is not None:
             assert redis_key.error() == assert_error, 'bad error() value'

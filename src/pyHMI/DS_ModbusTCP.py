@@ -6,7 +6,7 @@ import time
 from typing import Any, Dict, List, Literal, Optional, get_args
 from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
-from . import logger
+from . import log_modbus
 from .Tag import DataSource, Device
 from .Misc import SafeObject, auto_repr, swap_bytes, swap_words, cut_bytes_to_regs
 
@@ -144,7 +144,7 @@ class ModbusRequest:
                 self.run_done_evt.clear()
                 return True
             except queue.Full:
-                logger.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
+                log_modbus.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
         # error reporting
         return False
 
@@ -260,8 +260,6 @@ class ModbusTCPDevice(Device):
         while True:
             # wait next request from queue
             request = self.single_run_req_q.get()
-            # log it
-            logger.debug(f'{threading.current_thread().name} receive {request}')
             # process it
             try:
                 if request.single_run_ready:
@@ -271,7 +269,7 @@ class ModbusTCPDevice(Device):
             except Exception as e:
                 msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
-                logger.warning(msg)
+                log_modbus.warning(msg)
             # mark queue task as done
             self.single_run_req_q.task_done()
 
@@ -288,7 +286,7 @@ class ModbusTCPDevice(Device):
                 except Exception as e:
                     msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                           f'({request.__class__.__name__}): {e}'
-                    logger.warning(msg)
+                    log_modbus.warning(msg)
             # wait before next refresh
             time.sleep(self.refresh)
 
@@ -588,7 +586,7 @@ class ModbusTboxStr(DataSource):
         try:
             return value_as_b.decode(self.encoding)
         except UnicodeDecodeError as e:
-            logger.warning(f'unable to decode this str ({e})')
+            log_modbus.warning(f'unable to decode this str ({e})')
             return None
 
     def set(self, value: str) -> None:

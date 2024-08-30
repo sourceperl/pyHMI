@@ -1,7 +1,7 @@
 import sys
 import traceback
 from typing import Any, Callable, Optional, Union, get_args
-from . import logger
+from . import log
 
 
 TAG_TYPE = Union[bool, int, float, str, bytes]
@@ -96,7 +96,7 @@ class Tag:
             except Exception as e:
                 tb_obj = sys.exc_info()[2]
                 filename, line_number, _function_name, _text = traceback.extract_tb(tb_obj)[-1]
-                logger.warning(f'change command failed (except "{e}") at {filename}:{line_number}')
+                log.warning(f'change command failed (except "{e}") at {filename}:{line_number}')
                 self._chg_cmd_error = True
                 return
         else:
