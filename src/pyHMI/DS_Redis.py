@@ -3,7 +3,7 @@ from threading import Event, Thread
 from typing import Any, Optional, Set, Union
 from weakref import WeakSet, WeakValueDictionary
 import redis
-from . import log_redis
+from . import logger_redis
 from .Tag import Tag, Device, DataSource
 from .Misc import SafeObject, TTL
 
@@ -87,7 +87,7 @@ class RedisPublish(DataSource):
                 self.last_message = pub_message
                 return True
             except queue.Full:
-                log_redis.warning(f'message queue full: drop publish on channel "{self.channel}"')
+                logger_redis.warning(f'message queue full: drop publish on channel "{self.channel}"')
         self.last_message = None
         self.io_error = True
         # error reporting
@@ -216,7 +216,7 @@ class RedisGetKey(DataSource):
                 self.is_sync_evt.clear()
                 return True
             except queue.Full:
-                log_redis.warning(f'sync request key queue full: drop a get on key "{self.name}"')
+                logger_redis.warning(f'sync request key queue full: drop a get on key "{self.name}"')
         # error reporting
         return False
 
@@ -298,7 +298,7 @@ class RedisSetKey(DataSource):
                 self.is_sync_evt.clear()
                 return True
             except queue.Full:
-                log_redis.warning(f'sync request key queue full: drop a set on key "{self.name}"')
+                logger_redis.warning(f'sync request key queue full: drop a set on key "{self.name}"')
         # error reporting
         return False
 
@@ -335,13 +335,13 @@ class _KeyCyclicThread(Thread):
                         self.redis_device._get_key(key)
                         self.redis_device._set_key(key)
                     except redis.RedisError as e:
-                        log_redis.warning(f'redis error: {e}')
+                        logger_redis.warning(f'redis error: {e}')
                         key.io_error = True
             # set connected flag
             try:
                 self._connected = self.redis_device.redis_cli.ping()
             except redis.RedisError as e:
-                log_redis.warning(f'redis error: {e}')
+                logger_redis.warning(f'redis error: {e}')
                 self._connected = False
 
 
@@ -367,7 +367,7 @@ class _KeySyncReqThread(Thread):
                     self.redis_device._get_key(sync_req.redis_key)
                     self.redis_device._set_key(sync_req.redis_key)
                 except redis.RedisError as e:
-                    log_redis.warning(f'redis error: {e}')
+                    logger_redis.warning(f'redis error: {e}')
                     sync_req.redis_key.io_error = True
             else:
                 sync_req.redis_key.io_error = True
@@ -400,7 +400,7 @@ class _PublishThread(Thread):
                     msg.redis_pub.io_error = False
                     msg.send_evt.set()
                 except redis.RedisError as e:
-                    log_redis.warning(f'redis error: {e}')
+                    logger_redis.warning(f'redis error: {e}')
                     msg.redis_pub.io_error = True
             # mark as done
             self.msg_q.task_done()
@@ -430,7 +430,7 @@ class _SubscribeThread(Thread):
             # process new message
             if msg_d['type'] == 'message':
                 # debug
-                log_redis.debug(f'rx pub message: {msg_d}')
+                logger_redis.debug(f'rx pub message: {msg_d}')
                 # update RedisSubcribe with new rx data
                 try:
                     with self.safe_subs_d as subs_d:
@@ -447,7 +447,7 @@ class _SubscribeThread(Thread):
 
     def _do_subscribe(self, channel: bytes) -> None:
         # debug
-        log_redis.debug(f'subscribe to {channel}')
+        logger_redis.debug(f'subscribe to {channel}')
         # send subscribe to redis server
         self._pubsub.subscribe(channel)
         # notify RedisSubscribe
@@ -459,7 +459,7 @@ class _SubscribeThread(Thread):
 
     def _do_unsubscribe(self, channel: bytes) -> None:
         # debug
-        log_redis.debug(f'unsubscribe from {channel}')
+        logger_redis.debug(f'unsubscribe from {channel}')
         # send unsubscribe to redis server
         self._pubsub.unsubscribe(channel)
 
@@ -486,7 +486,7 @@ class _SubscribeThread(Thread):
                 # process message(s)
                 self._process_all_pending_msg()
             except redis.RedisError as e:
-                log_redis.warning(f'redis error: {e}')
+                logger_redis.warning(f'redis error: {e}')
                 # set error flags of all RedisSubscribe
                 with self.safe_subs_d as subs_d:
                     for redis_subscribe in subs_d.values():
@@ -543,7 +543,7 @@ class RedisDevice(Device):
         key.raw_value = self.redis_cli.get(key.name)
         key.io_error = key.raw_value is None
         # debug
-        log_redis.debug(f'get key {key.name}')
+        logger_redis.debug(f'get key {key.name}')
         # decode RAW value
         if key.raw_value is not None:
             try:
@@ -563,4 +563,4 @@ class RedisDevice(Device):
         set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ex)
         key.io_error = set_ret is not True
         # debug
-        log_redis.debug(f'set key {key.name} to {key.raw_value}')
+        logger_redis.debug(f'set key {key.name} to {key.raw_value}')

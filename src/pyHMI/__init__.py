@@ -8,6 +8,8 @@ import logging
 
 __all__ = ()
 __version__ = '0.1.0.dev0'
-log = logging.getLogger('pyHMI')
-log_modbus = logging.getLogger('pyHMI.DS_ModbusTCP')
-log_redis = logging.getLogger('pyHMI.DS_Redis')
+
+logger = logging.getLogger('pyHMI')
+logger.setLevel(logging.WARNING)
+logger_modbus = logging.getLogger('pyHMI.DS_ModbusTCP')
+logger_redis = logging.getLogger('pyHMI.DS_Redis')

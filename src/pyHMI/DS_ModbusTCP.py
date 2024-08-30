@@ -6,7 +6,7 @@ import time
 from typing import Any, Dict, List, Literal, Optional, get_args
 from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
-from . import log_modbus
+from . import logger_modbus
 from .Tag import DataSource, Device
 from .Misc import SafeObject, auto_repr, swap_bytes, swap_words, cut_bytes_to_regs
 
@@ -144,7 +144,7 @@ class ModbusRequest:
                 self.run_done_evt.clear()
                 return True
             except queue.Full:
-                log_modbus.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
+                logger_modbus.warning(f'single-run queue full, drop {self.type.name} at @{self.address}')
         # error reporting
         return False
 
@@ -269,7 +269,7 @@ class ModbusTCPDevice(Device):
             except Exception as e:
                 msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
-                log_modbus.warning(msg)
+                logger_modbus.warning(msg)
             # mark queue task as done
             self.single_run_req_q.task_done()
 
@@ -286,7 +286,7 @@ class ModbusTCPDevice(Device):
                 except Exception as e:
                     msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
                           f'({request.__class__.__name__}): {e}'
-                    log_modbus.warning(msg)
+                    logger_modbus.warning(msg)
             # wait before next refresh
             time.sleep(self.refresh)
 
@@ -296,8 +296,9 @@ class ModbusTCPDevice(Device):
 
     def add_write_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
                                default_value: bool = False, single_func: bool = False):
-        return ModbusRequest(self, type=_RequestType.WRITE_COILS, address=address, size=size, default_value=default_value,
-                             run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
+        return ModbusRequest(self, type=_RequestType.WRITE_COILS, address=address, size=size,
+                             default_value=default_value, run_cyclic=run_cyclic, run_on_set=run_on_set,
+                             single_func=single_func)
 
     def add_read_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, i_regs: bool = False):
         req_type = _RequestType.READ_I_REGS if i_regs else _RequestType.READ_H_REGS
@@ -305,8 +306,9 @@ class ModbusTCPDevice(Device):
 
     def add_write_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
                                default_value: int = 0, single_func: bool = False):
-        return ModbusRequest(self, type=_RequestType.WRITE_H_REGS, address=address, size=size, default_value=default_value,
-                             run_cyclic=run_cyclic, run_on_set=run_on_set, single_func=single_func)
+        return ModbusRequest(self, type=_RequestType.WRITE_H_REGS, address=address, size=size,
+                             default_value=default_value, run_cyclic=run_cyclic, run_on_set=run_on_set,
+                             single_func=single_func)
 
 
 class ModbusBool(DataSource):
@@ -586,7 +588,7 @@ class ModbusTboxStr(DataSource):
         try:
             return value_as_b.decode(self.encoding)
         except UnicodeDecodeError as e:
-            log_modbus.warning(f'unable to decode this str ({e})')
+            logger_modbus.warning(f'unable to decode this str ({e})')
             return None
 
     def set(self, value: str) -> None:

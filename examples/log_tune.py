@@ -4,15 +4,15 @@ import logging
 import time
 from pyHMI.DS_Redis import RedisDevice, RedisSetKey
 from pyHMI.Tag import Tag
-from pyHMI import log, log_modbus, log_redis
+from pyHMI import logger, logger_modbus, logger_redis
 
 
 # logging setup
 logging.basicConfig(format='%(asctime)s - %(levelname)-8s - %(module)s - %(message)s', level=logging.DEBUG)
 # pyHMI: fine tuning of the log
-log.setLevel(logging.WARNING)
+logger.setLevel(logging.WARNING)
 # log_modbus.setLevel(logging.DEBUG)
-log_redis.setLevel(logging.DEBUG)
+logger_redis.setLevel(logging.DEBUG)
 
 
 class Tags:
