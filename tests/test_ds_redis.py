@@ -106,12 +106,24 @@ def test_redis_key(cli, dev):
 
 
 def test_pubsub(dev):
-    # subscribe
-    red_sub = RedisSubscribe(dev, 'my_channel', type=int)
-    red_sub.subscribe_evt.wait(timeout=0.2)
-
-    # publish
-    red_pub = RedisPublish(dev, 'my_channel', type=int)
-    red_pub.set(22)
-
-
+    # init subscribe
+    red_sub = RedisSubscribe(dev, 'my_desk', type=int)
+    red_sub.subscribe_evt.wait(timeout=1.0)
+    # init publish
+    red_pub = RedisPublish(dev, 'my_desk', type=int)
+    #for value in [0xc0ffee, 0xfeed]:
+    for value in range(1_000):
+        # reset receive event (subscribe part)
+        red_sub.receive_evt.clear()
+        # publish
+        red_pub.set(value)
+        # some noise
+        #RedisSubscribe(dev, f'foo_{value}', type=int)
+        # wait process done (publish part)
+        if not red_pub.last_message or not red_pub.last_message.send_evt.wait(timeout=1.0):
+            raise RuntimeError('unable to send publish message')
+        # wait process done (subscribe part)
+        if not red_sub.receive_evt.wait(timeout=1.0):
+            raise RuntimeError('unable to receive publish message')
+        # check subscribe value
+        assert red_sub.value == value

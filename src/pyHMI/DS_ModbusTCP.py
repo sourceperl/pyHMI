@@ -182,13 +182,13 @@ class _CyclicThread(Thread):
         self.modbus_device = modbus_device
         # private
         self._req_d_lock = Lock()
-        self._req_d_insert_id = 0
         self._req_d: WeakValueDictionary[int, ModbusRequest] = WeakValueDictionary()
+        self._req_d_pos = 0
 
     def add_request(self, request: ModbusRequest):
         with self._req_d_lock:
-            self._req_d[self._req_d_insert_id] = request
-            self._req_d_insert_id += 1
+            self._req_d[self._req_d_pos] = request
+            self._req_d_pos += 1
 
     def run(self):
         """ This thread executes cyclic requests. """
