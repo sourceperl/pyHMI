@@ -83,7 +83,7 @@ class ModbusRequest:
         # private
         self._data = _Data(address=address, size=size, default_value=self.default_value)
         self._single_run_expire = 0.0
-        # reference request in thread I/O
+        # reference this in I/O thread
         self.device.cyclic_thread.add_request(self)
 
     def __repr__(self) -> str:

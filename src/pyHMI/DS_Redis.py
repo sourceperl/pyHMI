@@ -1,8 +1,8 @@
 import logging
 import queue
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import Any, Optional, Set, Union
-from weakref import WeakSet, WeakValueDictionary
+from weakref import WeakValueDictionary
 import redis
 from .Tag import Tag, Device, DataSource
 from .Misc import SafeObject, TTL
@@ -177,15 +177,8 @@ class RedisGetKey(DataSource):
         self.value: Any = None
         self.io_error = True
         self.fmt_error = False
-        # reference this in I/O thread
-        with self.device.key_cyclic_thread.safe_keys_ws as keys_ws:
-            keys_ws.add(self)
-        # notify thread
-        self.device.key_cyclic_thread.reload_evt.set()
-
-    def __del__(self):
-        # notify thread
-        self.device.key_cyclic_thread.reload_evt.set()
+        # reference this in thread I/O
+        self.device.key_cyclic_thread.add_key(self)
 
     def __repr__(self):
         return f'RedisGetKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__})'
@@ -251,14 +244,7 @@ class RedisSetKey(DataSource):
         self.value: Any = None
         self.io_error = True
         # reference this in I/O thread
-        with self.device.key_cyclic_thread.safe_keys_ws as keys_ws:
-            keys_ws.add(self)
-        # notify thread
-        self.device.key_cyclic_thread.reload_evt.set()
-
-    def __del__(self):
-        # notify thread
-        self.device.key_cyclic_thread.reload_evt.set()
+        self.device.key_cyclic_thread.add_key(self)
 
     def __repr__(self):
         return f'RedisSetKey(device={self.device!r}, name={self.name!r}, type={self.type.__name__}, ' \
@@ -314,33 +300,31 @@ class _KeyCyclicThread(Thread):
         super().__init__(daemon=True)
         # args
         self.redis_device = redis_device
-        # public
-        self.reload_evt = Event()
-        _keys_s: WeakSet[Union[RedisGetKey, RedisSetKey]] = WeakSet()
-        self.safe_keys_ws = SafeObject(_keys_s)
         # private
-        self._redis_cli = self.redis_device.redis_cli
+        self._key_d_lock = Lock()
+        self._key_d_insert_id = 0
+        self._key_d: WeakValueDictionary[int, Union[RedisGetKey, RedisSetKey]] = WeakValueDictionary()
+
+    def add_key(self, redis_key: Union[RedisGetKey, RedisSetKey]):
+        with self._key_d_lock:
+            self._key_d[self._key_d_insert_id] = redis_key
+            self._key_d_insert_id += 1
 
     def run(self):
-        #  init thread var(s)
-        cp_keys_ws: WeakSet[Union[RedisGetKey, RedisSetKey]] = WeakSet()
         # thread loop
         while True:
-            if self.reload_evt.wait(timeout=self.redis_device.refresh):
-                # reset reload event
-                self.reload_evt.clear()
-                # do a thread safe copy
-                with self.safe_keys_ws as keys_ws:
-                    cp_keys_ws = keys_ws.copy()
-            # redis i/o keys part
-            for key in cp_keys_ws:
-                if key.sync_cyclic:
+            # prevent request dictionnary change during iteration
+            with self._key_d_lock:
+                cp_key_d = self._key_d.copy()
+            # iterate over all keys
+            for redis_key in cp_key_d.values():
+                if redis_key.sync_cyclic:
                     try:
-                        self.redis_device._get_key(key)
-                        self.redis_device._set_key(key)
+                        self.redis_device._get_key(redis_key)
+                        self.redis_device._set_key(redis_key)
                     except redis.RedisError as e:
                         logger.warning(f'redis error: {e}')
-                        key.io_error = True
+                        redis_key.io_error = True
             # set connected flag
             try:
                 self._connected = self.redis_device.redis_cli.ping()
@@ -539,32 +523,32 @@ class RedisDevice(Device):
     def connected(self):
         return self._connected
 
-    def _get_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
+    def _get_key(self, redis_key: Union[RedisGetKey, RedisSetKey]) -> None:
         # skip other keys
-        if not isinstance(key, RedisGetKey):
+        if not isinstance(redis_key, RedisGetKey):
             return
         # redis I/O
-        key.raw_value = self.redis_cli.get(key.name)
-        key.io_error = key.raw_value is None
+        redis_key.raw_value = self.redis_cli.get(redis_key.name)
+        redis_key.io_error = redis_key.raw_value is None
         # debug
-        logger.debug(f'get key {key.name}')
+        logger.debug(f'get key {redis_key.name}')
         # decode RAW value
-        if key.raw_value is not None:
+        if redis_key.raw_value is not None:
             try:
-                key.value = _decode_from_redis(key.raw_value, key.type)
-                key.fmt_error = False
+                redis_key.value = _decode_from_redis(redis_key.raw_value, redis_key.type)
+                redis_key.fmt_error = False
             except TypeError:
-                key.fmt_error = True
+                redis_key.fmt_error = True
 
-    def _set_key(self, key: Union[RedisGetKey, RedisSetKey]) -> None:
+    def _set_key(self, redis_key: Union[RedisGetKey, RedisSetKey]) -> None:
         # skip other keys
-        if not isinstance(key, RedisSetKey):
+        if not isinstance(redis_key, RedisSetKey):
             return
         # skip null value
-        if key.raw_value is None:
+        if redis_key.raw_value is None:
             return
         # redis I/O
-        set_ret = self.redis_cli.set(key.name, key.raw_value, ex=key.ex)
-        key.io_error = set_ret is not True
+        set_ret = self.redis_cli.set(redis_key.name, redis_key.raw_value, ex=redis_key.ex)
+        redis_key.io_error = set_ret is not True
         # debug
-        logger.debug(f'set key {key.name} to {key.raw_value}')
+        logger.debug(f'set key {redis_key.name} to {redis_key.raw_value}')
