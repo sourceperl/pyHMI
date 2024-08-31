@@ -2,9 +2,10 @@ import logging
 from enum import Enum, auto
 import queue
 import struct
-import threading
+from threading import Event, Lock, Thread, current_thread
 import time
-from typing import Any, Dict, List, Literal, Optional, get_args
+from typing import Any, Dict, Literal, Optional, get_args
+from weakref import WeakValueDictionary
 from pyModbusTCP.client import ModbusClient
 from pyHMI.Tag import Tag
 from .Tag import DataSource, Device
@@ -24,16 +25,10 @@ class _RequestType(Enum):
     WRITE_H_REGS = auto()
 
 
-class _RequestGroup:
-    READ = [_RequestType.READ_COILS, _RequestType.READ_D_INPUTS,
-            _RequestType.READ_H_REGS, _RequestType.READ_I_REGS]
-    WRITE = [_RequestType.WRITE_COILS, _RequestType.WRITE_H_REGS]
-
-
 class _Data:
     def __init__(self, address: int, size: int, default_value: Any) -> None:
         # private
-        self._lock = threading.Lock()
+        self._lock = Lock()
         self._data_d: Dict[int, Any] = dict()
         # populate data dict
         for iter_addr in range(address, address + size):
@@ -84,12 +79,12 @@ class ModbusRequest:
         self.single_func = single_func
         # public
         self.error = True
-        self.run_done_evt = threading.Event()
+        self.run_done_evt = Event()
         # private
         self._data = _Data(address=address, size=size, default_value=self.default_value)
         self._single_run_expire = 0.0
-        # reference request at device level
-        self.device.requests_l.append(self)
+        # reference request in thread I/O
+        self.device.cyclic_thread.add_request(self)
 
     def __repr__(self) -> str:
         return auto_repr(self, export_t=('type', 'address', 'size'))
@@ -139,11 +134,11 @@ class ModbusRequest:
         Return True if the request is queued.
         """
         # accept this request when device is actually connected or if the single-run queue is empty
-        if self.device.connected or (self.device.single_run_req_q.qsize() == 0):
+        if self.device.connected or (self.device.single_run_thread.request_q.qsize() == 0):
             # set an expiration stamp (avoid single-run thread process outdated request)
             self._single_run_expire = time.monotonic() + self.device.run_cancel_delay
             try:
-                self.device.single_run_req_q.put_nowait(self)
+                self.device.single_run_thread.request_q.put_nowait(self)
                 self.run_done_evt.clear()
                 return True
             except queue.Full:
@@ -152,23 +147,68 @@ class ModbusRequest:
         return False
 
 
-class _RequestsList:
-    def __init__(self) -> None:
+class _SingleRunThread(Thread):
+    def __init__(self, modbus_device: "ModbusTCPDevice") -> None:
+        super().__init__(daemon=True)
+        # args
+        self.modbus_device = modbus_device
+        # public
+        self.reload_evt = Event()
+        self.request_q: queue.Queue[ModbusRequest] = queue.Queue(maxsize=255)
+
+    def run(self):
+        """ This thread executes all requests put to the single-run queue. """
+        while True:
+            # wait next request from queue
+            request = self.request_q.get()
+            # process it
+            try:
+                if request.single_run_ready:
+                    self.modbus_device._process_read_request(request)
+                    self.modbus_device._process_write_request(request)
+                    self.modbus_device._update_device_status()
+            except Exception as e:
+                msg = f'except {type(e).__name__} in {current_thread().name} ' \
+                      f'({request.__class__.__name__}): {e}'
+                logger.warning(msg)
+            # mark queue task as done
+            self.request_q.task_done()
+
+
+class _CyclicThread(Thread):
+    def __init__(self, modbus_device: "ModbusTCPDevice") -> None:
+        super().__init__(daemon=True)
+        # args
+        self.modbus_device = modbus_device
         # private
-        self._lock = threading.Lock()
-        self._requests_l: List[ModbusRequest] = list()
+        self._req_d_lock = Lock()
+        self._req_d_insert_id = 0
+        self._req_d: WeakValueDictionary[int, ModbusRequest] = WeakValueDictionary()
 
-    def __len__(self) -> int:
-        with self._lock:
-            return len(self._requests_l)
+    def add_request(self, request: ModbusRequest):
+        with self._req_d_lock:
+            self._req_d[self._req_d_insert_id] = request
+            self._req_d_insert_id += 1
 
-    def copy(self) -> List[ModbusRequest]:
-        with self._lock:
-            return self._requests_l.copy()
-
-    def append(self, request: ModbusRequest) -> None:
-        with self._lock:
-            self._requests_l.append(request)
+    def run(self):
+        """ This thread executes cyclic requests. """
+        while True:
+            # prevent request dictionnary change during iteration
+            with self._req_d_lock:
+                cp_req_d = self._req_d.copy()
+            # iterate over all requests
+            for request in cp_req_d.values():
+                try:
+                    if request.run_cyclic:
+                        self.modbus_device._process_read_request(request)
+                        self.modbus_device._process_write_request(request)
+                        self.modbus_device._update_device_status()
+                except Exception as e:
+                    msg = f'except {type(e).__name__} in {current_thread().name} ' \
+                          f'({request.__class__.__name__}): {e}'
+                    logger.warning(msg)
+            # wait before next refresh
+            time.sleep(self.modbus_device.refresh)
 
 
 class ModbusTCPDevice(Device):
@@ -184,18 +224,16 @@ class ModbusTCPDevice(Device):
         # public
         self.connected = False
         self.run_cancel_delay = run_cancel_delay
-        self.requests_l = _RequestsList()
-        self.single_run_req_q: queue.Queue[ModbusRequest] = queue.Queue(maxsize=255)
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
                                                 timeout=self.timeout, auto_open=True, **args_d))
-        # privates
-        self._single_run_th = threading.Thread(target=self._single_run_thread, daemon=True)
-        self._cyclic_th = threading.Thread(target=self._cyclic_thread, daemon=True)
+        # define polling threads
+        self.cyclic_thread = _CyclicThread(self)
+        self.single_run_thread = _SingleRunThread(self)
         # start threads
-        self._single_run_th.start()
-        self._cyclic_th.start()
+        self.cyclic_thread.start()
+        self.single_run_thread.start()
 
     def __str__(self) -> str:
         return f'{self.host}:{self.port}:{self.unit_id}'
@@ -268,41 +306,6 @@ class ModbusTCPDevice(Device):
         # update connected flag
         with self.safe_cli as cli:
             self.connected = cli.is_open
-
-    def _single_run_thread(self):
-        """ This thread executes all requests put to the single-run queue. """
-        while True:
-            # wait next request from queue
-            request = self.single_run_req_q.get()
-            # process it
-            try:
-                if request.single_run_ready:
-                    self._process_read_request(request)
-                    self._process_write_request(request)
-                    self._update_device_status()
-            except Exception as e:
-                msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
-                      f'({request.__class__.__name__}): {e}'
-                logger.warning(msg)
-            # mark queue task as done
-            self.single_run_req_q.task_done()
-
-    def _cyclic_thread(self):
-        """ This thread executes cyclic requests. """
-        while True:
-            # iterate over all requests
-            for request in self.requests_l.copy():
-                try:
-                    if request.run_cyclic:
-                        self._process_read_request(request)
-                        self._process_write_request(request)
-                        self._update_device_status()
-                except Exception as e:
-                    msg = f'except {type(e).__name__} in {threading.current_thread().name} ' \
-                          f'({request.__class__.__name__}): {e}'
-                    logger.warning(msg)
-            # wait before next refresh
-            time.sleep(self.refresh)
 
     def add_read_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, d_inputs: bool = False):
         req_type = _RequestType.READ_D_INPUTS if d_inputs else _RequestType.READ_COILS
