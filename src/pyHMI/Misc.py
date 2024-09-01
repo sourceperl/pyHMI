@@ -1,9 +1,9 @@
 """Misc resources."""
 
-import time
-from typing import List, Union, Optional
 import math
 import threading
+import time
+from typing import List, Optional, Union
 
 
 def auto_repr(self: object, export_t: Optional[tuple] = None) -> str:

@@ -1,5 +1,6 @@
-from typing import List, Optional, Callable
 import tkinter as tk
+from typing import Callable, List, Optional
+
 from .Colors import UIColors
 from .Tag import Tag
 

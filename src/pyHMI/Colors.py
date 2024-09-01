@@ -1,7 +1,7 @@
-from typing import Optional
 import tkinter as tk
-from .Tag import Tag
+from typing import Optional
 
+from .Tag import Tag
 
 # some const
 # Canvas Pipe width

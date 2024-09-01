@@ -1,15 +1,18 @@
 import logging
-from enum import Enum, auto
 import queue
 import struct
-from threading import Event, Lock, Thread, current_thread
 import time
+from enum import Enum, auto
+from threading import Event, Lock, Thread, current_thread
 from typing import Any, Dict, Literal, Optional, get_args
 from weakref import WeakValueDictionary
+
 from pyModbusTCP.client import ModbusClient
+
 from pyHMI.Tag import Tag
+
+from .Misc import SafeObject, auto_repr, cut_bytes_to_regs, swap_bytes, swap_words
 from .Tag import DataSource, Device
-from .Misc import SafeObject, auto_repr, swap_bytes, swap_words, cut_bytes_to_regs
 
 # define a logger for this datasource
 logger = logging.getLogger('pyHMI.DS_ModbusTCP')

@@ -1,6 +1,7 @@
-from typing import Optional
 import tkinter as tk
 from tkinter.font import Font
+from typing import Optional
+
 from .Colors import SynColors
 from .Tag import Tag
 

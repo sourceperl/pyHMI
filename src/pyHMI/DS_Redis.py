@@ -4,9 +4,11 @@ import time
 from threading import Event, Lock, Thread
 from typing import Any, Optional, Set, Union
 from weakref import WeakValueDictionary
+
 import redis
-from .Tag import Tag, Device, DataSource
-from .Misc import SafeObject, TTL
+
+from .Misc import TTL, SafeObject
+from .Tag import DataSource, Device, Tag
 
 # define a logger for this datasource
 logger = logging.getLogger('pyHMI.DS_Redis')

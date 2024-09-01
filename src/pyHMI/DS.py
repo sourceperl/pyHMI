@@ -1,9 +1,10 @@
 import sys
 import traceback
 from typing import Callable, Optional, Union
+
 from . import logger
-from .Tag import TAG_TYPE, DataSource, Tag
 from .Misc import auto_repr
+from .Tag import TAG_TYPE, DataSource, Tag
 
 
 class TagError(Exception):

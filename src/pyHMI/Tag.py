@@ -1,8 +1,8 @@
 import sys
 import traceback
 from typing import Any, Callable, Optional, Union, get_args
-from . import logger
 
+from . import logger
 
 TAG_TYPE = Union[bool, int, float, str, bytes]
 

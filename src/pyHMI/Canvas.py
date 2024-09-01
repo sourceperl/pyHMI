@@ -1,7 +1,20 @@
 import tkinter as tk
 from tkinter import font
-from .Colors import BLUE, GRAY, GREEN, PINK, RED, WHITE, VALVE_COLOR, VALVE_DEF, VALVE_ERR, PIPE_WIDTH, \
-                    color_valve, color_tags_valve
+
+from .Colors import (
+    BLUE,
+    GRAY,
+    GREEN,
+    PINK,
+    PIPE_WIDTH,
+    RED,
+    VALVE_COLOR,
+    VALVE_DEF,
+    VALVE_ERR,
+    WHITE,
+    color_tags_valve,
+    color_valve,
+)
 
 
 class SimpleValve(object):
