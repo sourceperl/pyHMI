@@ -1,13 +1,18 @@
 """ Test of every DS_ModbusTCP DataSource subclass """
 
-import pytest
 import itertools
 import random
+
+import pytest
 from pyModbusTCP.server import ModbusServer
-from pyHMI.DS_ModbusTCP import ModbusRequest, ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
-from .utils import to_byte_length, to_reg_length, to_16b_list, cut_bytes, regs_to_bytes, \
-    single_float_to_int, int_to_single_float, double_float_to_int, int_to_double_float, \
-    build_bool_data_l, build_int_data_l, build_float_data_l
+
+from pyHMI.DS_ModbusTCP import (ModbusBool, ModbusFloat, ModbusInt,
+                                ModbusRequest, ModbusTCPDevice)
+
+from .utils import (build_bool_data_l, build_float_data_l, build_int_data_l,
+                    cut_bytes, double_float_to_int, int_to_double_float,
+                    int_to_single_float, regs_to_bytes, single_float_to_int,
+                    to_16b_list, to_byte_length, to_reg_length)
 
 
 @pytest.fixture

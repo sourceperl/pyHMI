@@ -1,8 +1,10 @@
 import operator as op
-import pytest
 from typing import Any, Optional
-from pyHMI.Tag import Tag
+
+import pytest
+
 from pyHMI.DS import GetCmd, TagOp, no_error
+from pyHMI.Tag import Tag
 
 
 def tag_expect(tag: Tag, value: Any, error: bool):

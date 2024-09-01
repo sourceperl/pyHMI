@@ -1,17 +1,30 @@
 """ Test of every DS_Redis DataSource subclass """
 
-from typing import Any, List, Optional, Union
 import os
 import random
+from typing import Any, List, Optional, Union
+
 import pytest
 import redis
-from pyHMI.DS_Redis import KEY_TYPE, RedisDevice, RedisGetKey, RedisSetKey, RedisPublish, RedisSubscribe
-from .utils import build_random_str
 
+from pyHMI.DS_Redis import (KEY_TYPE, RedisDevice, RedisGetKey, RedisPublish,
+                            RedisSetKey, RedisSubscribe)
+
+from .utils import build_random_str
 
 REDIS_HOST = 'pyhmi_redis'
 
 
+# some class
+class SubTest:
+    def __init__(self, type: type, pub: bytes, sub_get: Any, sub_error: bool) -> None:
+        self.type = type
+        self.pub = pub
+        self.sub_get = sub_get
+        self.sub_error = sub_error
+
+
+# redis fixtures
 @pytest.fixture
 def cli():
     # setup code
@@ -105,20 +118,21 @@ def test_redis_key(cli, dev):
     sync_key(RedisGetKey(dev, 'foo', type=bytes), assert_error=False, assert_get=b'ok')
 
 
-def test_pubsub(dev):
+def test_pubsub(cli, dev):
+    # test RedisPublish -> RedisSubscribe
     # init subscribe
-    red_sub = RedisSubscribe(dev, 'my_desk', type=int)
+    red_sub = RedisSubscribe(dev, 'my_desk', type=bool)
     red_sub.subscribe_evt.wait(timeout=1.0)
     # init publish
-    red_pub = RedisPublish(dev, 'my_desk', type=int)
-    #for value in [0xc0ffee, 0xfeed]:
-    for value in range(1_000):
+    red_pub = RedisPublish(dev, 'my_desk', type=bool)
+    # run the same test with some types
+    for _type, value in [(bool, False), (bool, True), (int, 0xc0ffee), (float, 0.42), (str, ''), (bytes, b'data')]:
+        # load value type
+        red_sub.type = red_pub.type = _type
         # reset receive event (subscribe part)
         red_sub.receive_evt.clear()
         # publish
         red_pub.set(value)
-        # some noise
-        #RedisSubscribe(dev, f'foo_{value}', type=int)
         # wait process done (publish part)
         if not red_pub.last_message or not red_pub.last_message.send_evt.wait(timeout=1.0):
             raise RuntimeError('unable to send publish message')
@@ -126,4 +140,28 @@ def test_pubsub(dev):
         if not red_sub.receive_evt.wait(timeout=1.0):
             raise RuntimeError('unable to receive publish message')
         # check subscribe value
-        assert red_sub.value == value
+        assert red_sub.get() == value
+
+    # check error
+    # init subscribe
+    red_sub = RedisSubscribe(dev, 'foo', type=bool)
+    red_sub.subscribe_evt.wait(timeout=1.0)
+    # publish invalid/valid content for some types
+    tst_l = [SubTest(type=bool, pub=b'False', sub_get=False, sub_error=False),
+             SubTest(type=bool, pub=b'not_bool', sub_get=False, sub_error=True),
+             SubTest(type=int, pub=b'123', sub_get=123, sub_error=False),
+             SubTest(type=int, pub=b'abc', sub_get=123, sub_error=True),
+             SubTest(type=float, pub=b'42.0', sub_get=42.0, sub_error=False),
+             SubTest(type=float, pub=b'99..9', sub_get=42.0, sub_error=True),
+             SubTest(type=str, pub=b'test', sub_get='test', sub_error=False),
+             SubTest(type=str, pub=b'\xff\xff', sub_get='test', sub_error=True),]
+    for tst in tst_l:
+        # init redis_sub
+        red_sub.type = tst.type
+        red_sub.receive_evt.clear()
+        # publish and wait red_sub is updated
+        cli.publish('foo', tst.pub)
+        red_sub.receive_evt.wait(timeout=1.0)
+        # asserts
+        assert red_sub.get() == tst.sub_get
+        assert red_sub.error() == tst.sub_error

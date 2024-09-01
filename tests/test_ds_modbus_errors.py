@@ -1,7 +1,9 @@
 """ Test of every DS_ModbusTCP DataSource subclass """
 
 import pytest
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
+
+from pyHMI.DS_ModbusTCP import (ModbusBool, ModbusFloat, ModbusInt,
+                                ModbusTCPDevice)
 
 
 class FakeConf:
