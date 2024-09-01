@@ -12,16 +12,8 @@ from pyHMI.DS_Redis import (KEY_TYPE, RedisDevice, RedisGetKey, RedisPublish,
 
 from .utils import build_random_str
 
+# some constants
 REDIS_HOST = 'pyhmi_redis'
-
-
-# some class
-class SubTest:
-    def __init__(self, type: type, pub: bytes, sub_get: Any, sub_error: bool) -> None:
-        self.type = type
-        self.pub = pub
-        self.sub_get = sub_get
-        self.sub_error = sub_error
 
 
 # redis fixtures
@@ -46,6 +38,7 @@ def dev():
     pass
 
 
+# tests functions
 def test_redis_up(cli):
     cli.ping()
 
@@ -119,6 +112,14 @@ def test_redis_key(cli, dev):
 
 
 def test_pubsub(cli, dev):
+    # some class
+    class SubTest:
+        def __init__(self, type: type, pub: bytes, sub_get: Any, sub_error: bool) -> None:
+            self.type = type
+            self.pub = pub
+            self.sub_get = sub_get
+            self.sub_error = sub_error
+
     # test RedisPublish -> RedisSubscribe
     # init subscribe
     red_sub = RedisSubscribe(dev, 'my_desk', type=bool)
@@ -154,7 +155,8 @@ def test_pubsub(cli, dev):
              SubTest(type=float, pub=b'42.0', sub_get=42.0, sub_error=False),
              SubTest(type=float, pub=b'99..9', sub_get=42.0, sub_error=True),
              SubTest(type=str, pub=b'test', sub_get='test', sub_error=False),
-             SubTest(type=str, pub=b'\xff\xff', sub_get='test', sub_error=True),]
+             SubTest(type=str, pub=b'\xff\xff', sub_get='test', sub_error=True),
+             SubTest(type=bytes, pub=b'bytes', sub_get=b'bytes', sub_error=False)]
     for tst in tst_l:
         # init redis_sub
         red_sub.type = tst.type
