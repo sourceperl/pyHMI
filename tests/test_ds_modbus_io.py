@@ -6,11 +6,12 @@ import random
 import pytest
 from pyModbusTCP.server import ModbusServer
 
-from pyHMI.DS_ModbusTCP import (ModbusBool, ModbusFloat, ModbusInt,
-                                ModbusRequest, ModbusTCPDevice)
+from pyHMI.DS_ModbusTCP import (ModbusBool, ModbusBoolRegister, ModbusFloat,
+                                ModbusInt, ModbusRequest, ModbusTCPDevice)
 
-from .utils import (build_bool_data_l, build_float_data_l, build_int_data_l,
-                    cut_bytes, double_float_to_int, int_to_double_float,
+from .utils import (bool_list_to_16b_list, build_bool_data_l,
+                    build_float_data_l, build_int_data_l, cut_bytes,
+                    double_float_to_int, int_to_double_float,
                     int_to_single_float, regs_to_bytes, single_float_to_int,
                     to_16b_list, to_byte_length, to_reg_length)
 
@@ -51,6 +52,29 @@ def test_read_modbus_bool_src(modbus_srv):
         # init client
         request = ModbusTCPDevice(port=5020).add_read_bits_request(addr, size, d_inputs=d_inputs)
         src_l = [ModbusBool(request, address=addr+i) for i in range(size)]
+        # run request
+        run_and_wait_ok(request)
+        # read dataset
+        ds_bool_l = [src.get() for src in src_l]
+        # check data match
+        assert srv_bool_l == ds_bool_l
+
+
+def test_read_modbus_bool_register_src(modbus_srv):
+    """ Test ModbusBoolRegister reading operations (ModbusServer -> DataSource) """
+    for i_regs in [False, True]:
+        # build a dataset
+        addr = random.randint(0, 0x1000)
+        size = random.randint(1, 2000)
+        srv_bool_l = build_bool_data_l(size)
+        # init server
+        if i_regs:
+            modbus_srv.data_bank.set_input_registers(addr, bool_list_to_16b_list(srv_bool_l))
+        else:
+            modbus_srv.data_bank.set_holding_registers(addr, bool_list_to_16b_list(srv_bool_l))
+        # init client
+        request = ModbusTCPDevice(port=5020).add_read_regs_request(addr, to_reg_length(size), i_regs=i_regs)
+        src_l = [ModbusBoolRegister(request, address=addr + i//16, bit=i % 16) for i in range(len(srv_bool_l))]
         # run request
         run_and_wait_ok(request)
         # read dataset

@@ -57,6 +57,28 @@ def to_16b_list(int_l: list, bit_length: int) -> List[int]:
     return _16b_l
 
 
+def bool_list_to_16b_list(bools: List[bool]) -> List[int]:
+    """ Convert a list of bool to a 16-bit int list. """
+    word_l = []
+    for word_l_idx in range((len(bools) + 15) // 16):
+        word = 0
+        for bit_pos in range(16):
+            try:
+                word |= bools[word_l_idx * 16 + bit_pos] << bit_pos
+            except IndexError:
+                pass
+        word_l.append(word)
+    return word_l
+
+
+def bool_list_to_int(bools: List[bool]) -> int:
+    """ Convert a list of bool to an int. """
+    ret_int = 0
+    for bit_pos, bit in enumerate(bools):
+        ret_int |= bool(bit) << bit_pos
+    return ret_int
+
+
 def cut_bytes(value: bytes, block_size: int) -> list:
     """ Cut a bytes as blocks of block_size byte length. """
     return [value[i:i+block_size] for i in range(0, len(value), block_size)]

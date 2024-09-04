@@ -11,7 +11,8 @@ from pyModbusTCP.client import ModbusClient
 
 from pyHMI.Tag import Tag
 
-from .Misc import SafeObject, auto_repr, cut_bytes_to_regs, swap_bytes, swap_words
+from .Misc import (SafeObject, auto_repr, cut_bytes_to_regs, swap_bytes,
+                   swap_words)
 from .Tag import DataSource, Device
 
 # define a logger for this datasource
@@ -332,6 +333,8 @@ class ModbusTCPDevice(Device):
 
 
 class ModbusBool(DataSource):
+    """ A data source to map a bool to one of the bits modbus requests. """
+
     def __init__(self, request: ModbusRequest, address: int) -> None:
         # args
         self.request = request
@@ -370,7 +373,47 @@ class ModbusBool(DataSource):
         return self.request.run()
 
 
+class ModbusBoolRegister(DataSource):
+    """ A data source to map a bool to one of the 16-bit modbus requests. """
+
+    def __init__(self, request: ModbusRequest, address: int, bit: int) -> None:
+        # args
+        self.request = request
+        self.address = address
+        self.bit = bit
+        # some check on request
+        if request.type not in (_RequestType.READ_H_REGS, _RequestType.READ_I_REGS):
+            raise TypeError(f'bad request type {request.type.name} for {self.__class__.__name__}')
+        if not request.is_valid(at_address=self.address):
+            raise ValueError(f'@{self.address} is not available in the data space of this request')
+
+    def __repr__(self) -> str:
+        return auto_repr(self)
+
+    def add_tag(self, tag: Tag) -> None:
+        # warn user of type mismatch between initial tag value and this datasource
+        if type(tag.init_value) is not bool:
+            raise TypeError('init_value must be a bool')
+
+    def get(self) -> Optional[bool]:
+        _16b_reg = self.request._get_data(address=self.address)[0]
+        if _16b_reg is not None:
+            return bool(_16b_reg & (1 << self.bit))
+        return
+
+    def set(self, value: bool) -> None:
+        raise TypeError(f'cannot write to this data source ({self.__class__.__name__})')
+
+    def error(self) -> bool:
+        return self.request.error
+
+    def sync(self) -> bool:
+        return self.request.run()
+
+
 class ModbusInt(DataSource):
+    """ A data source to map an int to one of the 16-bit modbus requests. """
+
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
     def __init__(self, request: ModbusRequest, address: int, bit_length: int = 16, byte_order: BYTE_ORDER_TYPE = 'big',
@@ -462,6 +505,8 @@ class ModbusInt(DataSource):
 
 
 class ModbusFloat(DataSource):
+    """ A data source to map a float to one of the 16-bit modbus requests. """
+
     BYTE_ORDER_TYPE = Literal['little', 'big']
 
     def __init__(self, request: ModbusRequest, address: int, bit_length: int = 32, byte_order: BYTE_ORDER_TYPE = 'big',
@@ -567,7 +612,9 @@ class ModbusFloat(DataSource):
         return self.request.run()
 
 
-class ModbusTboxStr(DataSource):
+class ModbusStrTBox(DataSource):
+    """ A data source to map a str to a T-Box one (or similar product) from its 16-bit register spaces. """
+
     def __init__(self, request: ModbusRequest, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:
         # args
         self.request = request
