@@ -2,16 +2,19 @@
 
 import logging
 import time
-import pyHMI.DS_ModbusTCP
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusBool, ModbusInt, ModbusFloat
-from pyHMI.Tag import Tag
-from pyHMI.Colors import GREEN, PINK
-from pyHMI.UI import UIBoolListFrame, UIButtonListFrame
 import tkinter as tk
 from tkinter import ttk
 
+import pyHMI.DS
+import pyHMI.DS_ModbusTCP
+from pyHMI.Colors import GREEN, PINK
+from pyHMI.DS_ModbusTCP import (ModbusBool, ModbusFloat, ModbusInt,
+                                ModbusTCPDevice)
+from pyHMI.Tag import Tag
+from pyHMI.UI import UIBoolListFrame, UIButtonListFrame
+
 # global logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)-8s - %(module)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)-8s - %(name)s - %(message)s')
 pyHMI.DS_ModbusTCP.logger.setLevel(logging.DEBUG)
 
 
@@ -19,8 +22,7 @@ class Devices:
     def __init__(self) -> None:
         class PLC:
             def __init__(self) -> None:
-                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0,
-                                              refresh=0.5, client_args=dict(debug=False))
+                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5)
                 self.r_reg512 = self.device.add_read_bits_request(512, size=4, run_cyclic=True)
                 self.w_reg512 = self.device.add_write_bits_request(512, single_func=True, run_on_set=True)
                 self.w_reg513 = self.device.add_write_bits_request(513, single_func=True, run_on_set=True)

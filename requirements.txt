@@ -1,2 +1,2 @@
-pyModbusTCP==0.2.2
+pyModbusTCP @ git+https://github.com/sourceperl/pyModbusTCP@c0a33eda2e1d7f5ac278e382ae404aefbac0fd1c
 redis==5.0.8

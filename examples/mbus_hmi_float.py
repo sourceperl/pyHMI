@@ -3,10 +3,11 @@
 import time
 import tkinter as tk
 from tkinter import ttk
+
 from pyHMI.Colors import GREEN, PINK
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusInt, ModbusFloat
-from pyHMI.Tag import Tag
 from pyHMI.Dialog import SetStrValueDialog
+from pyHMI.DS_ModbusTCP import ModbusFloat, ModbusInt, ModbusTCPDevice
+from pyHMI.Tag import Tag
 from pyHMI.UI import UIAnalogListFrame, UIButtonListFrame
 
 
@@ -16,8 +17,7 @@ class Devices:
     def __init__(self) -> None:
         class PLC:
             def __init__(self) -> None:
-                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0,
-                                              refresh=0.5, client_args=dict(debug=False))
+                self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5)
                 self.r_reg0_req = self.device.add_read_regs_request(20800, size=2, run_cyclic=True)
                 self.w_reg0_req = self.device.add_write_regs_request(20800, size=2, run_on_set=True)
                 self.r_reg0_req.run()
