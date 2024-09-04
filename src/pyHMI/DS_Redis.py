@@ -82,7 +82,7 @@ class RedisPublish(DataSource):
         """ Attempt to publish message on redis.
 
         Any pending execution will be canceled after the delay specified at device level in
-        request_cancel_delay (defaults to 5.0 seconds).
+        cancel_delay (defaults to 5.0 seconds).
 
         Return True if the query is queued.
         """
@@ -162,12 +162,12 @@ class RedisGetKey(DataSource):
             self.ttl = TTL(self.redis_key.device.cancel_delay)
 
     def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
-                 sync_cyclic: bool = False) -> None:
+                 cyclic: bool = False) -> None:
         # args
         self.device = device
         self.name = _normalized_for_redis(name)
         self.type = type
-        self.sync_cyclic = sync_cyclic
+        self.cyclic = cyclic
         # public
         self.is_sync_evt = Event()
         self.raw_value: Optional[bytes] = None
@@ -226,14 +226,14 @@ class RedisSetKey(DataSource):
             self.ttl = TTL(self.redis_key.device.cancel_delay)
 
     def __init__(self, device: "RedisDevice", name: Union[bytes, str], type: KEY_TYPE_CLASS,
-                 sync_cyclic: bool = False, sync_on_set: bool = False,
+                 cyclic: bool = False, on_set: bool = False,
                  ex: Optional[int] = None) -> None:
         # args
         self.device = device
         self.name = _normalized_for_redis(name)
         self.type = type
-        self.sync_cyclic = sync_cyclic
-        self.sync_on_set = sync_on_set
+        self.cyclic = cyclic
+        self.on_set = on_set
         self.ex = ex
         # public
         self.is_sync_evt = Event()
@@ -262,7 +262,7 @@ class RedisSetKey(DataSource):
             # format raw for redis
             self.raw_value = _encode_to_redis(value, type=self.type)
             # write query executed on set
-            if self.sync_on_set:
+            if self.on_set:
                 self.sync()
         except (TypeError, ValueError):
             raise ValueError(f'cannot set redis key {self.name!r} of type {self.type.__name__} to {value!r}')
@@ -274,7 +274,7 @@ class RedisSetKey(DataSource):
         """ Attempt immediate update of the key on redis db using the request key thread.
 
         Any pending execution will be canceled after the delay specified at device level in
-        request_cancel_delay (defaults to 5.0 seconds).
+        cancel_delay (defaults to 5.0 seconds).
 
         Return True if the request is queued.
         """
@@ -315,7 +315,7 @@ class _KeyCyclicThread(Thread):
                 cp_key_d = self._key_d.copy()
             # iterate over all keys
             for redis_key in cp_key_d.values():
-                if redis_key.sync_cyclic:
+                if redis_key.cyclic:
                     try:
                         self.redis_device._get_key(redis_key)
                         self.redis_device._set_key(redis_key)

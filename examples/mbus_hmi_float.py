@@ -18,8 +18,8 @@ class Devices:
         class PLC:
             def __init__(self) -> None:
                 self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5)
-                self.r_reg0_req = self.device.add_read_regs_request(20800, size=2, run_cyclic=True)
-                self.w_reg0_req = self.device.add_write_regs_request(20800, size=2, run_on_set=True)
+                self.r_reg0_req = self.device.add_read_regs_request(20800, size=2, cyclic=True)
+                self.w_reg0_req = self.device.add_write_regs_request(20800, size=2, on_set=True)
                 self.r_reg0_req.run()
         self.plc = PLC()
 

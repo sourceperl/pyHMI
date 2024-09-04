@@ -51,7 +51,7 @@ class _Data:
 
 class ModbusRequest:
     def __init__(self, device: "ModbusTCPDevice", type: _RequestType, address: int, size: int,
-                 default_value: Any, run_cyclic: bool, run_on_set: bool = False, single_func: bool = False) -> None:
+                 default_value: Any, cyclic: bool, on_set: bool = False, single_func: bool = False) -> None:
         # check single queries
         if single_func and size != 1:
             raise ValueError('single modbus function requires size=1')
@@ -78,8 +78,8 @@ class ModbusRequest:
         self.address = address
         self.size = size
         self.default_value = default_value
-        self.run_cyclic = run_cyclic
-        self.run_on_set = run_on_set
+        self.cyclic = cyclic
+        self.on_set = on_set
         self.single_func = single_func
         # public
         self.error = True
@@ -118,7 +118,7 @@ class ModbusRequest:
         if by_thread:
             return
         # request executed on set
-        if self.run_on_set:
+        if self.on_set:
             self.run()
 
     def is_valid(self, at_address: int, for_size: int = 1) -> bool:
@@ -133,14 +133,14 @@ class ModbusRequest:
         """ Attempt immediate execution of the request using the single run thread.
 
         Any pending execution will be canceled after the delay specified at device level in
-        run_cancel_delay (defaults to 5.0 seconds).
+        cancel_delay (defaults to 5.0 seconds).
 
         Return True if the request is queued.
         """
         # accept this request when device is actually connected or if the single-run queue is empty
         if self.device.connected or (self.device.single_run_thread.request_q.qsize() == 0):
             # set an expiration stamp (avoid single-run thread process outdated request)
-            self._single_run_expire = time.monotonic() + self.device.run_cancel_delay
+            self._single_run_expire = time.monotonic() + self.device.cancel_delay
             try:
                 self.device.single_run_thread.request_q.put_nowait(self)
                 self.run_done_evt.clear()
@@ -203,7 +203,7 @@ class _CyclicThread(Thread):
             # iterate over all requests
             for request in cp_req_d.values():
                 try:
-                    if request.run_cyclic:
+                    if request.cyclic:
                         self.modbus_device._process_read_request(request)
                         self.modbus_device._process_write_request(request)
                         self.modbus_device._update_device_status()
@@ -216,7 +216,7 @@ class _CyclicThread(Thread):
 
 
 class ModbusTCPDevice(Device):
-    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, run_cancel_delay=5.0,
+    def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, cancel_delay=5.0,
                  client_args: Optional[dict] = None):
         # args
         self.host = host
@@ -227,7 +227,7 @@ class ModbusTCPDevice(Device):
         self.client_args = client_args
         # public
         self.connected = False
-        self.run_cancel_delay = run_cancel_delay
+        self.cancel_delay = cancel_delay
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -311,25 +311,23 @@ class ModbusTCPDevice(Device):
         with self.safe_cli as cli:
             self.connected = cli.is_open
 
-    def add_read_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, d_inputs: bool = False):
+    def add_read_bits_request(self, address: int, size: int = 1, cyclic: bool = False, d_inputs: bool = False):
         req_type = _RequestType.READ_D_INPUTS if d_inputs else _RequestType.READ_COILS
-        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
+        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, cyclic=cyclic)
 
-    def add_write_bits_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
+    def add_write_bits_request(self, address: int, size: int = 1, cyclic: bool = False, on_set: bool = False,
                                default_value: bool = False, single_func: bool = False):
         return ModbusRequest(self, type=_RequestType.WRITE_COILS, address=address, size=size,
-                             default_value=default_value, run_cyclic=run_cyclic, run_on_set=run_on_set,
-                             single_func=single_func)
+                             default_value=default_value, cyclic=cyclic, on_set=on_set, single_func=single_func)
 
-    def add_read_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, i_regs: bool = False):
+    def add_read_regs_request(self, address: int, size: int = 1, cyclic: bool = False, i_regs: bool = False):
         req_type = _RequestType.READ_I_REGS if i_regs else _RequestType.READ_H_REGS
-        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, run_cyclic=run_cyclic)
+        return ModbusRequest(self, type=req_type, address=address, size=size, default_value=None, cyclic=cyclic)
 
-    def add_write_regs_request(self, address: int, size: int = 1, run_cyclic: bool = False, run_on_set: bool = False,
+    def add_write_regs_request(self, address: int, size: int = 1, cyclic: bool = False, on_set: bool = False,
                                default_value: int = 0, single_func: bool = False):
         return ModbusRequest(self, type=_RequestType.WRITE_H_REGS, address=address, size=size,
-                             default_value=default_value, run_cyclic=run_cyclic, run_on_set=run_on_set,
-                             single_func=single_func)
+                             default_value=default_value, cyclic=cyclic, on_set=on_set, single_func=single_func)
 
 
 class ModbusBool(DataSource):

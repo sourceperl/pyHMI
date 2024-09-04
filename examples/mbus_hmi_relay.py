@@ -23,11 +23,11 @@ class Devices:
         class PLC:
             def __init__(self) -> None:
                 self.device = ModbusTCPDevice('192.168.1.99', port=502, timeout=2.0, refresh=0.5)
-                self.r_reg512 = self.device.add_read_bits_request(512, size=4, run_cyclic=True)
-                self.w_reg512 = self.device.add_write_bits_request(512, single_func=True, run_on_set=True)
-                self.w_reg513 = self.device.add_write_bits_request(513, single_func=True, run_on_set=True)
-                self.w_reg514 = self.device.add_write_bits_request(514, single_func=True, run_on_set=True)
-                self.w_reg515 = self.device.add_write_bits_request(515, single_func=True, run_on_set=True)
+                self.r_reg512 = self.device.add_read_bits_request(512, size=4, cyclic=True)
+                self.w_reg512 = self.device.add_write_bits_request(512, single_func=True, on_set=True)
+                self.w_reg513 = self.device.add_write_bits_request(513, single_func=True, on_set=True)
+                self.w_reg514 = self.device.add_write_bits_request(514, single_func=True, on_set=True)
+                self.w_reg515 = self.device.add_write_bits_request(515, single_func=True, on_set=True)
                 # immediate refresh on startup
                 self.r_reg512.run()
         self.plc = PLC()

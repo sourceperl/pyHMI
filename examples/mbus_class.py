@@ -2,9 +2,10 @@
 
 # All stuff is in tags.update()
 
-from pyHMI.DS_ModbusTCP import ModbusTCPDevice, ModbusBool
-from pyHMI.Tag import Tag
 import time
+
+from pyHMI.DS_ModbusTCP import ModbusBool, ModbusTCPDevice
+from pyHMI.Tag import Tag
 
 
 class Devices:
@@ -13,8 +14,8 @@ class Devices:
         class LocalModbus:
             def __init__(self) -> None:
                 self.device = ModbusTCPDevice('localhost', port=502, timeout=2.0, refresh=1.0)
-                self.read_req = self.device.add_read_bits_request(1, 2, run_cyclic=True)
-                self.write_req = self.device.add_write_bits_request(0, run_cyclic=True)
+                self.read_req = self.device.add_read_bits_request(1, 2, cyclic=True)
+                self.write_req = self.device.add_write_bits_request(0, cyclic=True)
         self.local_modbus = LocalModbus()
 
 
