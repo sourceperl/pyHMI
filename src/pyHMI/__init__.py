@@ -10,4 +10,3 @@ __all__ = ()
 __version__ = '0.1.0.dev0'
 
 logger = logging.getLogger('pyHMI')
-logger.setLevel(logging.WARNING)
