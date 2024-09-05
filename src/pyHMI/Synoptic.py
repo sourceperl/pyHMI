@@ -396,7 +396,7 @@ class Synoptic:
         # record current widget in synoptic
         self.widgets[widget.name] = widget
 
-    def build(self, pack_args: Optional[dict] = None, grid_args: Optional[dict] = None, 
+    def build(self, pack_args: Optional[dict] = None, grid_args: Optional[dict] = None,
               place_args: Optional[dict] = None):
         # mutable args
         if pack_args is None:

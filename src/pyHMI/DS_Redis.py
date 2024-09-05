@@ -10,8 +10,7 @@ import redis
 from .Misc import TTL, SafeObject
 from .Tag import DataSource, Device, Tag
 
-# define a logger for this datasource
-logger = logging.getLogger('pyHMI.DS_Redis')
+logger = logging.getLogger(__name__)
 
 
 # some constants

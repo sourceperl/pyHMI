@@ -8,8 +8,8 @@ from pyHMI.Tag import Tag
 
 
 def tag_expect(tag: Tag, value: Any, error: bool):
-    assert tag.value == value, f'val property mismatch (expected: {value} get: {tag.value})'
-    assert tag.error == error, f'err property mismatch (expected: {error} get: {tag.error})'
+    assert tag.value == value, f'value property mismatch (expected: {value} get: {tag.value})'
+    assert tag.error == error, f'error property mismatch (expected: {error} get: {tag.error})'
 
 
 def test_basic():
@@ -34,6 +34,8 @@ def test_src_tag_op():
     tag_expect(Tag(False, src=TagOp(Tag(False), op.not_)), value=True, error=False)
     tag_expect(Tag(False, src=TagOp(Tag(2.0), op.lt, 3.0)), value=True, error=False)
     tag_expect(Tag(False, src=TagOp(Tag(4.0), op.lt, 3.0)), value=False, error=False)
+    # test the effect of the source disabled flag
+    tag_expect(Tag(False, src=TagOp(Tag(False), op.not_), src_enabled=False), value=False, error=False)
     # tag error is propagate, value is set
     tag_expect(Tag(False, src=TagOp(Tag(False, init_error=True), op.not_)), value=True, error=True)
     a_tag = Tag(0xfeed)
@@ -73,6 +75,12 @@ def test_src_get_cmd():
     get_cmd_test.expect(for_ret=0xdead, val=0xfeed, err=True)
     # get_cmd return 0xc0ffee -> tag set to 0xc0ffee (no error)
     get_cmd_test.expect(for_ret=0xc0ffee, val=0xc0ffee, err=False)
+
+    # test the effect of the source enabled flag
+    tag_expect(Tag(False, src=GetCmd(lambda: True)), value=True, error=False)
+    tag_expect(Tag(False, src=GetCmd(lambda: True), src_enabled=False), value=False, error=False)
+    tag_expect(Tag(False, init_error=True, src=GetCmd(lambda: True)), value=True, error=False)
+    tag_expect(Tag(False, init_error=True, src=GetCmd(lambda: True), src_enabled=False), value=False, error=True)
 
     # some tests with error handling
     tag_1 = Tag(init_value='O', init_error=False)

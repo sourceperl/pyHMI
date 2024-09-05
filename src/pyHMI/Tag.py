@@ -1,10 +1,11 @@
+import logging
 import sys
 import traceback
 from typing import Any, Callable, Optional, Union, get_args
 
-from . import logger
-
 TAG_TYPE = Union[bool, int, float, str, bytes]
+
+logger = logging.getLogger(__name__)
 
 
 class Device:
@@ -44,7 +45,8 @@ class DataSource:
 
 class Tag:
     def __init__(self, init_value: TAG_TYPE, init_error: bool = False,
-                 src: Optional[DataSource] = None, chg_cmd: Optional[Callable] = None, ) -> None:
+                 src: Optional[DataSource] = None, chg_cmd: Optional[Callable] = None,
+                 src_enabled: bool = True) -> None:
         """Constructor
 
         Abstract access to project tags.
@@ -52,6 +54,7 @@ class Tag:
         :param first_value: initial value of the tag
         :param src: an external data source like RedisKey
         :param chg_cmd: a method to change tag value (scale, limit value...)
+        :param src_enabled: enabled data source flag
         """
         # runtime type check
         if not isinstance(init_value, get_args(TAG_TYPE)):
@@ -61,6 +64,7 @@ class Tag:
         self.init_error = init_error
         self.src = src
         self.chg_cmd = chg_cmd
+        self.src_enabled = src_enabled
         # private
         self._value = self.init_value
         self._error = self.init_error
@@ -110,7 +114,7 @@ class Tag:
         :return: tag value
         """
         # get tag value from a data source if set
-        if self.src:
+        if self.src and self.src_enabled:
             get_src_return = self._get_src()
             # keep internal value unchange if data source return None
             if get_src_return is not None:
@@ -128,14 +132,14 @@ class Tag:
         if value is not None:
             self._value = value
         # notify external source if set
-        if self.src:
+        if self.src and self.src_enabled:
             self._set_src(self._value)
 
     @property
     def error(self) -> bool:
         """ Return True is Tag have error status set. """
         # read error status from external source
-        if isinstance(self.src, DataSource):
+        if isinstance(self.src, DataSource) and self.src_enabled:
             return self.src.error() or self._chg_cmd_error
         # read error status from internal store
         else:

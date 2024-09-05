@@ -11,12 +11,10 @@ from pyModbusTCP.client import ModbusClient
 
 from pyHMI.Tag import Tag
 
-from .Misc import (SafeObject, auto_repr, cut_bytes_to_regs, swap_bytes,
-                   swap_words)
+from .Misc import SafeObject, auto_repr, cut_bytes_to_regs, swap_bytes, swap_words
 from .Tag import DataSource, Device
 
-# define a logger for this datasource
-logger = logging.getLogger('pyHMI.DS_ModbusTCP')
+logger = logging.getLogger(__name__)
 
 
 # some class
@@ -167,10 +165,10 @@ class _SingleRunThread(Thread):
             request = self.request_q.get()
             # process it
             try:
-                if request.single_run_ready:
+                if request.single_run_ready and self.modbus_device.enabled:
                     self.modbus_device._process_read_request(request)
                     self.modbus_device._process_write_request(request)
-                    self.modbus_device._update_device_status()
+                self.modbus_device._process_device_state()
             except Exception as e:
                 msg = f'except {type(e).__name__} in {current_thread().name} ' \
                       f'({request.__class__.__name__}): {e}'
@@ -203,10 +201,10 @@ class _CyclicThread(Thread):
             # iterate over all requests
             for request in cp_req_d.values():
                 try:
-                    if request.cyclic:
+                    if request.cyclic and self.modbus_device.enabled:
                         self.modbus_device._process_read_request(request)
                         self.modbus_device._process_write_request(request)
-                        self.modbus_device._update_device_status()
+                    self.modbus_device._process_device_state()
                 except Exception as e:
                     msg = f'except {type(e).__name__} in {current_thread().name} ' \
                           f'({request.__class__.__name__}): {e}'
@@ -217,17 +215,18 @@ class _CyclicThread(Thread):
 
 class ModbusTCPDevice(Device):
     def __init__(self, host='localhost', port=502, unit_id=1, timeout=5.0, refresh=1.0, cancel_delay=5.0,
-                 client_args: Optional[dict] = None):
+                 enabled=True, client_args: Optional[dict] = None):
         # args
         self.host = host
         self.port = port
         self.unit_id = unit_id
         self.timeout = timeout
         self.refresh = refresh
+        self.cancel_delay = cancel_delay
+        self.enabled = enabled
         self.client_args = client_args
         # public
         self.connected = False
-        self.cancel_delay = cancel_delay
         # allow thread safe access to modbus client (allow direct blocking IO on modbus socket)
         args_d = {} if self.client_args is None else self.client_args
         self.safe_cli = SafeObject(ModbusClient(host=self.host, port=self.port, unit_id=self.unit_id,
@@ -306,9 +305,12 @@ class ModbusTCPDevice(Device):
               f'on device {request.device}'
         logger.debug(msg)
 
-    def _update_device_status(self):
-        # update connected flag
+    def _process_device_state(self):
         with self.safe_cli as cli:
+            # ensure TCP connection is close when device is disabled
+            if self.connected and not self.enabled:
+                cli.close()
+            # update connected flag
             self.connected = cli.is_open
 
     def add_read_bits_request(self, address: int, size: int = 1, cyclic: bool = False, d_inputs: bool = False):
