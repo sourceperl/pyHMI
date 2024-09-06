@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 # some class
+class ModbusDS(DataSource):
+    pass
+
+
 class _RequestType(Enum):
     READ_COILS = auto()
     READ_D_INPUTS = auto()
@@ -332,7 +336,7 @@ class ModbusTCPDevice(Device):
                              default_value=default_value, cyclic=cyclic, on_set=on_set, single_func=single_func)
 
 
-class ModbusBool(DataSource):
+class ModbusBool(ModbusDS):
     """ A data source to map a bool to one of the bits modbus requests. """
 
     def __init__(self, request: ModbusRequest, address: int) -> None:
@@ -373,7 +377,7 @@ class ModbusBool(DataSource):
         return self.request.run()
 
 
-class ModbusBoolRegister(DataSource):
+class ModbusBoolRegister(ModbusDS):
     """ A data source to map a bool to one of the 16-bit modbus requests. """
 
     def __init__(self, request: ModbusRequest, address: int, bit: int) -> None:
@@ -411,7 +415,7 @@ class ModbusBoolRegister(DataSource):
         return self.request.run()
 
 
-class ModbusInt(DataSource):
+class ModbusInt(ModbusDS):
     """ A data source to map an int to one of the 16-bit modbus requests. """
 
     BYTE_ORDER_TYPE = Literal['little', 'big']
@@ -504,7 +508,7 @@ class ModbusInt(DataSource):
         return self.request.run()
 
 
-class ModbusFloat(DataSource):
+class ModbusFloat(ModbusDS):
     """ A data source to map a float to one of the 16-bit modbus requests. """
 
     BYTE_ORDER_TYPE = Literal['little', 'big']
@@ -612,7 +616,7 @@ class ModbusFloat(DataSource):
         return self.request.run()
 
 
-class ModbusStrTBox(DataSource):
+class ModbusStrTBox(ModbusDS):
     """ A data source to map a str to a T-Box one (or similar product) from its 16-bit register spaces. """
 
     def __init__(self, request: ModbusRequest, address: int, str_length: int, encoding: str = 'iso-8859-1') -> None:

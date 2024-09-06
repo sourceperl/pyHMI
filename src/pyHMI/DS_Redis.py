@@ -52,7 +52,11 @@ def _encode_to_redis(data: KEY_TYPE, type: KEY_TYPE_CLASS) -> bytes:
     raise TypeError
 
 
-class RedisPublish(DataSource):
+class RedisDS(DataSource):
+    pass
+
+
+class RedisPublish(RedisDS):
     class Message:
         """ A message data container for publish with io thread queue. """
 
@@ -117,7 +121,7 @@ class RedisPublish(DataSource):
         return self.io_error
 
 
-class RedisSubscribe(DataSource):
+class RedisSubscribe(RedisDS):
     def __init__(self, device: "RedisDevice", channel: Union[bytes, str], type: KEY_TYPE_CLASS) -> None:
         # args
         self.device = device
@@ -150,7 +154,7 @@ class RedisSubscribe(DataSource):
         return self.io_error or self.fmt_error
 
 
-class RedisGetKey(DataSource):
+class RedisGetKey(RedisDS):
     class SyncReq:
         """ A get request data container for io thread queue. """
 
@@ -214,7 +218,7 @@ class RedisGetKey(DataSource):
         return False
 
 
-class RedisSetKey(DataSource):
+class RedisSetKey(RedisDS):
     class SyncReq:
         """ A set request data container for io thread queue. """
 
@@ -488,8 +492,8 @@ class _SubscribeThread(Thread):
 
 class RedisDevice(Device):
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0,
-                 refresh: float = 1.0, cancel_delay=5.0,
-                 timeout: float = 1.0, client_adv_args: Optional[dict] = None):
+                 refresh: float = 1.0, cancel_delay=5.0, timeout: float = 1.0,
+                 client_adv_args: Optional[dict] = None):
         super().__init__()
         # args
         self.host = host
