@@ -128,12 +128,15 @@ class Tag:
 
         :param value: value of tag
         """
+        prev_value = self._value
         # set internal value
         if value is not None:
             self._value = value
         # notify external source if set
         if self.src and self.src_enabled:
             self._set_src(self._value)
+        # notify user
+        self.on_set(value, prev_value)
 
     @property
     def error(self) -> bool:
@@ -153,3 +156,7 @@ class Tag:
     def set(self, value: Optional[TAG_TYPE]) -> None:
         """ An helper to let user set the val property in lambda usage context. """
         self.value = value
+
+    def on_set(self, value: Optional[TAG_TYPE], prev_value: TAG_TYPE):
+        """ A callback for user purposes to be informed when the value is set. """
+        pass
