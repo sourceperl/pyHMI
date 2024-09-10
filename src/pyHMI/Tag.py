@@ -90,8 +90,8 @@ class Tag:
             return self._apply_chg_cmd(self.src.get())
 
     def _apply_chg_cmd(self, value: Optional[TAG_TYPE]) -> Optional[TAG_TYPE]:
-        # if a change command is set
-        if self.chg_cmd:
+        # if a change command is defined and a value is available
+        if self.chg_cmd and value is not None:
             # try to alter or transform value with it
             try:
                 chg_cmd_return = self.chg_cmd(value)
@@ -104,7 +104,7 @@ class Tag:
                 self._chg_cmd_error = True
                 return
         else:
-            # pass through if chg_cmd is unset
+            # pass through if chg_cmd is unset or None value
             return value
 
     @property
