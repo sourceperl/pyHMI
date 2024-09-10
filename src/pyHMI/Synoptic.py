@@ -232,7 +232,7 @@ class SynFlowValve(SynWidget):
             self.tk_canvas.create_polygon(self.x - 20 * self.zoom, self.y + 30 * self.zoom,
                                           self.x, self.y, self.x + 20 * self.zoom, self.y + 30 * self.zoom,
                                           fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
-                                          tags=self.name+'_HEAD')
+                                          tags=self.name)
             # add a label
             if self.label:
                 self.tk_canvas.create_text(self.x + 35 * self.zoom, self.y,
