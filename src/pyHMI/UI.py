@@ -126,9 +126,9 @@ class UIAnalogItem:
 
     def map(self, at_row: int) -> None:
         # map it with grids
-        self.tk_lbl_name.grid(row=at_row, column=0, **self.tk_g_args_name_d)
-        self.tk_lbl_value.grid(row=at_row, column=1, **self.tk_g_args_value_d)
-        self.tk_lbl_unit.grid(row=at_row, column=2, **self.tk_g_args_unit_d)
+        self.tk_lbl_name.grid(cnf=self.tk_g_args_name_d, column=0, row=at_row)
+        self.tk_lbl_value.grid(cnf=self.tk_g_args_value_d, column=1, row=at_row)
+        self.tk_lbl_unit.grid(cnf=self.tk_g_args_unit_d, column=2, row=at_row)
 
     def update(self) -> None:
         # format tag value
@@ -199,7 +199,7 @@ class UIButtonItem:
 class UIButtonListFrame(UIFrameWidget):
     """An helper to map a UI array of tk buttons (auto-refresh by update method)."""
 
-    def __init__(self, master=None, ctx: UIContext = ui_def_ctx, n_cols: int = 1) -> None:
+    def __init__(self, master: tk.Widget, ctx: UIContext = ui_def_ctx, n_cols: int = 1) -> None:
         super().__init__(master, ctx)
         # args
         self.n_cols = n_cols

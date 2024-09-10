@@ -65,8 +65,6 @@ class SynValve(SynWidget):
         self.tk_font = Font(size=round(12 * self.zoom))
 
     def build(self):
-        b_args = dict(fill=self.synoptic.colors.error, outline=self.synoptic.colors.error, tag=self.name)
-        m_args = dict(fill=self.synoptic.colors.error, outline=self.synoptic.colors.error, tag=self.name + '_HEAD')
         # build horizontal or vertical valve
         if self.align == 'h':
             # background
@@ -76,14 +74,22 @@ class SynValve(SynWidget):
             # head (motor)
             if self.motor:
                 self.tk_canvas.create_rectangle(self.x - 4 * self.zoom, self.y, self.x +
-                                                4 * self.zoom, self.y - 20 * self.zoom, **m_args)
+                                                4 * self.zoom, self.y - 20 * self.zoom,
+                                                fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                                tags=self.name + '_HEAD')
                 self.tk_canvas.create_rectangle(self.x - 10 * self.zoom, self.y - 16 * self.zoom,
-                                                self.x + 10 * self.zoom, self.y - 26 * self.zoom, **m_args)
+                                                self.x + 10 * self.zoom, self.y - 26 * self.zoom,
+                                                fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                                tags=self.name + '_HEAD')
             # body
             self.tk_canvas.create_polygon(self.x - 30 * self.zoom, self.y - 20 * self.zoom,
-                                          self.x, self.y, self.x - 30 * self.zoom, self.y + 20 * self.zoom, **b_args)
+                                          self.x, self.y, self.x - 30 * self.zoom, self.y + 20 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             self.tk_canvas.create_polygon(self.x + 30 * self.zoom, self.y - 20 * self.zoom,
-                                          self.x, self.y, self.x + 30 * self.zoom, self.y + 20 * self.zoom, **b_args)
+                                          self.x, self.y, self.x + 30 * self.zoom, self.y + 20 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             if self.label:
                 self.tk_canvas.create_text(self.x, self.y + 35 * self.zoom,
                                            text=self.label, font=self.tk_font, fill=self.synoptic.colors.valve_label)
@@ -94,15 +100,23 @@ class SynValve(SynWidget):
                                             fill=self.synoptic.colors.bg, outline=self.synoptic.colors.bg)
             # head (motor)
             if self.motor:
-                self.tk_canvas.create_rectangle(self.x, self.y - 4 * self.zoom, self.x -
-                                                20 * self.zoom, self.y + 4 * self.zoom, **m_args)
+                self.tk_canvas.create_rectangle(self.x, self.y - 4 * self.zoom,
+                                                self.x - 20 * self.zoom, self.y + 4 * self.zoom,
+                                                fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                                tags=self.name + '_HEAD')
                 self.tk_canvas.create_rectangle(self.x - 16 * self.zoom, self.y - 10 * self.zoom,
-                                                self.x - 26 * self.zoom, self.y + 10 * self.zoom, **m_args)
+                                                self.x - 26 * self.zoom, self.y + 10 * self.zoom,
+                                                fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                                tags=self.name + '_HEAD')
             # body
             self.tk_canvas.create_polygon(self.x - 20 * self.zoom, self.y - 30 * self.zoom,
-                                          self.x, self.y, self.x + 20 * self.zoom, self.y - 30 * self.zoom, **b_args)
+                                          self.x, self.y, self.x + 20 * self.zoom, self.y - 30 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             self.tk_canvas.create_polygon(self.x - 20 * self.zoom, self.y + 30 * self.zoom,
-                                          self.x, self.y, self.x + 20 * self.zoom, self.y + 30 * self.zoom, **b_args)
+                                          self.x, self.y, self.x + 20 * self.zoom, self.y + 30 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             if self.label:
                 self.tk_canvas.create_text(self.x + 35 * self.zoom, self.y,
                                            text=self.label, font=self.tk_font, fill=self.synoptic.colors.valve_label)
@@ -166,7 +180,6 @@ class SynFlowValve(SynWidget):
         self.tk_font = Font(size=round(12 * self.zoom))
 
     def build(self):
-        v_args = {'fill': self.synoptic.colors.error, 'outline': self.synoptic.colors.error, 'tag': self.name}
         h_args = {'fill': self.synoptic.colors.error, 'outline': self.synoptic.colors.error, 'tag': self.name + '_HEAD'}
         # build horizontal or vertical valve
         if self.align == 'h':
@@ -176,14 +189,22 @@ class SynFlowValve(SynWidget):
                                             fill=self.synoptic.colors.bg, outline=self.synoptic.colors.bg)
             # head
             self.tk_canvas.create_rectangle(self.x - 4 * self.zoom, self.y, self.x +
-                                            4 * self.zoom, self.y - 20 * self.zoom, **h_args)
+                                            4 * self.zoom, self.y - 20 * self.zoom,
+                                            fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                            tags=self.name+'_HEAD')
             self.tk_canvas.create_oval(self.x - 10 * self.zoom, self.y - 16 * self.zoom,
-                                       self.x + 10 * self.zoom, self.y - 36 * self.zoom, **h_args)
+                                       self.x + 10 * self.zoom, self.y - 36 * self.zoom,
+                                       fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                       tags=self.name+'_HEAD')
             # body
             self.tk_canvas.create_polygon(self.x - 30 * self.zoom, self.y - 20 * self.zoom,
-                                          self.x, self.y, self.x - 30 * self.zoom, self.y + 20 * self.zoom, **v_args)
+                                          self.x, self.y, self.x - 30 * self.zoom, self.y + 20 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             self.tk_canvas.create_polygon(self.x + 30 * self.zoom, self.y - 20 * self.zoom,
-                                          self.x, self.y, self.x + 30 * self.zoom, self.y + 20 * self.zoom, **v_args)
+                                          self.x, self.y, self.x + 30 * self.zoom, self.y + 20 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             # add a label
             if self.label:
                 self.tk_canvas.create_text(self.x, self.y + 35 * self.zoom,
@@ -196,14 +217,22 @@ class SynFlowValve(SynWidget):
                                             fill=self.synoptic.colors.bg, outline=self.synoptic.colors.bg)
             # head
             self.tk_canvas.create_rectangle(self.x, self.y - 4 * self.zoom, self.x -
-                                            20 * self.zoom, self.y + 4 * self.zoom, **h_args)
+                                            20 * self.zoom, self.y + 4 * self.zoom,
+                                            fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                            tags=self.name+'_HEAD')
             self.tk_canvas.create_oval(self.x - 16 * self.zoom, self.y - 10 * self.zoom,
-                                       self.x - 36 * self.zoom, self.y + 10 * self.zoom, **h_args)
+                                       self.x - 36 * self.zoom, self.y + 10 * self.zoom,
+                                       fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                       tags=self.name+'_HEAD')
             # body
             self.tk_canvas.create_polygon(self.x - 20 * self.zoom, self.y - 30 * self.zoom,
-                                          self.x, self.y, self.x + 20 * self.zoom, self.y - 30 * self.zoom, **v_args)
+                                          self.x, self.y, self.x + 20 * self.zoom, self.y - 30 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name)
             self.tk_canvas.create_polygon(self.x - 20 * self.zoom, self.y + 30 * self.zoom,
-                                          self.x, self.y, self.x + 20 * self.zoom, self.y + 30 * self.zoom, **v_args)
+                                          self.x, self.y, self.x + 20 * self.zoom, self.y + 30 * self.zoom,
+                                          fill=self.synoptic.colors.error, outline=self.synoptic.colors.error,
+                                          tags=self.name+'_HEAD')
             # add a label
             if self.label:
                 self.tk_canvas.create_text(self.x + 35 * self.zoom, self.y,

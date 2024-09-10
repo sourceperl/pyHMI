@@ -1,4 +1,4 @@
-""" Test of pyHMI.Misc. """
+""" Test of Misc """
 
 from pyHMI.Misc import swap_bytes, swap_words
 
