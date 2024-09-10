@@ -312,7 +312,7 @@ class HMICanvas(object):
             self.d_widget[key]['id_txt'] = self.can.create_text(
                 (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
                 text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key]['size'] + ' ' +
-                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
+                self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
             (x0, y0, x1, y1) = self.can.bbox(self.d_widget[key]['id_txt'])
             # draw background
             self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), fill=GRAY, outline=GRAY)
@@ -320,7 +320,7 @@ class HMICanvas(object):
             self.d_widget[key]['id_txt'] = self.can.create_text(
                 (self.d_widget[key]['x_pos'], self.d_widget[key]['y_pos']),
                 text=self.d_widget[key]['prefix'] + ' ' + '#' * self.d_widget[key]['size'] + ' ' +
-                     self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
+                self.d_widget[key]['suffix'], font=self.d_widget[key]['font'], fill=GREEN)
             # draw red outline
             self.can.create_rectangle((x0 - 5, y0 - 5, x1 + 5, y1 + 5), outline=RED, width=2)
             # value box label
@@ -334,9 +334,9 @@ class HMICanvas(object):
             v_key = self.d_widget[key]
             if not v_key['get_value']().err:
                 self.can.itemconfig(v_key['id_txt'], text=v_key['prefix'] + ' ' +
-                                                          v_key['fmt'].format(v_key['get_value']().val) + ' ' +
-                                                          v_key['suffix'], fill=GREEN)
+                                    v_key['fmt'].format(v_key['get_value']().val) + ' ' +
+                                    v_key['suffix'], fill=GREEN)
             else:
                 self.can.itemconfig(v_key['id_txt'], text=v_key['prefix'] + ' ' +
-                                                          v_key['fmt'].format(v_key['get_value']().val) + ' ' +
-                                                          v_key['suffix'], fill=PINK)
+                                    v_key['fmt'].format(v_key['get_value']().val) + ' ' +
+                                    v_key['suffix'], fill=PINK)
