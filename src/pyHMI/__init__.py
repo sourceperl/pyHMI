@@ -6,6 +6,6 @@
 #    Description: A set of class for easy build tkinter HMI with Python
 import logging
 
-__version__ = '0.1.3'
+__version__ = '0.1.4.dev0'
 
 logger = logging.getLogger(__name__)

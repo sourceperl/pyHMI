@@ -77,7 +77,7 @@ class SimPipe:
     +/- process_nm3h <-> [water_vol_m3] <-> +/- network_nm3h
     """
 
-    def __init__(self, init_p_bara: float = 50.0, water_vol_m3: int = 10_000, update_s: float = 0.1):
+    def __init__(self, init_p_bara: float = 50.0, water_vol_m3: float = 10_000.0, update_s: float = 0.1):
         # private
         self._stock_vol_m3 = water_vol_m3 * init_p_bara
         self._water_vol_m3 = water_vol_m3
