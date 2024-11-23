@@ -45,17 +45,26 @@ def cut_bytes_to_regs(value: Union[bytes, bytearray]) -> List[int]:
     return [int.from_bytes(x, byteorder='big') for x in cut_bytes(value, block_size=2)]
 
 
-def speed_ms(flow_nm3h: float, p_bara: float, dn_mm: int) -> float:
-    """Compute gas speed (m/s) from gas flow (nm3/h), pressure (bara) and a specific pipe DN (mm)"""
-    radius_m = (dn_mm/1000)/2
+def c_coef(p_bara: float, t_deg_c: float, z: float = 1.0,
+           p_bara_b: float = 1.01325, t_deg_c_b: float = 0.0, z_b: float = 1.0) -> float:
+    """Compute the value of the conversion coefficient from current measurement values.
+
+    default reference conditions are 1 ATM for pressure (1013.25 hPa), 0 °C for temperature and 1 for Zb.
+    """
+    return (p_bara/p_bara_b) * (celsius_to_kelvin(t_deg_c_b)/celsius_to_kelvin(t_deg_c)) * (z_b/z)
+
+
+def speed_ms(flow_m3h: float, dn_mm: float) -> float:
+    """Compute gas speed (m/s) from meter gas flow (raw m3/h) and a specific pipe DN (mm)"""
+    radius_m = (dn_mm/1_000)/2
     section = math.pi * radius_m**2
-    speed_mh = flow_nm3h/(p_bara * section)
-    return speed_mh/3600
+    speed_mh = flow_m3h/section
+    return speed_mh/3_600
 
 
 def water_volume_m3(lenght_m: int, dn_mm: int) -> float:
     """Compute water volume (m3) for a specific pipe DN (mm) and length (m)"""
-    radius_m = (dn_mm/1000)/2
+    radius_m = (dn_mm/1_000)/2
     return math.pi * radius_m**2 * lenght_m
 
 
